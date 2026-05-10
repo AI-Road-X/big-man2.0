@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>租车公司模拟</title>
-  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     * {
       margin: 0;
@@ -13,7 +13,7 @@
     }
 
     body {
-      font-family: 'JetBrains Mono', monospace;
+      font-family: 'JetBrains Mono', 'Noto Sans SC', monospace;
       overflow: hidden;
       background: #0a0a0f;
     }
@@ -62,7 +62,7 @@
     }
 
     #control-panel h2 {
-      font-family: 'Space Mono', monospace;
+      font-family: 'JetBrains Mono', monospace;
       font-size: 18px;
       font-weight: 700;
       color: #ffffff;
@@ -111,7 +111,7 @@
     }
 
     .stat-value {
-      font-family: 'Space Mono', monospace;
+      font-family: 'JetBrains Mono', monospace;
       font-size: 16px;
       font-weight: 700;
       color: #ffffff;
@@ -124,6 +124,30 @@
 
     .stat-value.fleet {
       color: #60a5fa;
+    }
+
+    .panel-btn {
+      margin-top: 20px;
+      width: 100%;
+      padding: 14px 20px;
+      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+      border: none;
+      border-radius: 12px;
+      color: #ffffff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .panel-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(255, 107, 53, 0.4);
     }
 
     #loading-screen {
@@ -161,7 +185,7 @@
 
     .loading-text {
       margin-top: 24px;
-      font-family: 'Space Mono', monospace;
+      font-family: 'JetBrains Mono', monospace;
       color: rgba(255, 255, 255, 0.6);
       font-size: 14px;
       letter-spacing: 2px;
@@ -180,7 +204,7 @@
       padding: 14px 20px;
       color: rgba(255, 255, 255, 0.5);
       font-size: 12px;
-      font-family: 'Space Mono', monospace;
+      font-family: 'JetBrains Mono', monospace;
       animation: fadeIn 1s ease 0.5s both;
     }
 
@@ -192,6 +216,514 @@
     #info-hint span {
       color: rgba(255, 255, 255, 0.8);
       margin-right: 8px;
+    }
+
+    /* 车队管理模态框样式 */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: none;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+      animation: modalFadeIn 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      display: flex;
+    }
+
+    @keyframes modalFadeIn {
+      from {
+        opacity: 0;
+      }
+      to {
+        opacity: 1;
+      }
+    }
+
+    .modal-container {
+      background: linear-gradient(145deg, #1a1a2e 0%, #0f0f1a 100%);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 24px;
+      width: 100%;
+      max-width: 1400px;
+      max-height: 90vh;
+      overflow: hidden;
+      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
+      animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes modalSlideUp {
+      from {
+        opacity: 0;
+        transform: translateY(40px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    .modal-header {
+      padding: 28px 32px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .modal-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 24px;
+      font-weight: 700;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .modal-title .icon {
+      font-size: 28px;
+    }
+
+    .close-btn {
+      width: 44px;
+      height: 44px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 20px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .close-btn:hover {
+      background: rgba(255, 107, 53, 0.2);
+      border-color: #ff6b35;
+      color: #ff6b35;
+      transform: rotate(90deg);
+    }
+
+    /* 市场切换标签 */
+    .market-tabs {
+      display: flex;
+      gap: 12px;
+      padding: 20px 32px;
+      background: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      overflow-x: auto;
+    }
+
+    .market-tab {
+      padding: 14px 24px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 14px;
+      color: rgba(255, 255, 255, 0.6);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .market-tab:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .market-tab.active {
+      background: linear-gradient(135deg, var(--tab-color, #3498db) 0%, var(--tab-color-dark, #2980b9) 100%);
+      border-color: var(--tab-color, #3498db);
+      color: #ffffff;
+      box-shadow: 0 4px 20px rgba(var(--tab-color-rgb, 52, 152, 219), 0.3);
+    }
+
+    .market-tab .badge {
+      padding: 2px 8px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      font-size: 11px;
+    }
+
+    .market-info-bar {
+      padding: 16px 32px;
+      background: rgba(255, 255, 255, 0.02);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .market-description {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.5);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .delivery-time {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.4);
+      background: rgba(255, 255, 255, 0.05);
+      padding: 6px 12px;
+      border-radius: 8px;
+    }
+
+    /* 车辆表格 */
+    .vehicle-table-wrapper {
+      max-height: calc(90vh - 280px);
+      overflow-y: auto;
+      padding: 20px 32px 32px;
+    }
+
+    .vehicle-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    .vehicle-table thead {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+    }
+
+    .vehicle-table th {
+      padding: 14px 16px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.4);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      background: rgba(0, 0, 0, 0.3);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .vehicle-table th:first-child {
+      border-radius: 12px 0 0 0;
+    }
+
+    .vehicle-table th:last-child {
+      border-radius: 0 12px 0 0;
+    }
+
+    .vehicle-table tbody tr {
+      transition: all 0.2s ease;
+    }
+
+    .vehicle-table tbody tr:hover {
+      background: rgba(255, 255, 255, 0.03);
+    }
+
+    .vehicle-table td {
+      padding: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+      vertical-align: middle;
+    }
+
+    .vehicle-info {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .vehicle-name {
+      font-size: 14px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .vehicle-brand {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .license-plate {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      color: #60a5fa;
+      background: rgba(96, 165, 250, 0.1);
+      padding: 4px 10px;
+      border-radius: 6px;
+      display: inline-block;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 5px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+
+    .tag-type {
+      background: rgba(52, 152, 219, 0.15);
+      color: #3498db;
+    }
+
+    .tag-fuel {
+      background: rgba(39, 174, 96, 0.15);
+      color: #27ae60;
+    }
+
+    .tag-new {
+      background: rgba(155, 89, 182, 0.15);
+      color: #9b59b6;
+    }
+
+    .tag-used {
+      background: rgba(230, 126, 34, 0.15);
+      color: #e67e22;
+    }
+
+    .tag-exclusive {
+      background: rgba(241, 196, 15, 0.15);
+      color: #f1c40f;
+    }
+
+    .residual-value {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .residual-bar {
+      width: 80px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .residual-fill {
+      height: 100%;
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .residual-text {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    .price {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 15px;
+      font-weight: 700;
+      color: #4ade80;
+    }
+
+    .price-original {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.3);
+      text-decoration: line-through;
+      margin-left: 6px;
+    }
+
+    .daily-rate {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .action-btn {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn-buy {
+      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+      color: #ffffff;
+    }
+
+    .btn-buy:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4);
+    }
+
+    .btn-buy:disabled {
+      background: rgba(255, 255, 255, 0.1);
+      color: rgba(255, 255, 255, 0.3);
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    .btn-sell {
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+      color: #ffffff;
+    }
+
+    .btn-sell:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+    }
+
+    /* 我的车队标签页 */
+    .my-fleet-table td:first-child {
+      border-radius: 12px 0 0 12px;
+    }
+
+    .my-fleet-table td:last-child {
+      border-radius: 0 12px 12px 0;
+    }
+
+    .owned-badge {
+      background: rgba(39, 174, 96, 0.2);
+      color: #2ecc71;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+
+    .condition-tag {
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 500;
+    }
+
+    .condition-excellent {
+      background: rgba(39, 174, 96, 0.2);
+      color: #2ecc71;
+    }
+
+    .condition-good {
+      background: rgba(52, 152, 219, 0.2);
+      color: #3498db;
+    }
+
+    .condition-average {
+      background: rgba(241, 196, 15, 0.2);
+      color: #f1c40f;
+    }
+
+    .condition-poor {
+      background: rgba(231, 76, 60, 0.2);
+      color: #e74c3c;
+    }
+
+    /* 提示消息 */
+    .toast {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-100px);
+      padding: 16px 28px;
+      border-radius: 14px;
+      font-size: 14px;
+      font-weight: 500;
+      z-index: 2000;
+      opacity: 0;
+      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    .toast.success {
+      background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);
+      color: #ffffff;
+      box-shadow: 0 10px 40px rgba(39, 174, 96, 0.4);
+    }
+
+    .toast.error {
+      background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+      color: #ffffff;
+      box-shadow: 0 10px 40px rgba(231, 76, 60, 0.4);
+    }
+
+    .toast.warning {
+      background: linear-gradient(135deg, #f39c12 0%, #e67e22 100%);
+      color: #ffffff;
+      box-shadow: 0 10px 40px rgba(243, 156, 18, 0.4);
+    }
+
+    /* 统计卡片 */
+    .stats-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      padding: 20px 32px;
+      background: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .stat-card {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 16px 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .stat-card-label {
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-card-value {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 22px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .stat-card-value.green { color: #4ade80; }
+    .stat-card-value.blue { color: #60a5fa; }
+    .stat-card-value.orange { color: #fb923c; }
+    .stat-card-value.purple { color: #a78bfa; }
+
+    /* 空状态 */
+    .empty-state {
+      padding: 60px 20px;
+      text-align: center;
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .empty-state .icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+    }
+
+    .empty-state .text {
+      font-size: 14px;
     }
   </style>
 </head>
@@ -217,21 +749,104 @@
       <span class="stat-label">总车队数量</span>
       <span class="stat-value fleet" id="fleet">0 辆</span>
     </div>
+    <button class="panel-btn" onclick="openFleetModal()">
+      🚗 车队管理
+    </button>
   </div>
 
   <div id="info-hint">
     <span>ⓘ</span> 拖拽旋转 · 滚轮缩放
   </div>
 
+  <!-- 车队管理模态框 -->
+  <div class="modal-overlay" id="fleetModal">
+    <div class="modal-container">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span class="icon">🚗</span>
+          车队管理系统
+        </div>
+        <button class="close-btn" onclick="closeFleetModal()">✕</button>
+      </div>
+
+      <div class="stats-row">
+        <div class="stat-card">
+          <span class="stat-card-label">公司现金</span>
+          <span class="stat-card-value green" id="modalCash">¥1,000,000</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">我的车队</span>
+          <span class="stat-card-value blue" id="modalFleet">0 辆</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">日均收入</span>
+          <span class="stat-card-value orange" id="modalRevenue">¥0</span>
+        </div>
+        <div class="stat-card">
+          <span class="stat-card-label">日均成本</span>
+          <span class="stat-card-value purple" id="modalCost">¥0</span>
+        </div>
+      </div>
+
+      <div class="market-tabs">
+        <button class="market-tab active" data-tab="local" onclick="switchTab('local')" style="--tab-color: #3498db; --tab-color-dark: #2980b9; --tab-color-rgb: 52, 152, 219;">
+          🏪 本地经销商
+          <span class="badge" id="localCount">22辆</span>
+        </button>
+        <button class="market-tab" data-tab="used" onclick="switchTab('used')" style="--tab-color: #e67e22; --tab-color-dark: #d35400; --tab-color-rgb: 230, 126, 34;">
+          🚗 二手车市场
+          <span class="badge" id="usedCount">12辆</span>
+        </button>
+        <button class="market-tab" data-tab="overseas" onclick="switchTab('overseas')" style="--tab-color: #9b59b6; --tab-color-dark: #8e44ad; --tab-color-rgb: 155, 89, 182;">
+          🌍 海外进口市场
+          <span class="badge" id="overseasCount">12辆</span>
+        </button>
+        <button class="market-tab" data-tab="myfleet" onclick="switchTab('myfleet')" style="--tab-color: #2ecc71; --tab-color-dark: #27ae60; --tab-color-rgb: 46, 204, 113;">
+          📋 我的车队
+          <span class="badge" id="myFleetCount">0辆</span>
+        </button>
+      </div>
+
+      <div class="market-info-bar" id="marketInfoBar">
+        <div class="market-description" id="marketDescription">
+          批量采购享95折优惠，即时交付
+        </div>
+        <div class="delivery-time" id="deliveryTime">⚡ 即时交付</div>
+      </div>
+
+      <div class="vehicle-table-wrapper">
+        <table class="vehicle-table" id="vehicleTable">
+          <thead>
+            <tr>
+              <th>车型信息</th>
+              <th>车牌</th>
+              <th>类型</th>
+              <th>保值率</th>
+              <th>采购价格</th>
+              <th>日租金</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="vehicleTableBody">
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="vehicles.js"></script>
 
   <script>
     const gameState = {
       cash: 1000000,
       totalFleet: 0,
       currentMonth: 1,
-      outlets: []
+      outlets: [],
+      ownedVehicles: []
     };
 
     const outletColors = [
@@ -246,6 +861,7 @@
 
     let scene, camera, renderer, controls;
     const outlets = [];
+    let currentTab = 'local';
 
     function init() {
       const container = document.getElementById('canvas-container');
@@ -486,7 +1102,302 @@
       document.getElementById('month').textContent = monthNames[monthIndex];
       document.getElementById('cash').textContent = formatCurrency(gameState.cash);
       document.getElementById('fleet').textContent = gameState.totalFleet + ' 辆';
+      document.getElementById('modalCash').textContent = formatCurrency(gameState.cash);
+      document.getElementById('modalFleet').textContent = gameState.totalFleet + ' 辆';
+      document.getElementById('myFleetCount').textContent = gameState.totalFleet + '辆';
+
+      const revenue = gameState.ownedVehicles.reduce((sum, v) => sum + v.dailyRate, 0);
+      const cost = gameState.ownedVehicles.reduce((sum, v) => sum + v.fuelCostPerDay + v.maintenanceCostPerDay, 0);
+      document.getElementById('modalRevenue').textContent = formatCurrency(revenue);
+      document.getElementById('modalCost').textContent = formatCurrency(cost);
     }
+
+    function openFleetModal() {
+      document.getElementById('fleetModal').classList.add('active');
+      updateVehicleCounts();
+      switchTab('local');
+    }
+
+    function closeFleetModal() {
+      document.getElementById('fleetModal').classList.remove('active');
+    }
+
+    function updateVehicleCounts() {
+      const localVehicles = getVehiclesByMarket(MARKET_TYPES.LOCAL_DEALER);
+      const usedVehicles = getVehiclesByMarket(MARKET_TYPES.USED_CAR);
+      const overseasVehicles = getVehiclesByMarket(MARKET_TYPES.OVERSEAS);
+
+      document.getElementById('localCount').textContent = localVehicles.length + '辆';
+      document.getElementById('usedCount').textContent = usedVehicles.length + '辆';
+      document.getElementById('overseasCount').textContent = overseasVehicles.length + '辆';
+      document.getElementById('myFleetCount').textContent = gameState.totalFleet + '辆';
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      document.querySelectorAll('.market-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === tab);
+      });
+
+      const marketInfo = getMarketInfo();
+      const infoBar = document.getElementById('marketInfoBar');
+      const descEl = document.getElementById('marketDescription');
+      const timeEl = document.getElementById('deliveryTime');
+
+      if (tab === 'myfleet') {
+        infoBar.style.display = 'none';
+        renderMyFleet();
+      } else {
+        infoBar.style.display = 'flex';
+        const market = marketInfo[tab];
+        descEl.innerHTML = market.icon + ' ' + market.description;
+        timeEl.textContent = '⏱️ ' + market.deliveryTime;
+
+        if (tab === MARKET_TYPES.LOCAL_DEALER) {
+          renderVehicles(getVehiclesByMarket(MARKET_TYPES.LOCAL_DEALER), 'buy');
+        } else if (tab === MARKET_TYPES.USED_CAR) {
+          renderUsedCars(getVehiclesByMarket(MARKET_TYPES.USED_CAR));
+        } else if (tab === MARKET_TYPES.OVERSEAS) {
+          renderVehicles(getVehiclesByMarket(MARKET_TYPES.OVERSEAS), 'buy');
+        }
+      }
+    }
+
+    function renderVehicles(vehicles, action) {
+      const tbody = document.getElementById('vehicleTableBody');
+      tbody.innerHTML = '';
+
+      vehicles.forEach(v => {
+        const fuelInfo = getFuelTypeInfo(v.fuelType);
+        const typeInfo = getVehicleTypeInfo(v.type);
+        const residualInfo = getResidualValueInfo(v.residualValue);
+        const isOwned = gameState.ownedVehicles.some(owned => owned.id === v.id);
+        const canAfford = gameState.cash >= v.purchasePrice;
+
+        let priceHtml = `<span class="price">${formatCurrency(v.purchasePrice)}</span>`;
+
+        let actionHtml = '';
+        if (action === 'buy') {
+          actionHtml = `<button class="action-btn btn-buy" onclick="buyVehicle('${v.id}')" ${!canAfford || isOwned ? 'disabled' : ''}>
+            ${isOwned ? '已拥有' : (canAfford ? '购买' : '资金不足')}
+          </button>`;
+        }
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>
+            <div class="vehicle-info">
+              <span class="vehicle-name">${v.brand} ${v.model}</span>
+              <span class="vehicle-brand">${v.year}款 · ${v.fuelConsumption}${v.fuelType === FUEL_TYPES.ELECTRIC ? 'kWh' : 'L'}/100km</span>
+            </div>
+          </td>
+          <td><span class="license-plate">${v.licensePlate}</span></td>
+          <td>
+            <span class="tag tag-type">${typeInfo.text}</span>
+            <span class="tag tag-fuel">${fuelInfo.icon} ${fuelInfo.text}</span>
+            ${v.isExclusive ? '<span class="tag tag-exclusive">⭐ 独家</span>' : ''}
+          </td>
+          <td>
+            <div class="residual-value">
+              <div class="residual-bar">
+                <div class="residual-fill" style="width: ${residualInfo.percentage}%; background: ${residualInfo.color};"></div>
+              </div>
+              <span class="residual-text" style="color: ${residualInfo.color};">${residualInfo.percentage}% · ${residualInfo.level}</span>
+            </div>
+          </td>
+          <td>${priceHtml}</td>
+          <td><span class="daily-rate">${formatCurrency(v.dailyRate)}/天</span></td>
+          <td>${actionHtml}</td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function renderUsedCars(vehicles) {
+      const tbody = document.getElementById('vehicleTableBody');
+      tbody.innerHTML = '';
+
+      vehicles.forEach(v => {
+        const fuelInfo = getFuelTypeInfo(v.fuelType);
+        const typeInfo = getVehicleTypeInfo(v.type);
+        const residualInfo = getResidualValueInfo(v.residualValue);
+        const isOwned = gameState.ownedVehicles.some(owned => owned.id === v.id);
+        const currentValue = calculateVehicleValue(v);
+        const canAfford = gameState.cash >= currentValue;
+
+        let conditionClass = 'condition-good';
+        if (v.condition === CONDITION_LEVELS.EXCELLENT) conditionClass = 'condition-excellent';
+        else if (v.condition === CONDITION_LEVELS.AVERAGE) conditionClass = 'condition-average';
+        else if (v.condition === CONDITION_LEVELS.POOR) conditionClass = 'condition-poor';
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>
+            <div class="vehicle-info">
+              <span class="vehicle-name">${v.brand} ${v.model}</span>
+              <span class="vehicle-brand">${v.year}款 · ${v.mileage.toLocaleString()}km · ${v.age}年车龄</span>
+            </div>
+          </td>
+          <td><span class="license-plate">${v.licensePlate}</span></td>
+          <td>
+            <span class="tag tag-type">${typeInfo.text}</span>
+            <span class="tag tag-fuel">${fuelInfo.icon} ${fuelInfo.text}</span>
+            <span class="tag tag-used">二手车</span>
+            <span class="condition-tag ${conditionClass}">${v.condition}</span>
+          </td>
+          <td>
+            <div class="residual-value">
+              <div class="residual-bar">
+                <div class="residual-fill" style="width: ${residualInfo.percentage}%; background: ${residualInfo.color};"></div>
+              </div>
+              <span class="residual-text" style="color: ${residualInfo.color};">${residualInfo.percentage}% · ${residualInfo.level}</span>
+            </div>
+          </td>
+          <td><span class="price">${formatCurrency(currentValue)}</span></td>
+          <td><span class="daily-rate">${formatCurrency(v.dailyRate)}/天</span></td>
+          <td>
+            <button class="action-btn btn-buy" onclick="buyVehicle('${v.id}', true)" ${!canAfford || isOwned ? 'disabled' : ''}>
+              ${isOwned ? '已拥有' : (canAfford ? '购买' : '资金不足')}
+            </button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function renderMyFleet() {
+      const tbody = document.getElementById('vehicleTableBody');
+
+      if (gameState.ownedVehicles.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7">
+              <div class="empty-state">
+                <div class="icon">🚗</div>
+                <div class="text">暂无车辆，前往市场购买吧！</div>
+              </div>
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = '';
+      gameState.ownedVehicles.forEach(v => {
+        const fuelInfo = getFuelTypeInfo(v.fuelType);
+        const typeInfo = getVehicleTypeInfo(v.type);
+        const currentValue = calculateVehicleValue(v);
+        const sellPrice = Math.round(currentValue * 0.85);
+
+        let conditionHtml = '';
+        if (!v.isNew) {
+          let conditionClass = 'condition-good';
+          if (v.condition === CONDITION_LEVELS.EXCELLENT) conditionClass = 'condition-excellent';
+          else if (v.condition === CONDITION_LEVELS.AVERAGE) conditionClass = 'condition-average';
+          else if (v.condition === CONDITION_LEVELS.POOR) conditionClass = 'condition-poor';
+          conditionHtml = `<span class="condition-tag ${conditionClass}">${v.condition}</span>`;
+        }
+
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>
+            <div class="vehicle-info">
+              <span class="vehicle-name">${v.brand} ${v.model}</span>
+              <span class="vehicle-brand">${v.year}款 · ${v.isNew ? '新车' : v.mileage.toLocaleString() + 'km'}</span>
+            </div>
+          </td>
+          <td><span class="license-plate">${v.licensePlate}</span></td>
+          <td>
+            <span class="tag tag-type">${typeInfo.text}</span>
+            <span class="tag tag-fuel">${fuelInfo.icon} ${fuelInfo.text}</span>
+            <span class="owned-badge">已购入</span>
+            ${conditionHtml}
+          </td>
+          <td><span style="color: #60a5fa;">当前估值 ${formatCurrency(currentValue)}</span></td>
+          <td><span class="price">${formatCurrency(sellPrice)}</span></td>
+          <td><span class="daily-rate">${formatCurrency(v.dailyRate)}/天</span></td>
+          <td>
+            <button class="action-btn btn-sell" onclick="sellVehicle('${v.id}')">
+              出售
+            </button>
+          </td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+
+    function buyVehicle(vehicleId, isUsed = false) {
+      const vehicle = getVehicleById(vehicleId);
+      if (!vehicle) return;
+
+      const purchasePrice = isUsed ? calculateVehicleValue(vehicle) : vehicle.purchasePrice;
+
+      if (gameState.cash < purchasePrice) {
+        showToast('资金不足，无法购买！', 'error');
+        return;
+      }
+
+      if (gameState.ownedVehicles.some(v => v.id === vehicle.id)) {
+        showToast('该车辆已在车队中！', 'warning');
+        return;
+      }
+
+      gameState.cash -= purchasePrice;
+      gameState.totalFleet += 1;
+
+      const purchasedVehicle = {
+        ...vehicle,
+        purchasePrice: purchasePrice,
+        purchaseDate: new Date().toISOString()
+      };
+      gameState.ownedVehicles.push(purchasedVehicle);
+
+      updateUI();
+      updateVehicleCounts();
+      switchTab(currentTab);
+
+      const marketName = isUsed ? '二手车市场' :
+                        vehicle.market === MARKET_TYPES.OVERSEAS ? '海外进口市场' : '本地经销商';
+      showToast(`成功购买 ${vehicle.brand} ${vehicle.model}！- ${formatCurrency(purchasePrice)}`, 'success');
+    }
+
+    function sellVehicle(vehicleId) {
+      const index = gameState.ownedVehicles.findIndex(v => v.id === vehicleId);
+      if (index === -1) return;
+
+      const vehicle = gameState.ownedVehicles[index];
+      const currentValue = calculateVehicleValue(vehicle);
+      const sellPrice = Math.round(currentValue * 0.85);
+
+      gameState.cash += sellPrice;
+      gameState.totalFleet -= 1;
+      gameState.ownedVehicles.splice(index, 1);
+
+      updateUI();
+      updateVehicleCounts();
+      switchTab('myfleet');
+
+      showToast(`成功出售 ${vehicle.brand} ${vehicle.model}！+ ${formatCurrency(sellPrice)}`, 'success');
+    }
+
+    function showToast(message, type = 'success') {
+      const toast = document.getElementById('toast');
+      toast.className = 'toast ' + type;
+      toast.innerHTML = type === 'success' ? '✓ ' + message :
+                       type === 'error' ? '✕ ' + message :
+                       '⚠ ' + message;
+      toast.classList.add('show');
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+      }, 3000);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        closeFleetModal();
+      }
+    });
 
     window.addEventListener('DOMContentLoaded', () => {
       init();
