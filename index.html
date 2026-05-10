@@ -7,692 +7,305 @@
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      font-family: 'JetBrains Mono', 'Noto Sans SC', monospace;
-      overflow: hidden;
-      background: #0a0a0f;
-    }
-
-    #canvas-container {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      z-index: 1;
-    }
+    body { font-family: 'JetBrains Mono', 'Noto Sans SC', monospace; overflow: hidden; background: #0a0a0f; }
+    #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; }
 
     #control-panel {
-      position: fixed;
-      bottom: 24px; right: 24px;
-      z-index: 100;
-      background: rgba(255, 255, 255, 0.12);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid rgba(255, 255, 255, 0.18);
-      border-radius: 20px;
-      padding: 24px 28px;
-      min-width: 260px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
-      animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+      position: fixed; bottom: 24px; right: 24px; z-index: 100;
+      background: rgba(255,255,255,0.12); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255,255,255,0.18); border-radius: 20px; padding: 24px 28px; min-width: 260px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1);
+      animation: slideIn 0.6s cubic-bezier(0.16,1,0.3,1);
     }
-
-    @keyframes slideIn {
-      from { opacity: 0; transform: translateY(30px) scale(0.95); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
-    @keyframes pulse {
-      0%, 100% { opacity: 1; }
-      50% { opacity: 0.6; }
-    }
-
+    @keyframes slideIn { from { opacity: 0; transform: translateY(30px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.6; } }
     #control-panel h2 {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 16px;
-      font-weight: 700;
-      color: #ffffff;
-      margin-bottom: 16px;
-      padding-bottom: 12px;
-      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
-      display: flex;
-      align-items: center;
-      gap: 10px;
+      font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 16px; padding-bottom: 12px;
+      border-bottom: 2px solid rgba(255,255,255,0.1); display: flex; align-items: center; gap: 10px;
     }
-
-    #control-panel h2::before {
-      content: '';
-      width: 8px; height: 8px;
-      background: #ff6b35;
-      border-radius: 50%;
-      animation: pulse 2s infinite;
-    }
-
-    .stat {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 8px 0;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-    }
-
+    #control-panel h2::before { content: ''; width: 8px; height: 8px; background: #ff6b35; border-radius: 50%; animation: pulse 2s infinite; }
+    .stat { display: flex; justify-content: space-between; align-items: center; padding: 8px 0; border-bottom: 1px solid rgba(255,255,255,0.06); }
     .stat:last-of-type { border-bottom: none; }
-
-    .stat:hover {
-      background: rgba(255, 255, 255, 0.05);
-      margin: 0 -8px;
-      padding: 8px 8px;
-      border-radius: 8px;
-    }
-
-    .stat-label {
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.6);
-      letter-spacing: 0.5px;
-    }
-
-    .stat-value {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 14px;
-      font-weight: 700;
-      color: #ffffff;
-    }
-
-    .stat-value.cash { color: #4ade80; }
-    .stat-value.fleet { color: #60a5fa; }
-    .stat-value.income { color: #fbbf24; }
-    .stat-value.expense { color: #f87171; }
-
+    .stat:hover { background: rgba(255,255,255,0.05); margin: 0 -8px; padding: 8px 8px; border-radius: 8px; }
+    .stat-label { font-size: 12px; color: rgba(255,255,255,0.6); letter-spacing: 0.5px; }
+    .stat-value { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: #fff; }
+    .stat-value.cash { color: #4ade80; } .stat-value.fleet { color: #60a5fa; }
+    .stat-value.income { color: #fbbf24; } .stat-value.expense { color: #f87171; }
     .panel-btn {
-      margin-top: 12px;
-      width: 100%;
-      padding: 12px 16px;
-      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
-      border: none;
-      border-radius: 10px;
-      color: #ffffff;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 13px;
-      font-weight: 700;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
+      margin-top: 8px; width: 100%; padding: 12px 16px;
+      background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); border: none; border-radius: 10px;
+      color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700;
+      cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; gap: 8px;
     }
-
-    .panel-btn:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 6px 20px rgba(255, 107, 53, 0.4);
-    }
-
-    .panel-btn.next-day {
-      background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%);
-      margin-top: 8px;
-    }
-
-    .panel-btn.next-day:hover {
-      box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
-    }
-
-    .panel-btn.orders {
-      background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
-      margin-top: 8px;
-      position: relative;
-    }
-
-    .panel-btn.orders:hover {
-      box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
-    }
-
+    .panel-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(255,107,53,0.4); }
+    .panel-btn.next-day { background: linear-gradient(135deg, #3b82f6 0%, #6366f1 100%); }
+    .panel-btn.next-day:hover { box-shadow: 0 6px 20px rgba(59,130,246,0.4); }
+    .panel-btn.orders { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); position: relative; }
+    .panel-btn.orders:hover { box-shadow: 0 6px 20px rgba(245,158,11,0.4); }
     .order-badge {
-      position: absolute;
-      top: -6px; right: -6px;
-      background: #ef4444;
-      color: #fff;
-      font-size: 11px;
-      min-width: 20px; height: 20px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      animation: pulse 1.5s infinite;
+      position: absolute; top: -6px; right: -6px; background: #ef4444; color: #fff; font-size: 11px;
+      min-width: 20px; height: 20px; border-radius: 10px; display: flex; align-items: center; justify-content: center;
+      font-weight: 700; animation: pulse 1.5s infinite;
     }
-
     .order-badge:empty { display: none; }
 
     #loading-screen {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: #0a0a0f;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 1000;
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #0a0a0f;
+      display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000;
       transition: opacity 0.8s ease, visibility 0.8s ease;
     }
-
     #loading-screen.hidden { opacity: 0; visibility: hidden; }
-
-    .loader {
-      width: 60px; height: 60px;
-      border: 3px solid rgba(255, 255, 255, 0.1);
-      border-top-color: #ff6b35;
-      border-radius: 50%;
-      animation: spin 1s linear infinite;
-    }
-
+    .loader { width: 60px; height: 60px; border: 3px solid rgba(255,255,255,0.1); border-top-color: #ff6b35; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .loading-text { margin-top: 24px; font-family: 'JetBrains Mono', monospace; color: rgba(255,255,255,0.6); font-size: 14px; letter-spacing: 2px; }
 
-    .loading-text {
-      margin-top: 24px;
-      font-family: 'JetBrains Mono', monospace;
-      color: rgba(255, 255, 255, 0.6);
-      font-size: 14px;
-      letter-spacing: 2px;
-    }
-
-    #info-hint {
-      position: fixed;
-      bottom: 24px; left: 24px;
-      z-index: 100;
-      background: rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      padding: 14px 20px;
-      color: rgba(255, 255, 255, 0.5);
-      font-size: 12px;
-      animation: fadeIn 1s ease 0.5s both;
-    }
-
-    @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-
-    #info-hint span { color: rgba(255, 255, 255, 0.8); margin-right: 8px; }
-
-    /* 消息栏 */
     #message-log {
-      position: fixed;
-      top: 24px; left: 24px;
-      z-index: 100;
-      width: 380px;
-      max-height: 320px;
-      background: rgba(10, 10, 15, 0.9);
-      backdrop-filter: blur(16px);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 16px;
-      overflow: hidden;
-      animation: fadeIn 1s ease 0.8s both;
+      position: fixed; top: 24px; left: 24px; z-index: 100; width: 380px; max-height: 320px;
+      background: rgba(10,10,15,0.9); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px; overflow: hidden; animation: fadeIn 1s ease 0.8s both;
     }
-
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
     .msg-header {
-      padding: 12px 18px;
-      font-size: 12px;
-      font-weight: 700;
-      color: rgba(255, 255, 255, 0.5);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      text-transform: uppercase;
-      letter-spacing: 1px;
+      padding: 12px 18px; font-size: 12px; font-weight: 700; color: rgba(255,255,255,0.5);
+      border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center;
+      text-transform: uppercase; letter-spacing: 1px;
     }
+    .msg-clear { font-size: 11px; color: rgba(255,255,255,0.3); cursor: pointer; transition: color 0.2s; background: none; border: none; font-family: inherit; }
+    .msg-clear:hover { color: rgba(255,255,255,0.7); }
+    .msg-body { max-height: 270px; overflow-y: auto; padding: 8px 0; }
+    .msg-body::-webkit-scrollbar { width: 4px; } .msg-body::-webkit-scrollbar-track { background: transparent; } .msg-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+    .msg-item { padding: 6px 18px; font-size: 12px; color: rgba(255,255,255,0.55); line-height: 1.5; border-bottom: 1px solid rgba(255,255,255,0.02); animation: msgSlideIn 0.3s ease; }
+    @keyframes msgSlideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
+    .msg-item .msg-time { color: rgba(255,255,255,0.25); margin-right: 6px; font-size: 10px; }
+    .msg-item .msg-highlight { color: #4ade80; font-weight: 600; } .msg-item .msg-warn { color: #fbbf24; font-weight: 600; } .msg-item .msg-bad { color: #f87171; font-weight: 600; }
 
-    .msg-clear {
-      font-size: 11px;
-      color: rgba(255, 255, 255, 0.3);
-      cursor: pointer;
-      transition: color 0.2s;
-      background: none;
-      border: none;
-      font-family: inherit;
-    }
-
-    .msg-clear:hover { color: rgba(255, 255, 255, 0.7); }
-
-    .msg-body {
-      max-height: 270px;
-      overflow-y: auto;
-      padding: 8px 0;
-    }
-
-    .msg-body::-webkit-scrollbar { width: 4px; }
-    .msg-body::-webkit-scrollbar-track { background: transparent; }
-    .msg-body::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
-
-    .msg-item {
-      padding: 6px 18px;
-      font-size: 12px;
-      color: rgba(255, 255, 255, 0.55);
-      line-height: 1.5;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.02);
-      animation: msgSlideIn 0.3s ease;
-    }
-
-    @keyframes msgSlideIn {
-      from { opacity: 0; transform: translateX(-10px); }
-      to { opacity: 1; transform: translateX(0); }
-    }
-
-    .msg-item .msg-time {
-      color: rgba(255, 255, 255, 0.25);
-      margin-right: 6px;
-      font-size: 10px;
-    }
-
-    .msg-item .msg-highlight { color: #4ade80; font-weight: 600; }
-    .msg-item .msg-warn { color: #fbbf24; font-weight: 600; }
-    .msg-item .msg-bad { color: #f87171; font-weight: 600; }
-
-    /* 模态框通用 */
     .modal-overlay {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0, 0, 0, 0.85);
-      backdrop-filter: blur(8px);
-      z-index: 1000;
-      display: none;
-      justify-content: center;
-      align-items: center;
-      padding: 20px;
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85);
+      backdrop-filter: blur(8px); z-index: 1000; display: none; justify-content: center; align-items: center; padding: 20px;
     }
-
     .modal-overlay.active { display: flex; }
-
     .modal-container {
-      background: linear-gradient(145deg, #1a1a2e 0%, #0f0f1a 100%);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 24px;
-      width: 100%;
-      max-width: 1400px;
-      max-height: 90vh;
-      overflow: hidden;
-      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.6);
-      animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      background: linear-gradient(145deg, #1a1a2e 0%, #0f0f1a 100%); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 24px; width: 100%; max-width: 1400px; max-height: 90vh; overflow: hidden;
+      box-shadow: 0 25px 80px rgba(0,0,0,0.6); animation: modalSlideUp 0.4s cubic-bezier(0.16,1,0.3,1);
     }
-
-    @keyframes modalSlideUp {
-      from { opacity: 0; transform: translateY(40px) scale(0.95); }
-      to { opacity: 1; transform: translateY(0) scale(1); }
-    }
-
+    @keyframes modalSlideUp { from { opacity: 0; transform: translateY(40px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
     .modal-header {
-      padding: 24px 28px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: rgba(255, 255, 255, 0.02);
+      padding: 24px 28px; border-bottom: 1px solid rgba(255,255,255,0.08); display: flex;
+      justify-content: space-between; align-items: center; background: rgba(255,255,255,0.02);
     }
-
-    .modal-title {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 22px;
-      font-weight: 700;
-      color: #ffffff;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
+    .modal-title { font-size: 22px; font-weight: 700; color: #fff; display: flex; align-items: center; gap: 12px; }
     .modal-title .icon { font-size: 26px; }
-
     .close-btn {
-      width: 40px; height: 40px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 10px;
-      color: rgba(255, 255, 255, 0.7);
-      font-size: 18px;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+      width: 40px; height: 40px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 10px; color: rgba(255,255,255,0.7); font-size: 18px; cursor: pointer; transition: all 0.3s ease;
+      display: flex; align-items: center; justify-content: center;
     }
+    .close-btn:hover { background: rgba(255,107,53,0.2); border-color: #ff6b35; color: #ff6b35; transform: rotate(90deg); }
 
-    .close-btn:hover {
-      background: rgba(255, 107, 53, 0.2);
-      border-color: #ff6b35;
-      color: #ff6b35;
-      transform: rotate(90deg);
-    }
-
-    /* 市场切换标签 */
-    .market-tabs {
-      display: flex;
-      gap: 10px;
-      padding: 16px 28px;
-      background: rgba(0, 0, 0, 0.2);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      overflow-x: auto;
-    }
-
+    .market-tabs { display: flex; gap: 10px; padding: 16px 28px; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.05); overflow-x: auto; }
     .market-tab {
-      padding: 12px 20px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 12px;
-      color: rgba(255, 255, 255, 0.6);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.3s ease;
-      white-space: nowrap;
-      display: flex;
-      align-items: center;
-      gap: 8px;
+      padding: 12px 20px; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px; color: rgba(255,255,255,0.6); font-family: 'JetBrains Mono', monospace;
+      font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.3s ease; white-space: nowrap;
+      display: flex; align-items: center; gap: 8px;
     }
-
-    .market-tab:hover { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.9); }
-
+    .market-tab:hover { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.9); }
     .market-tab.active {
-      background: linear-gradient(135deg, var(--tab-color, #3498db) 0%, var(--tab-color-dark, #2980b9) 100%);
-      border-color: var(--tab-color, #3498db);
-      color: #ffffff;
-      box-shadow: 0 4px 20px rgba(var(--tab-color-rgb, 52, 152, 219), 0.3);
+      background: linear-gradient(135deg, var(--tab-color,#3498db) 0%, var(--tab-color-dark,#2980b9) 100%);
+      border-color: var(--tab-color,#3498db); color: #fff;
+      box-shadow: 0 4px 20px rgba(var(--tab-color-rgb,52,152,219),0.3);
     }
-
-    .market-tab .badge {
-      padding: 2px 8px;
-      background: rgba(255, 255, 255, 0.2);
-      border-radius: 6px;
-      font-size: 10px;
-    }
+    .market-tab .badge { padding: 2px 8px; background: rgba(255,255,255,0.2); border-radius: 6px; font-size: 10px; }
 
     .market-info-bar {
-      padding: 14px 28px;
-      background: rgba(255, 255, 255, 0.02);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+      padding: 14px 28px; background: rgba(255,255,255,0.02); border-bottom: 1px solid rgba(255,255,255,0.05);
+      display: flex; justify-content: space-between; align-items: center;
     }
-
-    .market-description { font-size: 12px; color: rgba(255, 255, 255, 0.5); display: flex; align-items: center; gap: 8px; }
-    .delivery-time { font-size: 11px; color: rgba(255, 255, 255, 0.4); background: rgba(255, 255, 255, 0.05); padding: 5px 10px; border-radius: 8px; }
-
-    /* 车辆表格 */
-    .vehicle-table-wrapper {
-      max-height: calc(90vh - 260px);
-      overflow-y: auto;
-      padding: 16px 28px 28px;
+    .market-description { font-size: 12px; color: rgba(255,255,255,0.5); display: flex; align-items: center; gap: 8px; }
+    .delivery-time { font-size: 11px; color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.05); padding: 5px 10px; border-radius: 8px; }
+    .refresh-btn {
+      padding: 8px 16px; background: linear-gradient(135deg, #e67e22, #d35400); border: none; border-radius: 8px;
+      color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 600;
+      cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px;
     }
+    .refresh-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(230,126,34,0.4); }
 
+    .vehicle-table-wrapper { max-height: calc(90vh - 260px); overflow-y: auto; padding: 16px 28px 28px; }
     .vehicle-table { width: 100%; border-collapse: separate; border-spacing: 0; }
     .vehicle-table thead { position: sticky; top: 0; z-index: 10; }
-
     .vehicle-table th {
-      padding: 12px 14px;
-      text-align: left;
-      font-size: 10px;
-      font-weight: 600;
-      color: rgba(255, 255, 255, 0.4);
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      background: rgba(0, 0, 0, 0.3);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 12px 14px; text-align: left; font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.4);
+      text-transform: uppercase; letter-spacing: 1px; background: rgba(0,0,0,0.3); border-bottom: 1px solid rgba(255,255,255,0.08);
     }
-
-    .vehicle-table th:first-child { border-radius: 10px 0 0 0; }
-    .vehicle-table th:last-child { border-radius: 0 10px 0 0; }
-
-    .vehicle-table tbody tr { transition: all 0.2s ease; }
-    .vehicle-table tbody tr:hover { background: rgba(255, 255, 255, 0.03); }
-
-    .vehicle-table td {
-      padding: 14px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-      vertical-align: middle;
-    }
-
+    .vehicle-table th:first-child { border-radius: 10px 0 0 0; } .vehicle-table th:last-child { border-radius: 0 10px 0 0; }
+    .vehicle-table tbody tr { transition: all 0.2s ease; } .vehicle-table tbody tr:hover { background: rgba(255,255,255,0.03); }
+    .vehicle-table td { padding: 14px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
     .vehicle-info { display: flex; flex-direction: column; gap: 3px; }
-    .vehicle-name { font-size: 13px; font-weight: 600; color: #ffffff; }
-    .vehicle-brand { font-size: 11px; color: rgba(255, 255, 255, 0.4); }
-
-    .license-plate {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 12px;
-      color: #60a5fa;
-      background: rgba(96, 165, 250, 0.1);
-      padding: 3px 8px;
-      border-radius: 5px;
-      display: inline-block;
-    }
-
+    .vehicle-name { font-size: 13px; font-weight: 600; color: #fff; }
+    .vehicle-brand { font-size: 11px; color: rgba(255,255,255,0.4); }
+    .license-plate { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #60a5fa; background: rgba(96,165,250,0.1); padding: 3px 8px; border-radius: 5px; display: inline-block; }
     .tag { display: inline-flex; align-items: center; gap: 3px; padding: 4px 8px; border-radius: 6px; font-size: 11px; font-weight: 500; }
-    .tag-type { background: rgba(52, 152, 219, 0.15); color: #3498db; }
-    .tag-fuel { background: rgba(39, 174, 96, 0.15); color: #27ae60; }
-    .tag-used { background: rgba(230, 126, 34, 0.15); color: #e67e22; }
-    .tag-exclusive { background: rgba(241, 196, 15, 0.15); color: #f1c40f; }
-
+    .tag-type { background: rgba(52,152,219,0.15); color: #3498db; } .tag-fuel { background: rgba(39,174,96,0.15); color: #27ae60; }
+    .tag-used { background: rgba(230,126,34,0.15); color: #e67e22; } .tag-exclusive { background: rgba(241,196,15,0.15); color: #f1c40f; }
     .residual-value { display: flex; flex-direction: column; gap: 3px; }
-    .residual-bar { width: 70px; height: 5px; background: rgba(255, 255, 255, 0.1); border-radius: 3px; overflow: hidden; }
+    .residual-bar { width: 70px; height: 5px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden; }
     .residual-fill { height: 100%; border-radius: 3px; transition: width 0.3s ease; }
-    .residual-text { font-size: 10px; color: rgba(255, 255, 255, 0.5); }
-
+    .residual-text { font-size: 10px; color: rgba(255,255,255,0.5); }
     .price { font-family: 'JetBrains Mono', monospace; font-size: 14px; font-weight: 700; color: #4ade80; }
-    .daily-rate { font-size: 12px; color: rgba(255, 255, 255, 0.6); }
-
+    .daily-rate { font-size: 12px; color: rgba(255,255,255,0.6); }
     .action-btn {
-      padding: 8px 16px;
-      border: none;
-      border-radius: 8px;
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 11px;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s ease;
+      padding: 8px 16px; border: none; border-radius: 8px; font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.3s ease;
     }
-
-    .btn-buy { background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%); color: #ffffff; }
-    .btn-buy:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(39, 174, 96, 0.4); }
-    .btn-buy:disabled { background: rgba(255, 255, 255, 0.1); color: rgba(255, 255, 255, 0.3); cursor: not-allowed; transform: none; box-shadow: none; }
-
-    .btn-sell { background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%); color: #ffffff; }
-    .btn-sell:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4); }
-
-    .owned-badge { background: rgba(39, 174, 96, 0.2); color: #2ecc71; padding: 3px 8px; border-radius: 5px; font-size: 11px; font-weight: 600; }
-
+    .btn-buy { background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff; }
+    .btn-buy:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(39,174,96,0.4); }
+    .btn-buy:disabled { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.3); cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-sell { background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; }
+    .btn-sell:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(231,76,60,0.4); }
+    .btn-dispatch { background: linear-gradient(135deg, #3498db, #2980b9); color: #fff; }
+    .btn-dispatch:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(52,152,219,0.4); }
+    .btn-dispatch:disabled { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.3); cursor: not-allowed; transform: none; box-shadow: none; }
+    .owned-badge { background: rgba(39,174,96,0.2); color: #2ecc71; padding: 3px 8px; border-radius: 5px; font-size: 11px; font-weight: 600; }
     .condition-tag { padding: 2px 6px; border-radius: 5px; font-size: 10px; font-weight: 500; }
-    .condition-excellent { background: rgba(39, 174, 96, 0.2); color: #2ecc71; }
-    .condition-good { background: rgba(52, 152, 219, 0.2); color: #3498db; }
-    .condition-average { background: rgba(241, 196, 15, 0.2); color: #f1c40f; }
-    .condition-poor { background: rgba(231, 76, 60, 0.2); color: #e74c3c; }
-
-    /* Toast */
-    .toast {
-      position: fixed;
-      top: 24px; left: 50%;
-      transform: translateX(-50%) translateY(-100px);
-      padding: 14px 24px;
-      border-radius: 12px;
-      font-size: 13px;
-      font-weight: 500;
-      z-index: 2000;
-      opacity: 0;
-      transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-      display: flex;
-      align-items: center;
-      gap: 10px;
+    .condition-excellent { background: rgba(39,174,96,0.2); color: #2ecc71; }
+    .condition-good { background: rgba(52,152,219,0.2); color: #3498db; }
+    .condition-average { background: rgba(241,196,15,0.2); color: #f1c40f; }
+    .condition-poor { background: rgba(231,76,60,0.2); color: #e74c3c; }
+    .outlet-select {
+      padding: 6px 10px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 8px; color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 11px;
+      cursor: pointer; outline: none; margin-top: 4px;
     }
+    .outlet-select option { background: #1a1a2e; color: #fff; }
 
-    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
-    .toast.success { background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff; box-shadow: 0 10px 40px rgba(39, 174, 96, 0.4); }
-    .toast.error { background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; box-shadow: 0 10px 40px rgba(231, 76, 60, 0.4); }
-    .toast.warning { background: linear-gradient(135deg, #f39c12, #e67e22); color: #fff; box-shadow: 0 10px 40px rgba(243, 156, 18, 0.4); }
+    .stats-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 16px 28px; background: rgba(0,0,0,0.2); border-bottom: 1px solid rgba(255,255,255,0.05); }
+    .stat-card { background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; }
+    .stat-card-label { font-size: 10px; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-card-value { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: #fff; }
+    .stat-card-value.green { color: #4ade80; } .stat-card-value.blue { color: #60a5fa; }
+    .stat-card-value.orange { color: #fb923c; } .stat-card-value.purple { color: #a78bfa; }
+    .empty-state { padding: 50px 20px; text-align: center; color: rgba(255,255,255,0.4); }
+    .empty-state .icon { font-size: 40px; margin-bottom: 12px; } .empty-state .text { font-size: 13px; }
 
-    /* 统计卡片 */
-    .stats-row {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 12px;
-      padding: 16px 28px;
-      background: rgba(0, 0, 0, 0.2);
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .stat-card {
-      background: rgba(255, 255, 255, 0.03);
-      border: 1px solid rgba(255, 255, 255, 0.06);
-      border-radius: 12px;
-      padding: 14px 16px;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-    }
-
-    .stat-card-label { font-size: 10px; color: rgba(255, 255, 255, 0.4); text-transform: uppercase; letter-spacing: 0.5px; }
-    .stat-card-value { font-family: 'JetBrains Mono', monospace; font-size: 20px; font-weight: 700; color: #ffffff; }
-    .stat-card-value.green { color: #4ade80; }
-    .stat-card-value.blue { color: #60a5fa; }
-    .stat-card-value.orange { color: #fb923c; }
-    .stat-card-value.purple { color: #a78bfa; }
-
-    .empty-state { padding: 50px 20px; text-align: center; color: rgba(255, 255, 255, 0.4); }
-    .empty-state .icon { font-size: 40px; margin-bottom: 12px; }
-    .empty-state .text { font-size: 13px; }
-
-    /* 订单模态框 */
-    .order-card {
-      background: rgba(255, 255, 255, 0.04);
-      border: 1px solid rgba(255, 255, 255, 0.08);
-      border-radius: 14px;
-      padding: 18px 22px;
-      margin-bottom: 12px;
-      transition: all 0.2s ease;
-    }
-
-    .order-card:hover { background: rgba(255, 255, 255, 0.06); }
-
-    .order-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      margin-bottom: 10px;
-    }
-
-    .order-customer {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .order-avatar {
-      width: 36px; height: 36px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-    }
-
-    .order-avatar.business { background: rgba(59, 130, 246, 0.2); }
-    .order-avatar.tourist { background: rgba(16, 185, 129, 0.2); }
-
+    .order-card { background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08); border-radius: 14px; padding: 18px 22px; margin-bottom: 12px; transition: all 0.2s ease; }
+    .order-card:hover { background: rgba(255,255,255,0.06); }
+    .order-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+    .order-customer { display: flex; align-items: center; gap: 10px; }
+    .order-avatar { width: 36px; height: 36px; border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 18px; }
+    .order-avatar.business { background: rgba(59,130,246,0.2); } .order-avatar.tourist { background: rgba(16,185,129,0.2); }
     .order-customer-info { display: flex; flex-direction: column; gap: 2px; }
-    .order-customer-name { font-size: 13px; font-weight: 600; color: #ffffff; }
-    .order-customer-type { font-size: 11px; color: rgba(255, 255, 255, 0.4); }
-
+    .order-customer-name { font-size: 13px; font-weight: 600; color: #fff; }
+    .order-customer-type { font-size: 11px; color: rgba(255,255,255,0.4); }
     .order-price { font-family: 'JetBrains Mono', monospace; font-size: 16px; font-weight: 700; color: #4ade80; }
-
-    .order-details {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: 8px;
-      margin-bottom: 14px;
-    }
-
-    .order-detail-item {
-      background: rgba(255, 255, 255, 0.03);
-      border-radius: 8px;
-      padding: 8px 10px;
-    }
-
-    .order-detail-label { font-size: 10px; color: rgba(255, 255, 255, 0.35); margin-bottom: 2px; }
-    .order-detail-value { font-size: 12px; color: rgba(255, 255, 255, 0.7); font-weight: 500; }
-
-    .order-actions {
-      display: flex;
-      gap: 8px;
-    }
-
+    .order-details { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+    .order-detail-item { background: rgba(255,255,255,0.03); border-radius: 8px; padding: 8px 10px; }
+    .order-detail-label { font-size: 10px; color: rgba(255,255,255,0.35); margin-bottom: 2px; }
+    .order-detail-value { font-size: 12px; color: rgba(255,255,255,0.7); font-weight: 500; }
+    .order-actions { display: flex; gap: 8px; }
     .order-actions .action-btn { flex: 1; padding: 10px; text-align: center; }
-
     .btn-accept { background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff; }
-    .btn-accept:hover { box-shadow: 0 4px 16px rgba(39, 174, 96, 0.4); transform: translateY(-1px); }
+    .btn-accept:hover { box-shadow: 0 4px 16px rgba(39,174,96,0.4); transform: translateY(-1px); }
+    .btn-reject { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.1); }
+    .btn-reject:hover { background: rgba(231,76,60,0.2); color: #e74c3c; border-color: #e74c3c; }
+    .order-list-wrapper { max-height: calc(90vh - 120px); overflow-y: auto; padding: 20px 28px 28px; }
 
-    .btn-reject { background: rgba(255, 255, 255, 0.08); color: rgba(255, 255, 255, 0.6); border: 1px solid rgba(255, 255, 255, 0.1); }
-    .btn-reject:hover { background: rgba(231, 76, 60, 0.2); color: #e74c3c; border-color: #e74c3c; }
-
-    .order-list-wrapper {
-      max-height: calc(90vh - 120px);
-      overflow-y: auto;
-      padding: 20px 28px 28px;
+    .toast {
+      position: fixed; top: 24px; left: 50%; transform: translateX(-50%) translateY(-100px);
+      padding: 14px 24px; border-radius: 12px; font-size: 13px; font-weight: 500; z-index: 2000;
+      opacity: 0; transition: all 0.4s cubic-bezier(0.16,1,0.3,1); display: flex; align-items: center; gap: 10px;
     }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.success { background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff; box-shadow: 0 10px 40px rgba(39,174,96,0.4); }
+    .toast.error { background: linear-gradient(135deg, #e74c3c, #c0392b); color: #fff; box-shadow: 0 10px 40px rgba(231,76,60,0.4); }
+    .toast.warning { background: linear-gradient(135deg, #f39c12, #e67e22); color: #fff; box-shadow: 0 10px 40px rgba(243,156,18,0.4); }
+
+    #outlet-popup {
+      position: fixed; z-index: 200; display: none; width: 340px;
+      background: rgba(15,15,26,0.95); backdrop-filter: blur(20px); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 16px; padding: 20px; box-shadow: 0 12px 40px rgba(0,0,0,0.6);
+    }
+    #outlet-popup.active { display: block; }
+    .popup-title { font-size: 16px; font-weight: 700; color: #fff; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; }
+    .popup-close { background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; font-size: 16px; }
+    .popup-close:hover { color: #fff; }
+    .popup-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+    .popup-stat { background: rgba(255,255,255,0.05); border-radius: 8px; padding: 8px 10px; }
+    .popup-stat-label { font-size: 10px; color: rgba(255,255,255,0.4); }
+    .popup-stat-value { font-size: 13px; font-weight: 700; color: #fff; }
+    .popup-vehicles { max-height: 200px; overflow-y: auto; }
+    .popup-vehicle-item { padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px; color: rgba(255,255,255,0.7); display: flex; justify-content: space-between; }
+    .popup-vehicle-item:last-child { border-bottom: none; }
+    .popup-actions { margin-top: 12px; display: flex; gap: 8px; }
+    .popup-btn {
+      flex: 1; padding: 8px; border: none; border-radius: 8px; font-family: 'JetBrains Mono', monospace;
+      font-size: 11px; font-weight: 600; cursor: pointer; transition: all 0.2s ease; text-align: center;
+    }
+    .popup-btn-upgrade { background: linear-gradient(135deg, #27ae60, #2ecc71); color: #fff; }
+    .popup-btn-upgrade:hover { box-shadow: 0 4px 12px rgba(39,174,96,0.4); }
+    .popup-btn-upgrade:disabled { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.3); cursor: not-allowed; }
+    .popup-btn-unlock { background: linear-gradient(135deg, #f39c12, #e67e22); color: #fff; }
+    .popup-btn-unlock:hover { box-shadow: 0 4px 12px rgba(243,156,18,0.4); }
+
+    .dispatch-modal-content { padding: 24px 28px; }
+    .dispatch-info { background: rgba(255,255,255,0.04); border-radius: 12px; padding: 16px; margin-bottom: 16px; }
+    .dispatch-row { display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px; }
+    .dispatch-label { color: rgba(255,255,255,0.5); }
+    .dispatch-value { color: #fff; font-weight: 600; }
+    .dispatch-value.cost { color: #fbbf24; }
+    .dispatch-value.time { color: #60a5fa; }
+    .dispatch-select-wrap { margin-bottom: 16px; }
+    .dispatch-select-wrap label { display: block; font-size: 12px; color: rgba(255,255,255,0.5); margin-bottom: 6px; }
+    .dispatch-select {
+      width: 100%; padding: 10px 14px; background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 10px; color: #fff; font-family: 'JetBrains Mono', monospace; font-size: 13px; cursor: pointer; outline: none;
+    }
+    .dispatch-select option { background: #1a1a2e; color: #fff; }
+    .dispatch-actions { display: flex; gap: 10px; }
+    .dispatch-actions .action-btn { flex: 1; padding: 12px; text-align: center; }
+    .btn-confirm-dispatch { background: linear-gradient(135deg, #3b82f6, #6366f1); color: #fff; }
+    .btn-confirm-dispatch:hover { box-shadow: 0 4px 16px rgba(59,130,246,0.4); transform: translateY(-1px); }
+    .btn-confirm-dispatch:disabled { background: rgba(255,255,255,0.1); color: rgba(255,255,255,0.3); cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-cancel-dispatch { background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.6); border: 1px solid rgba(255,255,255,0.1); }
+    .btn-cancel-dispatch:hover { background: rgba(231,76,60,0.2); color: #e74c3c; border-color: #e74c3c; }
+
+    .transit-badge { background: rgba(59,130,246,0.2); color: #60a5fa; padding: 3px 8px; border-radius: 5px; font-size: 11px; font-weight: 600; }
   </style>
 </head>
 <body>
-  <div id="loading-screen">
-    <div class="loader"></div>
-    <div class="loading-text">INITIALIZING</div>
-  </div>
-
+  <div id="loading-screen"><div class="loader"></div><div class="loading-text">INITIALIZING</div></div>
   <div id="canvas-container"></div>
 
-  <!-- 消息栏 -->
   <div id="message-log">
-    <div class="msg-header">
-      <span>📋 经营日志</span>
-      <button class="msg-clear" onclick="clearMessages()">清空</button>
-    </div>
+    <div class="msg-header"><span>📋 经营日志</span><button class="msg-clear" onclick="clearMessages()">清空</button></div>
     <div class="msg-body" id="messageBody"></div>
   </div>
 
-  <!-- 右下角控制面板 -->
   <div id="control-panel">
     <h2>租车公司</h2>
-    <div class="stat">
-      <span class="stat-label">第 N 天</span>
-      <span class="stat-value" id="dayDisplay">第 1 天</span>
-    </div>
-    <div class="stat">
-      <span class="stat-label">公司现金</span>
-      <span class="stat-value cash" id="cash">¥1,000,000</span>
-    </div>
-    <div class="stat">
-      <span class="stat-label">总车队数量</span>
-      <span class="stat-value fleet" id="fleet">0 辆</span>
-    </div>
-    <div class="stat">
-      <span class="stat-label">今日收入</span>
-      <span class="stat-value income" id="todayIncome">¥0</span>
-    </div>
-    <div class="stat">
-      <span class="stat-label">今日支出</span>
-      <span class="stat-value expense" id="todayExpense">¥0</span>
-    </div>
+    <div class="stat"><span class="stat-label">第 N 天</span><span class="stat-value" id="dayDisplay">第 1 天</span></div>
+    <div class="stat"><span class="stat-label">公司现金</span><span class="stat-value cash" id="cash">¥1,000,000</span></div>
+    <div class="stat"><span class="stat-label">总车队</span><span class="stat-value fleet" id="fleet">0 辆</span></div>
+    <div class="stat"><span class="stat-label">今日收入</span><span class="stat-value income" id="todayIncome">¥0</span></div>
+    <div class="stat"><span class="stat-label">今日支出</span><span class="stat-value expense" id="todayExpense">¥0</span></div>
     <button class="panel-btn next-day" onclick="nextDay()">⏭ 下一日</button>
-    <button class="panel-btn orders" onclick="openOrdersModal()">
-      📋 待处理订单
-      <span class="order-badge" id="orderBadge"></span>
-    </button>
+    <button class="panel-btn orders" onclick="openOrdersModal()">📋 待处理订单<span class="order-badge" id="orderBadge"></span></button>
     <button class="panel-btn" onclick="openFleetModal()">🚗 车队管理</button>
   </div>
 
-  <div id="info-hint">
-    <span>ⓘ</span> 拖拽旋转 · 滚轮缩放
+  <div id="outlet-popup">
+    <div class="popup-title"><span id="popupName"></span><button class="popup-close" onclick="hideOutletPopup()">✕</button></div>
+    <div class="popup-stats">
+      <div class="popup-stat"><div class="popup-stat-label">城市规模</div><div class="popup-stat-value" id="popupCity"></div></div>
+      <div class="popup-stat"><div class="popup-stat-label">车位</div><div class="popup-stat-value" id="popupCapacity"></div></div>
+      <div class="popup-stat"><div class="popup-stat-label">今日订单</div><div class="popup-stat-value" id="popupOrders"></div></div>
+      <div class="popup-stat"><div class="popup-stat-label">等级</div><div class="popup-stat-value" id="popupLevel"></div></div>
+    </div>
+    <div style="font-size:11px;color:rgba(255,255,255,0.4);margin-bottom:6px;">在库车辆</div>
+    <div class="popup-vehicles" id="popupVehicles"></div>
+    <div class="popup-actions" id="popupActions"></div>
   </div>
 
-  <!-- 车队管理模态框 -->
   <div class="modal-overlay" id="fleetModal">
     <div class="modal-container">
       <div class="modal-header">
@@ -707,13 +320,17 @@
       </div>
       <div class="market-tabs">
         <button class="market-tab active" data-tab="local" onclick="switchTab('local')" style="--tab-color:#3498db;--tab-color-dark:#2980b9;--tab-color-rgb:52,152,219;">🏪 本地经销商 <span class="badge" id="localCount">22辆</span></button>
-        <button class="market-tab" data-tab="used" onclick="switchTab('used')" style="--tab-color:#e67e22;--tab-color-dark:#d35400;--tab-color-rgb:230,126,34;">🚗 二手车市场 <span class="badge" id="usedCount">12辆</span></button>
-        <button class="market-tab" data-tab="overseas" onclick="switchTab('overseas')" style="--tab-color:#9b59b6;--tab-color-dark:#8e44ad;--tab-color-rgb:155,89,182;">🌍 海外进口市场 <span class="badge" id="overseasCount">12辆</span></button>
+        <button class="market-tab" data-tab="used" onclick="switchTab('used')" style="--tab-color:#e67e22;--tab-color-dark:#d35400;--tab-color-rgb:230,126,34;">🚗 二手车市场 <span class="badge" id="usedCount">0辆</span></button>
+        <button class="market-tab" data-tab="overseas" onclick="switchTab('overseas')" style="--tab-color:#9b59b6;--tab-color-dark:#8e44ad;--tab-color-rgb:155,89,182;">🌍 海外进口 <span class="badge" id="overseasCount">12辆</span></button>
         <button class="market-tab" data-tab="myfleet" onclick="switchTab('myfleet')" style="--tab-color:#2ecc71;--tab-color-dark:#27ae60;--tab-color-rgb:46,204,113;">📋 我的车队 <span class="badge" id="myFleetCount">0辆</span></button>
+        <button class="market-tab" data-tab="outlets" onclick="switchTab('outlets')" style="--tab-color:#f39c12;--tab-color-dark:#e67e22;--tab-color-rgb:243,156,18;">🏢 网点管理 <span class="badge" id="outletCount">1个</span></button>
       </div>
       <div class="market-info-bar" id="marketInfoBar">
         <div class="market-description" id="marketDescription">批量采购享95折优惠，即时交付</div>
-        <div class="delivery-time" id="deliveryTime">⚡ 即时交付</div>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <div class="delivery-time" id="deliveryTime">⚡ 即时交付</div>
+          <button class="refresh-btn" id="refreshUsedBtn" style="display:none;" onclick="refreshUsedCarMarket()">🔄 刷新市场</button>
+        </div>
       </div>
       <div class="vehicle-table-wrapper">
         <table class="vehicle-table" id="vehicleTable">
@@ -724,7 +341,6 @@
     </div>
   </div>
 
-  <!-- 订单管理模态框 -->
   <div class="modal-overlay" id="ordersModal">
     <div class="modal-container" style="max-width:700px;">
       <div class="modal-header">
@@ -737,6 +353,16 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="dispatchModal">
+    <div class="modal-container" style="max-width:500px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">🚚</span> 车辆调度</div>
+        <button class="close-btn" onclick="closeDispatchModal()">✕</button>
+      </div>
+      <div class="dispatch-modal-content" id="dispatchContent"></div>
+    </div>
+  </div>
+
   <div class="toast" id="toast"></div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -744,17 +370,25 @@
   <script src="vehicles.js"></script>
 
   <script>
-    const SAVE_KEY = 'rentalCompanyGame';
+    const SAVE_KEY = 'rentalCompanyGame_v2';
 
     const CUSTOMER_NAMES_BUSINESS = ['王经理','李总','张董','陈主管','刘总监','赵助理','周客户','吴商务','郑代表','孙顾问','朱行长','马主任','胡总裁','林经理','何总监'];
     const CUSTOMER_NAMES_TOURIST = ['小王','阿李','张同学','陈先生','刘女士','赵一家','周游客','吴旅人','郑背包客','孙家庭','朱度假','马旅行','胡探险','林观光','何周末'];
 
     const OUTLET_CONFIGS = [
-      { id: 0, name: '网点 A', citySize: 'large', cityLabel: '大型城市' },
-      { id: 1, name: '网点 B', citySize: 'medium', cityLabel: '中型城市' },
-      { id: 2, name: '网点 C', citySize: 'large', cityLabel: '大型城市' },
-      { id: 3, name: '网点 D', citySize: 'small', cityLabel: '小型城市' },
-      { id: 4, name: '网点 E', citySize: 'medium', cityLabel: '中型城市' }
+      { id: 0, name: '总部网点', citySize: 'large', cityLabel: '大型城市', position: { x: 0, z: 0 }, unlockCost: 0 },
+      { id: 1, name: '城东分店', citySize: 'medium', cityLabel: '中型城市', position: { x: 55, z: 0 }, unlockCost: 500000 },
+      { id: 2, name: '城西分店', citySize: 'small', cityLabel: '小型城市', position: { x: -55, z: 0 }, unlockCost: 300000 },
+      { id: 3, name: '城北分店', citySize: 'large', cityLabel: '大型城市', position: { x: 0, z: 55 }, unlockCost: 800000 },
+      { id: 4, name: '城南分店', citySize: 'medium', cityLabel: '中型城市', position: { x: 0, z: -55 }, unlockCost: 600000 }
+    ];
+
+    const OUTLET_LEVELS = [
+      { level: 1, capacity: 20, upgradeCost: 0 },
+      { level: 2, capacity: 35, upgradeCost: 200000 },
+      { level: 3, capacity: 50, upgradeCost: 500000 },
+      { level: 4, capacity: 75, upgradeCost: 1200000 },
+      { level: 5, capacity: 100, upgradeCost: 2500000 }
     ];
 
     const CITY_SIZE_MULTIPLIERS = { small: 0.6, medium: 1.0, large: 1.5 };
@@ -765,32 +399,62 @@
 
     const defaultGameState = {
       cash: 1000000,
-      totalFleet: 0,
       currentDay: 1,
-      outlets: [],
+      outlets: [{ id: 0, level: 1, owned: true }],
       ownedVehicles: [],
       pendingOrders: [],
       todayIncome: 0,
       todayExpense: 0,
       marketPriceFactor: 1.0,
       messages: [],
-      rentedToday: []
+      rentedToday: [],
+      usedCarMarketList: [],
+      transfers: [],
+      outletOrderCounts: {}
     };
 
     let gameState = JSON.parse(JSON.stringify(defaultGameState));
-
-    const outletColors = [0x3498db, 0xe74c3c, 0x2ecc71, 0xf39c12, 0x9b59b6];
-    const outletNames = ['网点 A', '网点 B', '网点 C', '网点 D', '网点 E'];
-
-    let scene, camera, renderer, controls;
-    const outlets = [];
+    let scene, camera, renderer, controls, raycaster, mouse;
+    const outletMeshGroups = [];
+    const outletClickTargets = [];
+    const roadVehicles = [];
+    const dollarSprites = [];
     let currentTab = 'local';
 
+    function getOutletState(outletId) {
+      return gameState.outlets.find(o => o.id === outletId);
+    }
+
+    function getOutletCapacity(outletId) {
+      const os = getOutletState(outletId);
+      if (!os) return 0;
+      const lvl = OUTLET_LEVELS.find(l => l.level === os.level) || OUTLET_LEVELS[0];
+      return lvl.capacity;
+    }
+
+    function getVehiclesAtOutlet(outletId) {
+      return gameState.ownedVehicles.filter(v => v.outletId === outletId);
+    }
+
+    function getAvailableVehiclesAtOutlet(outletId) {
+      return gameState.ownedVehicles.filter(v => v.outletId === outletId && !gameState.rentedToday.includes(v.id) && !isInTransit(v.id));
+    }
+
+    function isInTransit(vehicleId) {
+      return gameState.transfers.some(t => t.vehicleId === vehicleId);
+    }
+
+    function getDistanceBetweenOutlets(id1, id2) {
+      const c1 = OUTLET_CONFIGS.find(c => c.id === id1);
+      const c2 = OUTLET_CONFIGS.find(c => c.id === id2);
+      if (!c1 || !c2) return 0;
+      return Math.sqrt(Math.pow(c1.position.x - c2.position.x, 2) + Math.pow(c1.position.z - c2.position.z, 2));
+    }
+
+    function formatCurrency(amount) { return '¥' + Math.round(amount).toLocaleString('zh-CN'); }
+
     function saveGame() {
-      try {
-        const data = JSON.parse(JSON.stringify(gameState));
-        localStorage.setItem(SAVE_KEY, JSON.stringify(data));
-      } catch (e) { console.error('保存失败:', e); }
+      try { localStorage.setItem(SAVE_KEY, JSON.stringify(gameState)); } catch (e) { console.error('保存失败:', e); }
     }
 
     function loadGame() {
@@ -799,20 +463,24 @@
         if (raw) {
           const data = JSON.parse(raw);
           gameState = { ...JSON.parse(JSON.stringify(defaultGameState)), ...data };
+          if (!gameState.transfers) gameState.transfers = [];
+          if (!gameState.usedCarMarketList) gameState.usedCarMarketList = [];
+          if (!gameState.outletOrderCounts) gameState.outletOrderCounts = {};
           return true;
         }
       } catch (e) { console.error('加载失败:', e); }
       return false;
     }
 
+    // ===== 3D 场景 =====
     function init() {
       const container = document.getElementById('canvas-container');
       scene = new THREE.Scene();
-      scene.background = new THREE.Color(0x0a0a0f);
-      scene.fog = new THREE.Fog(0x0a0a0f, 80, 200);
+      scene.background = new THREE.Color(0x1a2a1a);
+      scene.fog = new THREE.Fog(0x1a2a1a, 120, 250);
 
-      camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
-      camera.position.set(80, 80, 80);
+      camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(80, 100, 80);
       camera.lookAt(0, 0, 0);
 
       renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -825,21 +493,27 @@
       controls = new THREE.OrbitControls(camera, renderer.domElement);
       controls.enableDamping = true;
       controls.dampingFactor = 0.05;
-      controls.minDistance = 30;
-      controls.maxDistance = 200;
-      controls.maxPolarAngle = Math.PI / 2.2;
+      controls.minDistance = 40;
+      controls.maxDistance = 250;
+      controls.maxPolarAngle = Math.PI / 2.5;
+
+      raycaster = new THREE.Raycaster();
+      mouse = new THREE.Vector2();
 
       createLighting();
       createGround();
-      createOutlets();
+      createRoads();
+      createOutletBuildings();
+      createRoadVehicles();
 
+      renderer.domElement.addEventListener('click', onCanvasClick);
       window.addEventListener('resize', onWindowResize);
       setTimeout(() => { document.getElementById('loading-screen').classList.add('hidden'); }, 800);
       animate();
     }
 
     function createLighting() {
-      scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+      scene.add(new THREE.AmbientLight(0xffffff, 0.5));
       const dl = new THREE.DirectionalLight(0xffffff, 0.8);
       dl.position.set(50, 100, 50);
       dl.castShadow = true;
@@ -847,81 +521,191 @@
       dl.shadow.mapSize.height = 2048;
       dl.shadow.camera.near = 0.5;
       dl.shadow.camera.far = 500;
+      dl.shadow.camera.left = -100;
+      dl.shadow.camera.right = 100;
+      dl.shadow.camera.top = 100;
+      dl.shadow.camera.bottom = -100;
       scene.add(dl);
-      const fl = new THREE.DirectionalLight(0x4a90e2, 0.3);
-      fl.position.set(-30, 50, -30);
-      scene.add(fl);
+      scene.add(new THREE.DirectionalLight(0x4a90e2, 0.3).translateZ(-30).translateY(50));
     }
 
     function createGround() {
-      const g = new THREE.Mesh(new THREE.PlaneGeometry(200, 200, 50, 50), new THREE.MeshStandardMaterial({ color: 0x1a1a2e, roughness: 0.8, metalness: 0.2 }));
+      const g = new THREE.Mesh(
+        new THREE.PlaneGeometry(300, 300),
+        new THREE.MeshStandardMaterial({ color: 0x2d5a1e, roughness: 0.9, metalness: 0.1 })
+      );
       g.rotation.x = -Math.PI / 2;
+      g.position.y = -0.1;
       g.receiveShadow = true;
       scene.add(g);
-      const gh = new THREE.GridHelper(200, 40, 0x2a2a4e, 0x1a1a3e);
-      gh.position.y = 0.01;
-      scene.add(gh);
-      const glm = new THREE.LineBasicMaterial({ color: 0x3498db, transparent: true, opacity: 0.1 });
-      const glg = new THREE.BufferGeometry();
-      const lines = [];
-      const sz = 200, div = 20, step = sz / div;
-      for (let i = -sz/2; i <= sz/2; i += step) {
-        lines.push(-sz/2, 0.02, i, sz/2, 0.02, i, i, 0.02, -sz/2, i, 0.02, sz/2);
-      }
-      glg.setAttribute('position', new THREE.Float32BufferAttribute(lines, 3));
-      scene.add(new THREE.LineSegments(glg, glm));
     }
 
-    function createOutlets() {
-      const existingPositions = [];
-      outletNames.forEach((name, index) => {
-        let position = generateRandomPosition(existingPositions, 30);
-        existingPositions.push(position);
+    function createRoads() {
+      const roadMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8, metalness: 0.1 });
+      const lineMat = new THREE.MeshBasicMaterial({ color: 0xcccc00 });
+      const whiteMat = new THREE.MeshBasicMaterial({ color: 0xffffff });
 
-        const cg = new THREE.BoxGeometry(10, 10, 10);
-        const cm = new THREE.MeshStandardMaterial({ color: outletColors[index], roughness: 0.3, metalness: 0.6, emissive: outletColors[index], emissiveIntensity: 0.1 });
-        const cube = new THREE.Mesh(cg, cm);
-        cube.position.set(position.x, 5, position.z);
-        cube.castShadow = true;
-        cube.receiveShadow = true;
-        scene.add(cube);
+      const roads = [
+        { x: 0, z: 0, w: 200, h: 10, rot: 0 },
+        { x: 0, z: 0, w: 200, h: 10, rot: Math.PI / 2 },
+        { x: 27.5, z: 55, w: 55, h: 8, rot: 0 },
+        { x: -27.5, z: -55, w: 55, h: 8, rot: 0 },
+        { x: 55, z: 27.5, w: 55, h: 8, rot: Math.PI / 2 },
+        { x: -55, z: -27.5, w: 55, h: 8, rot: Math.PI / 2 }
+      ];
 
-        const edges = new THREE.LineSegments(new THREE.EdgesGeometry(cg), new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.6 }));
-        cube.add(edges);
+      roads.forEach(r => {
+        const road = new THREE.Mesh(new THREE.PlaneGeometry(r.w, r.h), roadMat);
+        road.rotation.x = -Math.PI / 2;
+        road.rotation.z = r.rot;
+        road.position.set(r.x, 0.02, r.z);
+        road.receiveShadow = true;
+        scene.add(road);
 
-        const glow = new THREE.Mesh(new THREE.BoxGeometry(11, 11, 11), new THREE.MeshBasicMaterial({ color: outletColors[index], transparent: true, opacity: 0.15, side: THREE.BackSide }));
-        glow.position.set(position.x, 5, position.z);
-        scene.add(glow);
-
-        const sprite = createTextSprite(name, '#ffffff');
-        sprite.position.set(position.x, 18, position.z);
-        sprite.scale.set(20, 10, 1);
-        scene.add(sprite);
-
-        const iconSprite = createTextSprite('🏢', null);
-        iconSprite.position.set(position.x, 14, position.z);
-        iconSprite.scale.set(8, 8, 1);
-        scene.add(iconSprite);
-
-        outlets.push({ mesh: cube, position, name, color: outletColors[index] });
-
-        if (!gameState.outlets[index]) {
-          gameState.outlets.push({ id: index, name, position, vehicles: 0, ...OUTLET_CONFIGS[index] });
+        const dashCount = Math.floor(r.w / 6);
+        for (let i = 0; i < dashCount; i++) {
+          const dash = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.3), r.h > 9 ? lineMat : whiteMat);
+          dash.rotation.x = -Math.PI / 2;
+          dash.rotation.z = r.rot;
+          const offset = -r.w / 2 + 3 + i * 6;
+          if (r.rot === 0) {
+            dash.position.set(r.x + offset, 0.03, r.z);
+          } else {
+            dash.position.set(r.x, 0.03, r.z + offset);
+          }
+          scene.add(dash);
         }
       });
     }
 
-    function generateRandomPosition(existingPositions, minDistance) {
-      let position, attempts = 0;
-      do {
-        position = { x: Math.random() * 80 - 40, z: Math.random() * 80 - 40 };
-        attempts++;
-      } while (isTooClose(position, existingPositions, minDistance) && attempts < 100);
-      return position;
+    function createOutletBuildings() {
+      outletMeshGroups.forEach(og => scene.remove(og.group));
+      outletMeshGroups.length = 0;
+      outletClickTargets.length = 0;
+
+      OUTLET_CONFIGS.forEach(cfg => {
+        const os = getOutletState(cfg.id);
+        const isOwned = os && os.owned;
+        const group = new THREE.Group();
+        group.position.set(cfg.position.x, 0, cfg.position.z);
+
+        if (isOwned) {
+          const bodyColor = [0x3498db, 0xe74c3c, 0x2ecc71, 0xf39c12, 0x9b59b6][cfg.id];
+          const foundation = new THREE.Mesh(
+            new THREE.BoxGeometry(14, 0.6, 12),
+            new THREE.MeshStandardMaterial({ color: 0x555555 })
+          );
+          foundation.position.y = 0.3;
+          foundation.receiveShadow = true;
+          group.add(foundation);
+
+          const body = new THREE.Mesh(
+            new THREE.BoxGeometry(10, 8, 8),
+            new THREE.MeshStandardMaterial({ color: bodyColor, roughness: 0.4, metalness: 0.3 })
+          );
+          body.position.y = 4.6;
+          body.castShadow = true;
+          body.receiveShadow = true;
+          body.userData.outletId = cfg.id;
+          group.add(body);
+          outletClickTargets.push(body);
+
+          const roof = new THREE.Mesh(
+            new THREE.BoxGeometry(12, 0.6, 10),
+            new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.7 })
+          );
+          roof.position.y = 8.9;
+          roof.castShadow = true;
+          group.add(roof);
+
+          const winMat = new THREE.MeshStandardMaterial({ color: 0xffffcc, emissive: 0xffffaa, emissiveIntensity: 0.4 });
+          for (let row = 0; row < 2; row++) {
+            for (let col = 0; col < 3; col++) {
+              const win = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 1.5), winMat);
+              win.position.set(-3 + col * 3, 3 + row * 3, 4.01);
+              group.add(win);
+            }
+          }
+
+          const entrance = new THREE.Mesh(
+            new THREE.BoxGeometry(2.5, 3.5, 0.3),
+            new THREE.MeshStandardMaterial({ color: 0x5a3a1a })
+          );
+          entrance.position.set(0, 2.35, 4.15);
+          group.add(entrance);
+
+          const sign = createTextSprite(cfg.name, '#ffffff');
+          sign.position.set(0, 11, 0);
+          sign.scale.set(16, 8, 1);
+          group.add(sign);
+        } else {
+          const lot = new THREE.Mesh(
+            new THREE.BoxGeometry(14, 0.3, 12),
+            new THREE.MeshStandardMaterial({ color: 0x3a3a3a })
+          );
+          lot.position.y = 0.15;
+          lot.receiveShadow = true;
+          lot.userData.outletId = cfg.id;
+          group.add(lot);
+          outletClickTargets.push(lot);
+
+          const sign = createTextSprite('🔒 ' + cfg.name, '#ff6b35');
+          sign.position.set(0, 4, 0);
+          sign.scale.set(14, 7, 1);
+          group.add(sign);
+
+          const priceSign = createTextSprite(formatCurrency(cfg.unlockCost), '#fbbf24');
+          priceSign.position.set(0, 7, 0);
+          priceSign.scale.set(12, 6, 1);
+          group.add(priceSign);
+        }
+
+        scene.add(group);
+        outletMeshGroups.push({ group, config: cfg });
+      });
     }
 
-    function isTooClose(pos, existing, min) {
-      return existing.some(e => Math.sqrt((pos.x - e.x) ** 2 + (pos.z - e.z) ** 2) < min);
+    function createRoadVehicles() {
+      const colors = [0xe74c3c, 0x3498db, 0x2ecc71, 0xf39c12, 0x9b59b6, 0xffffff, 0x1abc9c, 0xe67e22];
+      const paths = [
+        { axis: 'x', z: 2.5, dir: 1, range: [-90, 90] },
+        { axis: 'x', z: -2.5, dir: -1, range: [-90, 90] },
+        { axis: 'z', x: 2.5, dir: 1, range: [-90, 90] },
+        { axis: 'z', x: -2.5, dir: -1, range: [-90, 90] }
+      ];
+
+      for (let i = 0; i < 12; i++) {
+        const path = paths[i % paths.length];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const v = new THREE.Mesh(
+          new THREE.BoxGeometry(2.5, 1.2, 1.5),
+          new THREE.MeshStandardMaterial({ color, roughness: 0.5, metalness: 0.3 })
+        );
+        v.castShadow = true;
+        const speed = 0.15 + Math.random() * 0.2;
+        const startPos = path.range[0] + Math.random() * (path.range[1] - path.range[0]);
+
+        if (path.axis === 'x') {
+          v.position.set(startPos, 0.7, path.z);
+          v.rotation.y = path.dir > 0 ? 0 : Math.PI;
+        } else {
+          v.position.set(path.x, 0.7, startPos);
+          v.rotation.y = path.dir > 0 ? Math.PI / 2 : -Math.PI / 2;
+        }
+
+        scene.add(v);
+        roadVehicles.push({ mesh: v, path, speed, dir: path.dir });
+      }
+    }
+
+    function showDollarSign(outletId) {
+      const cfg = OUTLET_CONFIGS.find(c => c.id === outletId);
+      if (!cfg) return;
+      const sprite = createTextSprite('$', '#4ade80');
+      sprite.position.set(cfg.position.x, 14, cfg.position.z);
+      sprite.scale.set(8, 8, 1);
+      scene.add(sprite);
+      dollarSprites.push({ sprite, startTime: Date.now(), duration: 2000 });
     }
 
     function createTextSprite(text, color) {
@@ -938,6 +722,90 @@
       return new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthTest: false }));
     }
 
+    function onCanvasClick(event) {
+      mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+      mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+      raycaster.setFromCamera(mouse, camera);
+      const intersects = raycaster.intersectObjects(outletClickTargets);
+      if (intersects.length > 0) {
+        const outletId = intersects[0].object.userData.outletId;
+        if (outletId !== undefined) showOutletPopup(outletId, event.clientX, event.clientY);
+      } else {
+        hideOutletPopup();
+      }
+    }
+
+    function showOutletPopup(outletId, px, py) {
+      const popup = document.getElementById('outlet-popup');
+      const cfg = OUTLET_CONFIGS.find(c => c.id === outletId);
+      const os = getOutletState(outletId);
+
+      document.getElementById('popupName').textContent = cfg.name;
+      document.getElementById('popupCity').textContent = cfg.cityLabel;
+
+      if (os && os.owned) {
+        const cap = getOutletCapacity(outletId);
+        const vehs = getVehiclesAtOutlet(outletId);
+        document.getElementById('popupCapacity').textContent = vehs.length + ' / ' + cap;
+        document.getElementById('popupOrders').textContent = (gameState.outletOrderCounts[outletId] || 0) + ' 单';
+        document.getElementById('popupLevel').textContent = 'Lv.' + os.level;
+
+        const vList = document.getElementById('popupVehicles');
+        if (vehs.length === 0) {
+          vList.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,0.3);padding:8px 0;">暂无车辆</div>';
+        } else {
+          vList.innerHTML = vehs.map(v =>
+            '<div class="popup-vehicle-item"><span>' + v.brand + ' ' + v.model + '</span><span class="license-plate">' + v.licensePlate + '</span></div>'
+          ).join('');
+        }
+
+        const nextLevel = OUTLET_LEVELS.find(l => l.level === os.level + 1);
+        const actionsEl = document.getElementById('popupActions');
+        if (nextLevel) {
+          actionsEl.innerHTML = '<button class="popup-btn popup-btn-upgrade" onclick="upgradeOutlet(' + outletId + ')" ' + (gameState.cash < nextLevel.upgradeCost ? 'disabled' : '') + '>⬆ 升级 Lv.' + nextLevel.level + ' (' + formatCurrency(nextLevel.upgradeCost) + ')</button>';
+        } else {
+          actionsEl.innerHTML = '<button class="popup-btn popup-btn-upgrade" disabled>已满级</button>';
+        }
+      } else {
+        document.getElementById('popupCapacity').textContent = '-';
+        document.getElementById('popupOrders').textContent = '-';
+        document.getElementById('popupLevel').textContent = '未解锁';
+        document.getElementById('popupVehicles').innerHTML = '';
+        document.getElementById('popupActions').innerHTML = '<button class="popup-btn popup-btn-unlock" onclick="unlockOutlet(' + outletId + ')" ' + (gameState.cash < cfg.unlockCost ? 'disabled' : '') + '>🔓 解锁 (' + formatCurrency(cfg.unlockCost) + ')</button>';
+      }
+
+      popup.style.left = Math.min(px + 15, window.innerWidth - 360) + 'px';
+      popup.style.top = Math.min(py - 20, window.innerHeight - 400) + 'px';
+      popup.classList.add('active');
+    }
+
+    function hideOutletPopup() { document.getElementById('outlet-popup').classList.remove('active'); }
+
+    function upgradeOutlet(outletId) {
+      const os = getOutletState(outletId);
+      if (!os) return;
+      const nextLevel = OUTLET_LEVELS.find(l => l.level === os.level + 1);
+      if (!nextLevel || gameState.cash < nextLevel.upgradeCost) return;
+      gameState.cash -= nextLevel.upgradeCost;
+      os.level = nextLevel.level;
+      addMessage(OUTLET_CONFIGS.find(c => c.id === outletId).name + ' 升级到 Lv.' + os.level + '，容量 ' + nextLevel.capacity + ' 辆', 'good');
+      hideOutletPopup();
+      updateUI();
+      saveGame();
+    }
+
+    function unlockOutlet(outletId) {
+      const cfg = OUTLET_CONFIGS.find(c => c.id === outletId);
+      if (!cfg || gameState.cash < cfg.unlockCost) return;
+      gameState.cash -= cfg.unlockCost;
+      gameState.outlets.push({ id: outletId, level: 1, owned: true });
+      addMessage('解锁新网点：' + cfg.name + '（' + cfg.cityLabel + '）', 'good');
+      hideOutletPopup();
+      createOutletBuildings();
+      updateUI();
+      saveGame();
+    }
+
     function onWindowResize() {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
@@ -947,33 +815,60 @@
     function animate() {
       requestAnimationFrame(animate);
       controls.update();
+
+      roadVehicles.forEach(rv => {
+        const range = rv.path.range;
+        if (rv.path.axis === 'x') {
+          rv.mesh.position.x += rv.speed * rv.dir;
+          if (rv.mesh.position.x > range[1]) rv.mesh.position.x = range[0];
+          if (rv.mesh.position.x < range[0]) rv.mesh.position.x = range[1];
+        } else {
+          rv.mesh.position.z += rv.speed * rv.dir;
+          if (rv.mesh.position.z > range[1]) rv.mesh.position.z = range[0];
+          if (rv.mesh.position.z < range[0]) rv.mesh.position.z = range[1];
+        }
+      });
+
+      const now = Date.now();
+      for (let i = dollarSprites.length - 1; i >= 0; i--) {
+        const ds = dollarSprites[i];
+        const elapsed = now - ds.startTime;
+        if (elapsed > ds.duration) {
+          scene.remove(ds.sprite);
+          ds.sprite.material.map.dispose();
+          ds.sprite.material.dispose();
+          dollarSprites.splice(i, 1);
+        } else {
+          ds.sprite.material.opacity = 0.5 + 0.5 * Math.sin(elapsed / 150 * Math.PI);
+        }
+      }
+
       renderer.render(scene, camera);
     }
 
-    function formatCurrency(amount) { return '¥' + amount.toLocaleString('zh-CN'); }
-
+    // ===== UI 更新 =====
     function updateUI() {
       document.getElementById('dayDisplay').textContent = '第 ' + gameState.currentDay + ' 天';
       document.getElementById('cash').textContent = formatCurrency(gameState.cash);
-      document.getElementById('fleet').textContent = gameState.totalFleet + ' 辆';
+      document.getElementById('fleet').textContent = gameState.ownedVehicles.length + ' 辆';
       document.getElementById('todayIncome').textContent = formatCurrency(gameState.todayIncome);
       document.getElementById('todayExpense').textContent = formatCurrency(gameState.todayExpense);
       document.getElementById('modalCash').textContent = formatCurrency(gameState.cash);
-      document.getElementById('modalFleet').textContent = gameState.totalFleet + ' 辆';
-      document.getElementById('myFleetCount').textContent = gameState.totalFleet + '辆';
+      document.getElementById('modalFleet').textContent = gameState.ownedVehicles.length + ' 辆';
+      document.getElementById('myFleetCount').textContent = gameState.ownedVehicles.length + '辆';
+      document.getElementById('outletCount').textContent = gameState.outlets.filter(o => o.owned).length + '个';
 
       const rev = gameState.ownedVehicles.reduce((s, v) => s + v.dailyRate, 0);
       const cost = gameState.ownedVehicles.reduce((s, v) => s + v.fuelCostPerDay + v.maintenanceCostPerDay, 0);
       document.getElementById('modalRevenue').textContent = formatCurrency(rev);
       document.getElementById('modalCost').textContent = formatCurrency(cost);
 
-      const badge = document.getElementById('orderBadge');
-      badge.textContent = gameState.pendingOrders.length || '';
+      document.getElementById('orderBadge').textContent = gameState.pendingOrders.length || '';
     }
 
-    function addMessage(text, type = 'normal') {
+    function addMessage(text, type) {
       const time = 'D' + gameState.currentDay;
-      gameState.messages.unshift({ time, text, type });
+      gameState.messages.unshift({ time, text, type: type || 'normal' });
       if (gameState.messages.length > 100) gameState.messages.length = 100;
       renderMessages();
       saveGame();
@@ -982,42 +877,41 @@
     function renderMessages() {
       const body = document.getElementById('messageBody');
       body.innerHTML = '';
-      const show = gameState.messages.slice(0, 50);
-      show.forEach(m => {
+      gameState.messages.slice(0, 50).forEach(m => {
         const div = document.createElement('div');
         div.className = 'msg-item';
         const cls = m.type === 'good' ? 'msg-highlight' : m.type === 'warn' ? 'msg-warn' : m.type === 'bad' ? 'msg-bad' : '';
-        div.innerHTML = `<span class="msg-time">[${m.time}]</span> <span class="${cls}">${m.text}</span>`;
+        div.innerHTML = '<span class="msg-time">[' + m.time + ']</span> <span class="' + cls + '">' + m.text + '</span>';
         body.appendChild(div);
       });
     }
 
-    function clearMessages() {
-      gameState.messages = [];
-      renderMessages();
-      saveGame();
+    function clearMessages() { gameState.messages = []; renderMessages(); saveGame(); }
+
+    function showToast(message, type) {
+      const toast = document.getElementById('toast');
+      toast.className = 'toast ' + (type || 'success');
+      toast.innerHTML = (type === 'success' ? '✓ ' : type === 'error' ? '✕ ' : '⚠ ') + message;
+      toast.classList.add('show');
+      setTimeout(() => { toast.classList.remove('show'); }, 3000);
     }
 
-    // ===== 经营模拟核心 =====
+    // ===== 经营模拟 =====
     function generateCustomers() {
       const customers = [];
-      gameState.outlets.forEach(outlet => {
-        const cfg = OUTLET_CONFIGS[outlet.id] || OUTLET_CONFIGS[0];
+      gameState.outlets.filter(o => o.owned).forEach(outlet => {
+        const cfg = OUTLET_CONFIGS[outlet.id];
         const mult = CITY_SIZE_MULTIPLIERS[cfg.citySize] || 1;
         const base = Math.floor(Math.random() * 10 * mult) + 1;
         const count = Math.min(base, 10);
-
         for (let i = 0; i < count; i++) {
           const isBusiness = Math.random() < 0.45;
           const type = isBusiness ? 'business' : 'tourist';
           const names = isBusiness ? CUSTOMER_NAMES_BUSINESS : CUSTOMER_NAMES_TOURIST;
-          const name = names[Math.floor(Math.random() * names.length)];
           customers.push({
             id: 'C' + Date.now() + '_' + Math.random().toString(36).substr(2, 5),
-            name,
-            type,
-            outletId: outlet.id,
-            outletName: outlet.name || cfg.name,
+            name: names[Math.floor(Math.random() * names.length)],
+            type, outletId: outlet.id, outletName: cfg.name,
             preferences: CUSTOMER_TYPE_PREFS[type]
           });
         }
@@ -1026,16 +920,13 @@
     }
 
     function matchVehicleForCustomer(customer) {
-      const available = gameState.ownedVehicles.filter(v => !gameState.rentedToday.includes(v.id));
+      const available = getAvailableVehiclesAtOutlet(customer.outletId);
       if (available.length === 0) return null;
-
       const scored = available.map(v => {
         const pref = customer.preferences[v.type] || 1;
         const effectiveRate = v.dailyRate * gameState.marketPriceFactor;
-        const score = pref * (1000 / Math.max(effectiveRate, 1));
-        return { vehicle: v, score, effectiveRate };
+        return { vehicle: v, score: pref * (1000 / Math.max(effectiveRate, 1)), effectiveRate };
       });
-
       scored.sort((a, b) => b.score - a.score);
       return scored[0];
     }
@@ -1044,44 +935,49 @@
       gameState.todayIncome = 0;
       gameState.todayExpense = 0;
       gameState.rentedToday = [];
+      gameState.outletOrderCounts = {};
+
+      gameState.transfers.forEach(t => { t.daysRemaining--; });
+      const arrived = gameState.transfers.filter(t => t.daysRemaining <= 0);
+      arrived.forEach(t => {
+        const v = gameState.ownedVehicles.find(ov => ov.id === t.vehicleId);
+        if (v) {
+          v.outletId = t.toOutletId;
+          addMessage(v.brand + ' ' + v.model + ' 已到达 ' + OUTLET_CONFIGS.find(c => c.id === t.toOutletId).name, 'good');
+        }
+      });
+      gameState.transfers = gameState.transfers.filter(t => t.daysRemaining > 0);
 
       const customers = generateCustomers();
-      addMessage(`今日到店客户共 <span class="msg-highlight">${customers.length}</span> 人`, 'good');
+      addMessage('今日到店客户共 <span class="msg-highlight">' + customers.length + '</span> 人', 'good');
 
       const newOrders = [];
       customers.forEach(customer => {
         const match = matchVehicleForCustomer(customer);
         if (match) {
-          const order = {
+          newOrders.push({
             id: 'O' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
-            customerId: customer.id,
-            customerName: customer.name,
-            customerType: customer.type,
-            outletId: customer.outletId,
-            outletName: customer.outletName,
-            vehicleId: match.vehicle.id,
-            vehicleName: match.vehicle.brand + ' ' + match.vehicle.model,
-            vehicleType: match.vehicle.type,
-            dailyRate: match.effectiveRate,
-            fuelCost: match.vehicle.fuelCostPerDay,
-            maintenanceCost: match.vehicle.maintenanceCostPerDay,
+            customerId: customer.id, customerName: customer.name, customerType: customer.type,
+            outletId: customer.outletId, outletName: customer.outletName,
+            vehicleId: match.vehicle.id, vehicleName: match.vehicle.brand + ' ' + match.vehicle.model,
+            vehicleType: match.vehicle.type, dailyRate: match.effectiveRate,
+            fuelCost: match.vehicle.fuelCostPerDay, maintenanceCost: match.vehicle.maintenanceCostPerDay,
             netIncome: match.effectiveRate - match.vehicle.fuelCostPerDay - match.vehicle.maintenanceCostPerDay,
             createdDay: gameState.currentDay
-          };
-          newOrders.push(order);
+          });
         }
       });
 
       if (newOrders.length > 0) {
         gameState.pendingOrders = gameState.pendingOrders.concat(newOrders);
-        addMessage(`收到 <span class="msg-highlight">${newOrders.length}</span> 个新订单，请及时处理！`, 'warn');
+        addMessage('收到 <span class="msg-highlight">' + newOrders.length + '</span> 个新订单，请及时处理！', 'warn');
       } else {
         addMessage('今日无客户下单', 'bad');
       }
 
-      const dailyCost = gameState.ownedVehicles.reduce((s, v) => s + v.fuelCostPerDay + v.maintenanceCostPerDay, 0) * 0.3;
-      gameState.todayExpense += Math.round(dailyCost);
-      gameState.cash -= Math.round(dailyCost);
+      const idleCost = gameState.ownedVehicles.reduce((s, v) => s + v.fuelCostPerDay * 0.3 + v.maintenanceCostPerDay * 0.3, 0);
+      gameState.todayExpense += Math.round(idleCost);
+      gameState.cash -= Math.round(idleCost);
 
       gameState.currentDay++;
       updateUI();
@@ -1091,25 +987,23 @@
     function acceptOrder(orderId) {
       const idx = gameState.pendingOrders.findIndex(o => o.id === orderId);
       if (idx === -1) return;
-
       const order = gameState.pendingOrders[idx];
       const vehicle = gameState.ownedVehicles.find(v => v.id === order.vehicleId);
 
       if (!vehicle) {
-        addMessage(`订单取消：${order.vehicleName} 已出售`, 'bad');
+        addMessage('订单取消：' + order.vehicleName + ' 已出售', 'bad');
         gameState.pendingOrders.splice(idx, 1);
-        renderOrders();
-        updateUI();
-        saveGame();
-        return;
+        renderOrders(); updateUI(); saveGame(); return;
       }
-
       if (gameState.rentedToday.includes(order.vehicleId)) {
-        addMessage(`订单取消：${order.vehicleName} 今日已租出`, 'bad');
+        addMessage('订单取消：' + order.vehicleName + ' 今日已租出', 'bad');
         gameState.pendingOrders.splice(idx, 1);
-        renderOrders();
-        saveGame();
-        return;
+        renderOrders(); saveGame(); return;
+      }
+      if (isInTransit(order.vehicleId)) {
+        addMessage('订单取消：' + order.vehicleName + ' 正在调度中', 'bad');
+        gameState.pendingOrders.splice(idx, 1);
+        renderOrders(); saveGame(); return;
       }
 
       gameState.cash += Math.round(order.dailyRate);
@@ -1118,14 +1012,16 @@
       gameState.todayExpense += Math.round(order.fuelCost + order.maintenanceCost);
       gameState.rentedToday.push(order.vehicleId);
 
+      if (!gameState.outletOrderCounts[order.outletId]) gameState.outletOrderCounts[order.outletId] = 0;
+      gameState.outletOrderCounts[order.outletId]++;
+
+      showDollarSign(order.outletId);
+
       gameState.pendingOrders.splice(idx, 1);
-
       const typeLabel = order.customerType === 'business' ? '商务' : '旅游';
-      addMessage(`${typeLabel}客户 <span class="msg-highlight">${order.customerName}</span> 租用了 ${order.vehicleName}，收入 ${formatCurrency(Math.round(order.dailyRate))}`, 'good');
+      addMessage(typeLabel + '客户 <span class="msg-highlight">' + order.customerName + '</span> 租用了 ' + order.vehicleName + '，收入 ' + formatCurrency(Math.round(order.dailyRate)), 'good');
 
-      renderOrders();
-      updateUI();
-      saveGame();
+      renderOrders(); updateUI(); saveGame();
     }
 
     function rejectOrder(orderId) {
@@ -1133,21 +1029,13 @@
       if (idx === -1) return;
       const order = gameState.pendingOrders[idx];
       gameState.pendingOrders.splice(idx, 1);
-      addMessage(`已拒绝 ${order.customerName} 的租车订单`, 'bad');
-      renderOrders();
-      updateUI();
-      saveGame();
+      addMessage('已拒绝 ' + order.customerName + ' 的租车订单', 'bad');
+      renderOrders(); updateUI(); saveGame();
     }
 
     // ===== 订单管理 =====
-    function openOrdersModal() {
-      document.getElementById('ordersModal').classList.add('active');
-      renderOrders();
-    }
-
-    function closeOrdersModal() {
-      document.getElementById('ordersModal').classList.remove('active');
-    }
+    function openOrdersModal() { document.getElementById('ordersModal').classList.add('active'); renderOrders(); }
+    function closeOrdersModal() { document.getElementById('ordersModal').classList.remove('active'); }
 
     function renderOrders() {
       const wrapper = document.getElementById('orderListWrapper');
@@ -1155,46 +1043,18 @@
         wrapper.innerHTML = '<div class="empty-state"><div class="icon">📭</div><div class="text">暂无待处理订单</div></div>';
         return;
       }
-
       wrapper.innerHTML = '';
       gameState.pendingOrders.forEach(order => {
         const typeIcon = order.customerType === 'business' ? '💼' : '🏖️';
         const typeClass = order.customerType === 'business' ? 'business' : 'tourist';
         const typeLabel = order.customerType === 'business' ? '商务客户' : '旅游客户';
         const netClass = order.netIncome >= 0 ? 'msg-highlight' : 'msg-bad';
-
         const card = document.createElement('div');
         card.className = 'order-card';
-        card.innerHTML = `
-          <div class="order-top">
-            <div class="order-customer">
-              <div class="order-avatar ${typeClass}">${typeIcon}</div>
-              <div class="order-customer-info">
-                <span class="order-customer-name">${order.customerName}</span>
-                <span class="order-customer-type">${typeLabel} · ${order.outletName}</span>
-              </div>
-            </div>
-            <span class="order-price">${formatCurrency(Math.round(order.dailyRate))}</span>
-          </div>
-          <div class="order-details">
-            <div class="order-detail-item">
-              <div class="order-detail-label">租用车型</div>
-              <div class="order-detail-value">${order.vehicleName}</div>
-            </div>
-            <div class="order-detail-item">
-              <div class="order-detail-label">车辆类型</div>
-              <div class="order-detail-value">${order.vehicleType}</div>
-            </div>
-            <div class="order-detail-item">
-              <div class="order-detail-label">净利润</div>
-              <div class="order-detail-value ${netClass}">${formatCurrency(Math.round(order.netIncome))}</div>
-            </div>
-          </div>
-          <div class="order-actions">
-            <button class="action-btn btn-accept" onclick="acceptOrder('${order.id}')">✓ 接单</button>
-            <button class="action-btn btn-reject" onclick="rejectOrder('${order.id}')">✕ 拒绝</button>
-          </div>
-        `;
+        card.innerHTML =
+          '<div class="order-top"><div class="order-customer"><div class="order-avatar ' + typeClass + '">' + typeIcon + '</div><div class="order-customer-info"><span class="order-customer-name">' + order.customerName + '</span><span class="order-customer-type">' + typeLabel + ' · ' + order.outletName + '</span></div></div><span class="order-price">' + formatCurrency(Math.round(order.dailyRate)) + '</span></div>' +
+          '<div class="order-details"><div class="order-detail-item"><div class="order-detail-label">租用车型</div><div class="order-detail-value">' + order.vehicleName + '</div></div><div class="order-detail-item"><div class="order-detail-label">车辆类型</div><div class="order-detail-value">' + order.vehicleType + '</div></div><div class="order-detail-item"><div class="order-detail-label">净利润</div><div class="order-detail-value ' + netClass + '">' + formatCurrency(Math.round(order.netIncome)) + '</div></div></div>' +
+          '<div class="order-actions"><button class="action-btn btn-accept" onclick="acceptOrder(\'' + order.id + '\')">✓ 接单</button><button class="action-btn btn-reject" onclick="rejectOrder(\'' + order.id + '\')">✕ 拒绝</button></div>';
         wrapper.appendChild(card);
       });
     }
@@ -1203,91 +1063,127 @@
     function openFleetModal() {
       document.getElementById('fleetModal').classList.add('active');
       updateVehicleCounts();
-      switchTab('local');
+      switchTab(currentTab);
     }
-
     function closeFleetModal() { document.getElementById('fleetModal').classList.remove('active'); }
 
     function updateVehicleCounts() {
       document.getElementById('localCount').textContent = getVehiclesByMarket(MARKET_TYPES.LOCAL_DEALER).length + '辆';
-      document.getElementById('usedCount').textContent = getVehiclesByMarket(MARKET_TYPES.USED_CAR).length + '辆';
+      document.getElementById('usedCount').textContent = gameState.usedCarMarketList.length + '辆';
       document.getElementById('overseasCount').textContent = getVehiclesByMarket(MARKET_TYPES.OVERSEAS).length + '辆';
-      document.getElementById('myFleetCount').textContent = gameState.totalFleet + '辆';
+      document.getElementById('myFleetCount').textContent = gameState.ownedVehicles.length + '辆';
+      document.getElementById('outletCount').textContent = gameState.outlets.filter(o => o.owned).length + '个';
+    }
+
+    function updateTableHeader(headers) {
+      const thead = document.querySelector('#vehicleTable thead tr');
+      thead.innerHTML = headers.map(h => '<th>' + h + '</th>').join('');
     }
 
     function switchTab(tab) {
       currentTab = tab;
       document.querySelectorAll('.market-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
-      const marketInfo = getMarketInfo();
       const infoBar = document.getElementById('marketInfoBar');
       const descEl = document.getElementById('marketDescription');
       const timeEl = document.getElementById('deliveryTime');
+      const refreshBtn = document.getElementById('refreshUsedBtn');
 
       if (tab === 'myfleet') {
         infoBar.style.display = 'none';
+        updateTableHeader(['车型信息','车牌','类型','当前估值','出售价格','日租金','操作']);
         renderMyFleet();
+      } else if (tab === 'outlets') {
+        infoBar.style.display = 'none';
+        updateTableHeader(['网点名称','状态','等级','车位','今日订单','升级/解锁费用','操作']);
+        renderOutlets();
       } else {
         infoBar.style.display = 'flex';
-        const market = marketInfo[tab];
-        descEl.innerHTML = market.icon + ' ' + market.description;
-        timeEl.textContent = '⏱️ ' + market.deliveryTime;
-        if (tab === MARKET_TYPES.LOCAL_DEALER) renderVehicles(getVehiclesByMarket(MARKET_TYPES.LOCAL_DEALER), 'buy');
-        else if (tab === MARKET_TYPES.USED_CAR) renderUsedCars(getVehiclesByMarket(MARKET_TYPES.USED_CAR));
-        else if (tab === MARKET_TYPES.OVERSEAS) renderVehicles(getVehiclesByMarket(MARKET_TYPES.OVERSEAS), 'buy');
+        refreshBtn.style.display = tab === 'used' ? 'flex' : 'none';
+        updateTableHeader(['车型信息','车牌','类型','保值率','采购价格','日租金','操作']);
+        const market = getMarketInfo()[tab];
+        if (market) {
+          descEl.innerHTML = market.icon + ' ' + market.description;
+          timeEl.textContent = '⏱️ ' + market.deliveryTime;
+        }
+        if (tab === 'local') renderMarketVehicles(getVehiclesByMarket(MARKET_TYPES.LOCAL_DEALER), 'local');
+        else if (tab === 'used') renderUsedCarMarket();
+        else if (tab === 'overseas') renderMarketVehicles(getVehiclesByMarket(MARKET_TYPES.OVERSEAS), 'overseas');
       }
     }
 
-    function renderVehicles(vehicles, action) {
+    function renderMarketVehicles(vehicles, marketType) {
       const tbody = document.getElementById('vehicleTableBody');
       tbody.innerHTML = '';
       vehicles.forEach(v => {
         const fuelInfo = getFuelTypeInfo(v.fuelType);
         const typeInfo = getVehicleTypeInfo(v.type);
         const residualInfo = getResidualValueInfo(v.residualValue);
-        const isOwned = gameState.ownedVehicles.some(o => o.id === v.id);
         const canAfford = gameState.cash >= v.purchasePrice;
-        let actionHtml = '';
-        if (action === 'buy') {
-          actionHtml = `<button class="action-btn btn-buy" onclick="buyVehicle('${v.id}')" ${!canAfford || isOwned ? 'disabled' : ''}>${isOwned ? '已拥有' : (canAfford ? '购买' : '资金不足')}</button>`;
-        }
+        const hasCapacity = gameState.outlets.filter(o => o.owned).some(o => getVehiclesAtOutlet(o.id).length < getOutletCapacity(o.id));
         const row = document.createElement('tr');
-        row.innerHTML = `
-          <td><div class="vehicle-info"><span class="vehicle-name">${v.brand} ${v.model}</span><span class="vehicle-brand">${v.year}款 · ${v.fuelConsumption}${v.fuelType === FUEL_TYPES.ELECTRIC ? 'kWh' : 'L'}/100km</span></div></td>
-          <td><span class="license-plate">${v.licensePlate}</span></td>
-          <td><span class="tag tag-type">${typeInfo.text}</span> <span class="tag tag-fuel">${fuelInfo.icon} ${fuelInfo.text}</span>${v.isExclusive ? ' <span class="tag tag-exclusive">⭐ 独家</span>' : ''}</td>
-          <td><div class="residual-value"><div class="residual-bar"><div class="residual-fill" style="width:${residualInfo.percentage}%;background:${residualInfo.color};"></div></div><span class="residual-text" style="color:${residualInfo.color};">${residualInfo.percentage}% · ${residualInfo.level}</span></div></td>
-          <td><span class="price">${formatCurrency(v.purchasePrice)}</span></td>
-          <td><span class="daily-rate">${formatCurrency(v.dailyRate)}/天</span></td>
-          <td>${actionHtml}</td>`;
+        row.innerHTML =
+          '<td><div class="vehicle-info"><span class="vehicle-name">' + v.brand + ' ' + v.model + '</span><span class="vehicle-brand">' + v.year + '款 · ' + v.fuelConsumption + (v.fuelType === FUEL_TYPES.ELECTRIC ? 'kWh' : 'L') + '/100km</span></div></td>' +
+          '<td><span style="color:rgba(255,255,255,0.3);font-size:11px;">购买后生成</span></td>' +
+          '<td><span class="tag tag-type">' + typeInfo.text + '</span> <span class="tag tag-fuel">' + fuelInfo.icon + ' ' + fuelInfo.text + '</span>' + (v.isExclusive ? ' <span class="tag tag-exclusive">⭐ 独家</span>' : '') + '</td>' +
+          '<td><div class="residual-value"><div class="residual-bar"><div class="residual-fill" style="width:' + residualInfo.percentage + '%;background:' + residualInfo.color + ';"></div></div><span class="residual-text" style="color:' + residualInfo.color + ';">' + residualInfo.percentage + '% · ' + residualInfo.level + '</span></div></td>' +
+          '<td><span class="price">' + formatCurrency(v.purchasePrice) + '</span></td>' +
+          '<td><span class="daily-rate">' + formatCurrency(v.dailyRate) + '/天</span></td>' +
+          '<td>' + renderBuyButton(v.id, v.purchasePrice, marketType, canAfford, hasCapacity) + '</td>';
         tbody.appendChild(row);
       });
     }
 
-    function renderUsedCars(vehicles) {
+    function renderBuyButton(vehicleId, price, marketType, canAfford, hasCapacity) {
+      const ownedOutlets = gameState.outlets.filter(o => o.owned);
+      if (ownedOutlets.length === 0 || !canAfford || !hasCapacity) {
+        return '<button class="action-btn btn-buy" disabled>' + (!canAfford ? '资金不足' : !hasCapacity ? '车位已满' : '无法购买') + '</button>';
+      }
+      const outletOptions = ownedOutlets.map(o => {
+        const cfg = OUTLET_CONFIGS[o.id];
+        const count = getVehiclesAtOutlet(o.id).length;
+        const cap = getOutletCapacity(o.id);
+        return '<option value="' + o.id + '">' + cfg.name + ' (' + count + '/' + cap + ')</option>';
+      }).join('');
+      return '<div><select class="outlet-select" id="outletSelect_' + vehicleId + '">' + outletOptions + '</select><button class="action-btn btn-buy" onclick="buyVehicle(\'' + vehicleId + '\',\'' + marketType + '\')" style="margin-top:4px;">购买</button></div>';
+    }
+
+    function renderUsedCarMarket() {
       const tbody = document.getElementById('vehicleTableBody');
+      if (gameState.usedCarMarketList.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">🚗</div><div class="text">点击「刷新市场」浏览二手车</div></div></td></tr>';
+        return;
+      }
       tbody.innerHTML = '';
-      vehicles.forEach(v => {
+      gameState.usedCarMarketList.forEach(v => {
         const fuelInfo = getFuelTypeInfo(v.fuelType);
         const typeInfo = getVehicleTypeInfo(v.type);
         const residualInfo = getResidualValueInfo(v.residualValue);
-        const isOwned = gameState.ownedVehicles.some(o => o.id === v.id);
-        const currentValue = calculateVehicleValue(v);
-        const canAfford = gameState.cash >= currentValue;
+        const canAfford = gameState.cash >= v.estimatedValue;
+        const hasCapacity = gameState.outlets.filter(o => o.owned).some(o => getVehiclesAtOutlet(o.id).length < getOutletCapacity(o.id));
         let cc = 'condition-good';
         if (v.condition === CONDITION_LEVELS.EXCELLENT) cc = 'condition-excellent';
         else if (v.condition === CONDITION_LEVELS.AVERAGE) cc = 'condition-average';
         else if (v.condition === CONDITION_LEVELS.POOR) cc = 'condition-poor';
+
         const row = document.createElement('tr');
-        row.innerHTML = `
-          <td><div class="vehicle-info"><span class="vehicle-name">${v.brand} ${v.model}</span><span class="vehicle-brand">${v.year}款 · ${v.mileage.toLocaleString()}km · ${v.age}年车龄</span></div></td>
-          <td><span class="license-plate">${v.licensePlate}</span></td>
-          <td><span class="tag tag-type">${typeInfo.text}</span> <span class="tag tag-fuel">${fuelInfo.icon} ${fuelInfo.text}</span> <span class="tag tag-used">二手车</span> <span class="condition-tag ${cc}">${v.condition}</span></td>
-          <td><div class="residual-value"><div class="residual-bar"><div class="residual-fill" style="width:${residualInfo.percentage}%;background:${residualInfo.color};"></div></div><span class="residual-text" style="color:${residualInfo.color};">${residualInfo.percentage}% · ${residualInfo.level}</span></div></td>
-          <td><span class="price">${formatCurrency(currentValue)}</span></td>
-          <td><span class="daily-rate">${formatCurrency(v.dailyRate)}/天</span></td>
-          <td><button class="action-btn btn-buy" onclick="buyVehicle('${v.id}',true)" ${!canAfford || isOwned ? 'disabled' : ''}>${isOwned ? '已拥有' : (canAfford ? '购买' : '资金不足')}</button></td>`;
+        row.innerHTML =
+          '<td><div class="vehicle-info"><span class="vehicle-name">' + v.brand + ' ' + v.model + '</span><span class="vehicle-brand">' + v.year + '款 · ' + v.mileage.toLocaleString() + 'km · ' + v.age + '年车龄</span></div></td>' +
+          '<td><span class="license-plate">' + v.licensePlate + '</span></td>' +
+          '<td><span class="tag tag-type">' + typeInfo.text + '</span> <span class="tag tag-fuel">' + fuelInfo.icon + ' ' + fuelInfo.text + '</span> <span class="tag tag-used">二手车</span> <span class="condition-tag ' + cc + '">' + v.condition + '</span></td>' +
+          '<td><div class="residual-value"><div class="residual-bar"><div class="residual-fill" style="width:' + residualInfo.percentage + '%;background:' + residualInfo.color + ';"></div></div><span class="residual-text" style="color:' + residualInfo.color + ';">' + residualInfo.percentage + '% · ' + residualInfo.level + '</span></div></td>' +
+          '<td><span class="price">' + formatCurrency(v.estimatedValue) + '</span></td>' +
+          '<td><span class="daily-rate">' + formatCurrency(v.dailyRate) + '/天</span></td>' +
+          '<td>' + renderBuyButton(v.id, v.estimatedValue, 'used', canAfford, hasCapacity) + '</td>';
         tbody.appendChild(row);
       });
+    }
+
+    function refreshUsedCarMarket() {
+      gameState.usedCarMarketList = generateUsedCarListing(20);
+      updateVehicleCounts();
+      switchTab('used');
+      addMessage('二手车市场已刷新，共 <span class="msg-highlight">20</span> 辆车', 'warn');
+      saveGame();
     }
 
     function renderMyFleet() {
@@ -1302,75 +1198,196 @@
         const typeInfo = getVehicleTypeInfo(v.type);
         const currentValue = calculateVehicleValue(v);
         const sellPrice = Math.round(currentValue * 0.85);
+        const outletCfg = OUTLET_CONFIGS.find(c => c.id === v.outletId);
+        const inTransit = isInTransit(v.id);
+        const transfer = gameState.transfers.find(t => t.vehicleId === v.id);
         let condHtml = '';
-        if (!v.isNew) {
+        if (!v.isNew && v.condition) {
           let cc = 'condition-good';
           if (v.condition === CONDITION_LEVELS.EXCELLENT) cc = 'condition-excellent';
           else if (v.condition === CONDITION_LEVELS.AVERAGE) cc = 'condition-average';
           else if (v.condition === CONDITION_LEVELS.POOR) cc = 'condition-poor';
-          condHtml = `<span class="condition-tag ${cc}">${v.condition}</span>`;
+          condHtml = '<span class="condition-tag ' + cc + '">' + v.condition + '</span>';
         }
+        const outletLabel = inTransit
+          ? '<span class="transit-badge">🚚 调度中(' + transfer.daysRemaining + '天)</span>'
+          : (outletCfg ? outletCfg.name : '未知');
+        const canDispatch = !inTransit && gameState.outlets.filter(o => o.owned && o.id !== v.outletId).length > 0;
+
         const row = document.createElement('tr');
-        row.innerHTML = `
-          <td><div class="vehicle-info"><span class="vehicle-name">${v.brand} ${v.model}</span><span class="vehicle-brand">${v.year}款 · ${v.isNew ? '新车' : v.mileage.toLocaleString() + 'km'}</span></div></td>
-          <td><span class="license-plate">${v.licensePlate}</span></td>
-          <td><span class="tag tag-type">${typeInfo.text}</span> <span class="tag tag-fuel">${fuelInfo.icon} ${fuelInfo.text}</span> <span class="owned-badge">已购入</span>${condHtml}</td>
-          <td><span style="color:#60a5fa;">估值 ${formatCurrency(currentValue)}</span></td>
-          <td><span class="price">${formatCurrency(sellPrice)}</span></td>
-          <td><span class="daily-rate">${formatCurrency(v.dailyRate)}/天</span></td>
-          <td><button class="action-btn btn-sell" onclick="sellVehicle('${v.id}')">出售</button></td>`;
+        row.innerHTML =
+          '<td><div class="vehicle-info"><span class="vehicle-name">' + v.brand + ' ' + v.model + '</span><span class="vehicle-brand">' + v.year + '款 · ' + (v.isNew ? '新车' : v.mileage.toLocaleString() + 'km') + '</span></div></td>' +
+          '<td><span class="license-plate">' + v.licensePlate + '</span></td>' +
+          '<td><span class="tag tag-type">' + typeInfo.text + '</span> <span class="tag tag-fuel">' + fuelInfo.icon + ' ' + fuelInfo.text + '</span> <span class="owned-badge">已购入</span>' + condHtml + '<br><span style="font-size:10px;color:rgba(255,255,255,0.4);">' + outletLabel + '</span></td>' +
+          '<td><span style="color:#60a5fa;">估值 ' + formatCurrency(currentValue) + '</span></td>' +
+          '<td><span class="price">' + formatCurrency(sellPrice) + '</span></td>' +
+          '<td><span class="daily-rate">' + formatCurrency(v.dailyRate) + '/天</span></td>' +
+          '<td><button class="action-btn btn-sell" onclick="sellVehicle(\'' + v.id + '\')" style="margin-bottom:4px;">出售</button>' + (canDispatch ? '<button class="action-btn btn-dispatch" onclick="openDispatchModal(\'' + v.id + '\')">调度</button>' : '') + '</td>';
         tbody.appendChild(row);
       });
     }
 
-    function buyVehicle(vehicleId, isUsed = false) {
-      const vehicle = getVehicleById(vehicleId);
-      if (!vehicle) return;
-      const purchasePrice = isUsed ? calculateVehicleValue(vehicle) : vehicle.purchasePrice;
-      if (gameState.cash < purchasePrice) { showToast('资金不足，无法购买！', 'error'); return; }
-      if (gameState.ownedVehicles.some(v => v.id === vehicle.id)) { showToast('该车辆已在车队中！', 'warning'); return; }
+    function renderOutlets() {
+      const tbody = document.getElementById('vehicleTableBody');
+      tbody.innerHTML = '';
+      OUTLET_CONFIGS.forEach(cfg => {
+        const os = getOutletState(cfg.id);
+        const isOwned = os && os.owned;
+        const lvl = isOwned ? OUTLET_LEVELS.find(l => l.level === os.level) : OUTLET_LEVELS[0];
+        const cap = lvl ? lvl.capacity : 20;
+        const vehCount = isOwned ? getVehiclesAtOutlet(cfg.id).length : 0;
+        const nextLevel = isOwned ? OUTLET_LEVELS.find(l => l.level === os.level + 1) : null;
+
+        const row = document.createElement('tr');
+        row.innerHTML =
+          '<td><div class="vehicle-info"><span class="vehicle-name">' + (isOwned ? '🏢' : '🔒') + ' ' + cfg.name + '</span><span class="vehicle-brand">' + cfg.cityLabel + '</span></div></td>' +
+          '<td><span style="color:' + (isOwned ? '#4ade80' : 'rgba(255,255,255,0.3)') + ';">' + (isOwned ? '运营中' : '未解锁') + '</span></td>' +
+          '<td>' + (isOwned ? 'Lv.' + os.level : '-') + '</td>' +
+          '<td>' + (isOwned ? vehCount + ' / ' + cap : '-') + '</td>' +
+          '<td>' + (isOwned ? formatCurrency(gameState.outletOrderCounts[cfg.id] || 0) : '-') + '</td>' +
+          '<td>' + (nextLevel ? formatCurrency(nextLevel.upgradeCost) : (isOwned ? '已满级' : formatCurrency(cfg.unlockCost))) + '</td>' +
+          '<td>' + (isOwned
+            ? (nextLevel ? '<button class="action-btn btn-buy" onclick="upgradeOutlet(' + cfg.id + ')" ' + (gameState.cash < nextLevel.upgradeCost ? 'disabled' : '') + '>升级 Lv.' + nextLevel.level + '</button>' : '<span style="color:rgba(255,255,255,0.3);font-size:11px;">已满级</span>')
+            : '<button class="action-btn btn-buy" onclick="unlockOutlet(' + cfg.id + ')" ' + (gameState.cash < cfg.unlockCost ? 'disabled' : '') + '>🔓 解锁</button>') + '</td>';
+        tbody.appendChild(row);
+      });
+    }
+
+    // ===== 车辆买卖 =====
+    function buyVehicle(vehicleId, marketType) {
+      let vehicle, purchasePrice;
+      if (marketType === 'used') {
+        vehicle = gameState.usedCarMarketList.find(v => v.id === vehicleId);
+        if (!vehicle) return;
+        purchasePrice = vehicle.estimatedValue;
+      } else {
+        vehicle = getVehicleById(vehicleId);
+        if (!vehicle) return;
+        purchasePrice = vehicle.purchasePrice;
+      }
+
+      const selectEl = document.getElementById('outletSelect_' + vehicleId);
+      if (!selectEl) { showToast('请选择交付网点', 'error'); return; }
+      const outletId = parseInt(selectEl.value);
+      const outletState = getOutletState(outletId);
+      if (!outletState || !outletState.owned) { showToast('无效网点', 'error'); return; }
+
+      if (gameState.cash < purchasePrice) { showToast('资金不足！', 'error'); return; }
+      const currentCount = getVehiclesAtOutlet(outletId).length;
+      const capacity = getOutletCapacity(outletId);
+      if (currentCount >= capacity) { showToast(OUTLET_CONFIGS.find(c => c.id === outletId).name + '车位已满！', 'error'); return; }
 
       gameState.cash -= purchasePrice;
-      gameState.totalFleet += 1;
-      gameState.ownedVehicles.push({ ...vehicle, purchasePrice, purchaseDate: new Date().toISOString() });
+      const plate = vehicle.isNew ? generateLicensePlate() : (vehicle.licensePlate || generateLicensePlate());
+      const ownedVehicle = { ...vehicle, licensePlate: plate, outletId, purchasePrice, purchaseDay: gameState.currentDay };
+      delete ownedVehicle.market;
+      gameState.ownedVehicles.push(ownedVehicle);
 
-      addMessage(`购入 ${vehicle.brand} ${vehicle.model}，花费 ${formatCurrency(purchasePrice)}`, 'good');
-      updateUI();
-      updateVehicleCounts();
-      switchTab(currentTab);
-      showToast(`成功购买 ${vehicle.brand} ${vehicle.model}！- ${formatCurrency(purchasePrice)}`, 'success');
+      if (marketType === 'used') {
+        gameState.usedCarMarketList = gameState.usedCarMarketList.filter(v => v.id !== vehicleId);
+      }
+
+      addMessage('购入 ' + vehicle.brand + ' ' + vehicle.model + '（' + plate + '）→ ' + OUTLET_CONFIGS.find(c => c.id === outletId).name + '，花费 ' + formatCurrency(purchasePrice), 'good');
+      updateUI(); updateVehicleCounts(); switchTab(currentTab);
+      showToast('成功购买 ' + vehicle.brand + ' ' + vehicle.model + '！', 'success');
     }
 
     function sellVehicle(vehicleId) {
       const index = gameState.ownedVehicles.findIndex(v => v.id === vehicleId);
       if (index === -1) return;
       const vehicle = gameState.ownedVehicles[index];
+      if (isInTransit(vehicleId)) { showToast('车辆正在调度中，无法出售', 'error'); return; }
       const currentValue = calculateVehicleValue(vehicle);
       const sellPrice = Math.round(currentValue * 0.85);
 
       gameState.cash += sellPrice;
-      gameState.totalFleet -= 1;
       gameState.ownedVehicles.splice(index, 1);
-
       gameState.pendingOrders = gameState.pendingOrders.filter(o => o.vehicleId !== vehicleId);
 
-      addMessage(`出售 ${vehicle.brand} ${vehicle.model}，获得 ${formatCurrency(sellPrice)}`, 'warn');
-      updateUI();
-      updateVehicleCounts();
-      switchTab('myfleet');
-      showToast(`成功出售 ${vehicle.brand} ${vehicle.model}！+ ${formatCurrency(sellPrice)}`, 'success');
+      addMessage('出售 ' + vehicle.brand + ' ' + vehicle.model + '（' + vehicle.licensePlate + '），获得 ' + formatCurrency(sellPrice), 'warn');
+      updateUI(); updateVehicleCounts(); switchTab('myfleet');
+      showToast('成功出售！+ ' + formatCurrency(sellPrice), 'success');
     }
 
-    function showToast(message, type = 'success') {
-      const toast = document.getElementById('toast');
-      toast.className = 'toast ' + type;
-      toast.innerHTML = type === 'success' ? '✓ ' + message : type === 'error' ? '✕ ' + message : '⚠ ' + message;
-      toast.classList.add('show');
-      setTimeout(() => { toast.classList.remove('show'); }, 3000);
+    // ===== 车辆调度 =====
+    function openDispatchModal(vehicleId) {
+      const vehicle = gameState.ownedVehicles.find(v => v.id === vehicleId);
+      if (!vehicle) return;
+      const currentOutlet = OUTLET_CONFIGS.find(c => c.id === vehicle.outletId);
+      const otherOutlets = gameState.outlets.filter(o => o.owned && o.id !== vehicle.outletId);
+
+      if (otherOutlets.length === 0) { showToast('没有其他可用网点', 'error'); return; }
+
+      const content = document.getElementById('dispatchContent');
+      const options = otherOutlets.map(o => {
+        const cfg = OUTLET_CONFIGS[o.id];
+        const count = getVehiclesAtOutlet(o.id).length;
+        const cap = getOutletCapacity(o.id);
+        const dist = getDistanceBetweenOutlets(vehicle.outletId, o.id);
+        const cost = Math.round(dist * 100);
+        const days = Math.max(1, Math.ceil(dist / 25));
+        return '<option value="' + o.id + '" data-cost="' + cost + '" data-days="' + days + '">' + cfg.name + ' (' + count + '/' + cap + ') · 费用' + formatCurrency(cost) + ' · ' + days + '天</option>';
+      }).join('');
+
+      content.innerHTML =
+        '<div class="dispatch-info"><div class="dispatch-row"><span class="dispatch-label">车辆</span><span class="dispatch-value">' + vehicle.brand + ' ' + vehicle.model + '（' + vehicle.licensePlate + '）</span></div>' +
+        '<div class="dispatch-row"><span class="dispatch-label">当前网点</span><span class="dispatch-value">' + currentOutlet.name + '</span></div></div>' +
+        '<div class="dispatch-select-wrap"><label>目标网点</label><select class="dispatch-select" id="dispatchTarget" onchange="updateDispatchInfo(\'' + vehicleId + '\')">' + options + '</select></div>' +
+        '<div class="dispatch-info" id="dispatchCostInfo"></div>' +
+        '<div class="dispatch-actions"><button class="action-btn btn-confirm-dispatch" id="dispatchConfirmBtn" onclick="confirmDispatch(\'' + vehicleId + '\')">确认调度</button><button class="action-btn btn-cancel-dispatch" onclick="closeDispatchModal()">取消</button></div>';
+
+      updateDispatchInfo(vehicleId);
+      document.getElementById('dispatchModal').classList.add('active');
     }
 
+    function updateDispatchInfo(vehicleId) {
+      const select = document.getElementById('dispatchTarget');
+      if (!select) return;
+      const option = select.options[select.selectedIndex];
+      const cost = parseInt(option.dataset.cost);
+      const days = parseInt(option.dataset.days);
+      const info = document.getElementById('dispatchCostInfo');
+      info.innerHTML =
+        '<div class="dispatch-row"><span class="dispatch-label">调度费用</span><span class="dispatch-value cost">' + formatCurrency(cost) + '</span></div>' +
+        '<div class="dispatch-row"><span class="dispatch-label">运输时间</span><span class="dispatch-value time">' + days + ' 天</span></div>' +
+        '<div class="dispatch-row"><span class="dispatch-label">车辆状态</span><span class="dispatch-value" style="color:#f87171;">调度期间无法出租</span></div>';
+      const btn = document.getElementById('dispatchConfirmBtn');
+      btn.disabled = gameState.cash < cost;
+    }
+
+    function confirmDispatch(vehicleId) {
+      const vehicle = gameState.ownedVehicles.find(v => v.id === vehicleId);
+      if (!vehicle) return;
+      const select = document.getElementById('dispatchTarget');
+      const option = select.options[select.selectedIndex];
+      const targetOutletId = parseInt(select.value);
+      const cost = parseInt(option.dataset.cost);
+      const days = parseInt(option.dataset.days);
+
+      if (gameState.cash < cost) { showToast('资金不足！', 'error'); return; }
+      const targetCap = getOutletCapacity(targetOutletId);
+      const targetCount = getVehiclesAtOutlet(targetOutletId).length;
+      if (targetCount >= targetCap) { showToast('目标网点车位已满！', 'error'); return; }
+
+      gameState.cash -= cost;
+      gameState.todayExpense += cost;
+      gameState.transfers.push({
+        vehicleId, fromOutletId: vehicle.outletId, toOutletId: targetOutletId,
+        daysRemaining: days, cost
+      });
+
+      const targetName = OUTLET_CONFIGS.find(c => c.id === targetOutletId).name;
+      addMessage('调度 ' + vehicle.brand + ' ' + vehicle.model + ' → ' + targetName + '，费用 ' + formatCurrency(cost) + '，预计 ' + days + ' 天到达', 'warn');
+      closeDispatchModal();
+      updateUI(); saveGame();
+      if (currentTab === 'myfleet') switchTab('myfleet');
+    }
+
+    function closeDispatchModal() { document.getElementById('dispatchModal').classList.remove('active'); }
+
+    // ===== 初始化 =====
     window.addEventListener('keydown', e => {
-      if (e.key === 'Escape') { closeFleetModal(); closeOrdersModal(); }
+      if (e.key === 'Escape') { closeFleetModal(); closeOrdersModal(); closeDispatchModal(); hideOutletPopup(); }
     });
 
     window.addEventListener('DOMContentLoaded', () => {
@@ -1381,9 +1398,11 @@
       } else {
         addMessage('欢迎来到租车公司模拟！点击「下一日」开始经营', 'good');
       }
-      if (!gameState.rentedToday) gameState.rentedToday = [];
-      if (!gameState.pendingOrders) gameState.pendingOrders = [];
+      if (gameState.usedCarMarketList.length === 0) {
+        gameState.usedCarMarketList = generateUsedCarListing(20);
+      }
       updateUI();
+      saveGame();
     });
   </script>
 </body>
