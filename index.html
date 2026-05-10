@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>租车公司模拟</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'JetBrains Mono', monospace;
+      overflow: hidden;
+      background: #0a0a0f;
+    }
+
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    #control-panel {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.12);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 20px;
+      padding: 28px 32px;
+      min-width: 240px;
+      box-shadow:
+        0 8px 32px rgba(0, 0, 0, 0.4),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+      animation: slideIn 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(30px) scale(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    #control-panel h2 {
+      font-family: 'Space Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    #control-panel h2::before {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: #ff6b35;
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    .stat {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      transition: all 0.3s ease;
+    }
+
+    .stat:last-child {
+      border-bottom: none;
+    }
+
+    .stat:hover {
+      background: rgba(255, 255, 255, 0.05);
+      margin: 0 -12px;
+      padding: 12px 12px;
+      border-radius: 12px;
+    }
+
+    .stat-label {
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+
+    .stat-value {
+      font-family: 'Space Mono', monospace;
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      text-shadow: 0 0 20px rgba(255, 107, 53, 0.5);
+    }
+
+    .stat-value.cash {
+      color: #4ade80;
+    }
+
+    .stat-value.fleet {
+      color: #60a5fa;
+    }
+
+    #loading-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #0a0a0f;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+      transition: opacity 0.8s ease, visibility 0.8s ease;
+    }
+
+    #loading-screen.hidden {
+      opacity: 0;
+      visibility: hidden;
+    }
+
+    .loader {
+      width: 60px;
+      height: 60px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top-color: #ff6b35;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      margin-top: 24px;
+      font-family: 'Space Mono', monospace;
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 14px;
+      letter-spacing: 2px;
+    }
+
+    #info-hint {
+      position: fixed;
+      bottom: 24px;
+      left: 24px;
+      z-index: 100;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 14px 20px;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 12px;
+      font-family: 'Space Mono', monospace;
+      animation: fadeIn 1s ease 0.5s both;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    #info-hint span {
+      color: rgba(255, 255, 255, 0.8);
+      margin-right: 8px;
+    }
+  </style>
+</head>
+<body>
+  <div id="loading-screen">
+    <div class="loader"></div>
+    <div class="loading-text">INITIALIZING</div>
+  </div>
+
+  <div id="canvas-container"></div>
+
+  <div id="control-panel">
+    <h2>租车公司</h2>
+    <div class="stat">
+      <span class="stat-label">当前月份</span>
+      <span class="stat-value" id="month">1 月</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">公司现金</span>
+      <span class="stat-value cash" id="cash">¥1,000,000</span>
+    </div>
+    <div class="stat">
+      <span class="stat-label">总车队数量</span>
+      <span class="stat-value fleet" id="fleet">0 辆</span>
+    </div>
+  </div>
+
+  <div id="info-hint">
+    <span>ⓘ</span> 拖拽旋转 · 滚轮缩放
+  </div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
+  <script>
+    const gameState = {
+      cash: 1000000,
+      totalFleet: 0,
+      currentMonth: 1,
+      outlets: []
+    };
+
+    const outletColors = [
+      0x3498db,
+      0xe74c3c,
+      0x2ecc71,
+      0xf39c12,
+      0x9b59b6
+    ];
+
+    const outletNames = ['网点 A', '网点 B', '网点 C', '网点 D', '网点 E'];
+
+    let scene, camera, renderer, controls;
+    const outlets = [];
+
+    function init() {
+      const container = document.getElementById('canvas-container');
+
+      scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0a0a0f);
+      scene.fog = new THREE.Fog(0x0a0a0f, 80, 200);
+
+      camera = new THREE.PerspectiveCamera(
+        60,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+      camera.position.set(80, 80, 80);
+      camera.lookAt(0, 0, 0);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.shadowMap.enabled = true;
+      renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      container.appendChild(renderer.domElement);
+
+      controls = new THREE.OrbitControls(camera, renderer.domElement);
+      controls.enableDamping = true;
+      controls.dampingFactor = 0.05;
+      controls.minDistance = 30;
+      controls.maxDistance = 200;
+      controls.maxPolarAngle = Math.PI / 2.2;
+
+      createLighting();
+      createGround();
+      createOutlets();
+
+      window.addEventListener('resize', onWindowResize);
+
+      setTimeout(() => {
+        document.getElementById('loading-screen').classList.add('hidden');
+      }, 800);
+
+      animate();
+    }
+
+    function createLighting() {
+      const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+      scene.add(ambientLight);
+
+      const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+      directionalLight.position.set(50, 100, 50);
+      directionalLight.castShadow = true;
+      directionalLight.shadow.mapSize.width = 2048;
+      directionalLight.shadow.mapSize.height = 2048;
+      directionalLight.shadow.camera.near = 0.5;
+      directionalLight.shadow.camera.far = 500;
+      scene.add(directionalLight);
+
+      const fillLight = new THREE.DirectionalLight(0x4a90e2, 0.3);
+      fillLight.position.set(-30, 50, -30);
+      scene.add(fillLight);
+    }
+
+    function createGround() {
+      const groundGeometry = new THREE.PlaneGeometry(200, 200, 50, 50);
+      const groundMaterial = new THREE.MeshStandardMaterial({
+        color: 0x1a1a2e,
+        roughness: 0.8,
+        metalness: 0.2
+      });
+      const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+      ground.rotation.x = -Math.PI / 2;
+      ground.receiveShadow = true;
+      scene.add(ground);
+
+      const gridHelper = new THREE.GridHelper(200, 40, 0x2a2a4e, 0x1a1a3e);
+      gridHelper.position.y = 0.01;
+      scene.add(gridHelper);
+
+      const gridLinesMaterial = new THREE.LineBasicMaterial({
+        color: 0x3498db,
+        transparent: true,
+        opacity: 0.1
+      });
+      const gridLinesGeometry = new THREE.BufferGeometry();
+      const gridLines = [];
+      const size = 200;
+      const divisions = 20;
+      const step = size / divisions;
+
+      for (let i = -size/2; i <= size/2; i += step) {
+        gridLines.push(-size/2, 0.02, i);
+        gridLines.push(size/2, 0.02, i);
+        gridLines.push(i, 0.02, -size/2);
+        gridLines.push(i, 0.02, size/2);
+      }
+
+      gridLinesGeometry.setAttribute('position', new THREE.Float32BufferAttribute(gridLines, 3));
+      const gridLineSegments = new THREE.LineSegments(gridLinesGeometry, gridLinesMaterial);
+      scene.add(gridLineSegments);
+    }
+
+    function createOutlets() {
+      const existingPositions = [];
+
+      outletNames.forEach((name, index) => {
+        let position = generateRandomPosition(existingPositions, 30);
+        existingPositions.push(position);
+
+        const cubeGeometry = new THREE.BoxGeometry(10, 10, 10);
+        const cubeMaterial = new THREE.MeshStandardMaterial({
+          color: outletColors[index],
+          roughness: 0.3,
+          metalness: 0.6,
+          emissive: outletColors[index],
+          emissiveIntensity: 0.1
+        });
+        const cube = new THREE.Mesh(cubeGeometry, cubeMaterial);
+        cube.position.set(position.x, 5, position.z);
+        cube.castShadow = true;
+        cube.receiveShadow = true;
+        scene.add(cube);
+
+        const edgesGeometry = new THREE.EdgesGeometry(cubeGeometry);
+        const edgesMaterial = new THREE.LineBasicMaterial({
+          color: 0xffffff,
+          transparent: true,
+          opacity: 0.6
+        });
+        const edges = new THREE.LineSegments(edgesGeometry, edgesMaterial);
+        cube.add(edges);
+
+        const glowGeometry = new THREE.BoxGeometry(11, 11, 11);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+          color: outletColors[index],
+          transparent: true,
+          opacity: 0.15,
+          side: THREE.BackSide
+        });
+        const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+        glow.position.set(position.x, 5, position.z);
+        scene.add(glow);
+
+        const sprite = createTextSprite(name, '#ffffff');
+        sprite.position.set(position.x, 18, position.z);
+        sprite.scale.set(20, 10, 1);
+        scene.add(sprite);
+
+        const iconSprite = createTextSprite('🏢', null);
+        iconSprite.position.set(position.x, 14, position.z);
+        iconSprite.scale.set(8, 8, 1);
+        scene.add(iconSprite);
+
+        outlets.push({
+          mesh: cube,
+          position: position,
+          name: name,
+          color: outletColors[index]
+        });
+
+        gameState.outlets.push({
+          id: index,
+          name: name,
+          position: position,
+          vehicles: 0
+        });
+      });
+    }
+
+    function generateRandomPosition(existingPositions, minDistance) {
+      let position;
+      let attempts = 0;
+      const maxAttempts = 100;
+
+      do {
+        position = {
+          x: Math.random() * 80 - 40,
+          z: Math.random() * 80 - 40
+        };
+        attempts++;
+      } while (isTooClose(position, existingPositions, minDistance) && attempts < maxAttempts);
+
+      return position;
+    }
+
+    function isTooClose(position, existingPositions, minDistance) {
+      return existingPositions.some(existing => {
+        const dx = position.x - existing.x;
+        const dz = position.z - existing.z;
+        return Math.sqrt(dx * dx + dz * dz) < minDistance;
+      });
+    }
+
+    function createTextSprite(text, color) {
+      const canvas = document.createElement('canvas');
+      const context = canvas.getContext('2d');
+      canvas.width = 512;
+      canvas.height = 256;
+
+      context.fillStyle = color || 'transparent';
+      context.font = 'bold 72px "Microsoft YaHei", "PingFang SC", sans-serif';
+      context.textAlign = 'center';
+      context.textBaseline = 'middle';
+      context.fillText(text, canvas.width / 2, canvas.height / 2);
+
+      const texture = new THREE.CanvasTexture(canvas);
+      texture.needsUpdate = true;
+
+      const spriteMaterial = new THREE.SpriteMaterial({
+        map: texture,
+        transparent: true,
+        depthTest: false
+      });
+      const sprite = new THREE.Sprite(spriteMaterial);
+
+      return sprite;
+    }
+
+    function onWindowResize() {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      controls.update();
+      renderer.render(scene, camera);
+    }
+
+    function formatCurrency(amount) {
+      return '¥' + amount.toLocaleString('zh-CN');
+    }
+
+    function updateUI() {
+      const monthNames = ['', '1 月', '2 月', '3 月', '4 月', '5 月', '6 月',
+                          '7 月', '8 月', '9 月', '10 月', '11 月', '12 月'];
+      const monthIndex = ((gameState.currentMonth - 1) % 12) + 1;
+      document.getElementById('month').textContent = monthNames[monthIndex];
+      document.getElementById('cash').textContent = formatCurrency(gameState.cash);
+      document.getElementById('fleet').textContent = gameState.totalFleet + ' 辆';
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      init();
+      updateUI();
+    });
+  </script>
+</body>
+</html>
