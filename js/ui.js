@@ -22,7 +22,9 @@ function updateUI() {
   var coeffEl = document.getElementById('marketCoeffDisplay');
   if (coeffEl) {
     var coeff = gameState.marketCoefficient;
-    coeffEl.textContent = '市场系数: ' + coeff.toFixed(2);
+    var rep = gameState.reputation || 50;
+    var stage = gameState.companyStage || 1;
+    coeffEl.textContent = '市场系数: ' + coeff.toFixed(2) + ' | 声誉: ' + rep + ' | 阶段: ' + stage;
     coeffEl.style.color = coeff > 1.0 ? '#4ade80' : coeff < 1.0 ? '#f87171' : 'rgba(255,255,255,0.6)';
   }
   var en = gameState.energy;

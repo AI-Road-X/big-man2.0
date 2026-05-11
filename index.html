@@ -338,6 +338,11 @@
     </div>
     <div id="activeEventsBar"></div>
     <button class="panel-btn next-day" onclick="nextDay()">⏭ 下一日</button>
+    <div style="display:flex;gap:4px;margin-top:4px;">
+      <button class="panel-btn" style="flex:1;padding:6px;font-size:10px;min-height:32px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);" onclick="setGameSpeed(1)" id="speedBtn1">1x</button>
+      <button class="panel-btn" style="flex:1;padding:6px;font-size:10px;min-height:32px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);" onclick="setGameSpeed(5)" id="speedBtn5">5x</button>
+      <button class="panel-btn" style="flex:1;padding:6px;font-size:10px;min-height:32px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);" onclick="setGameSpeed(30)" id="speedBtn30">30x</button>
+    </div>
     <button class="panel-btn orders" onclick="openOrdersModal()">📋 待处理订单<span class="order-badge" id="orderBadge"></span></button>
     <button class="panel-btn fleet" onclick="openFleetModal()">🚗 车队管理</button>
     <button class="panel-btn pricing" onclick="openPricingModal()">💰 调价</button>
@@ -346,6 +351,7 @@
     <button class="panel-btn employees" onclick="openEmployeeModal()">👔 员工</button>
     <button class="panel-btn finance" onclick="openFinanceModal()">🏦 财务</button>
     <button class="panel-btn order-history" onclick="openOrderHistoryModal()">📋 订单</button>
+    <button class="panel-btn" style="background:linear-gradient(135deg,#f1c40f,#f39c12);" onclick="openMilestoneModal()">🏆 里程碑</button>
     <button class="panel-btn service-stats" onclick="openServiceStatsModal()">📊 增值服务</button>
     <button class="panel-btn service-pricing" onclick="openServicePricingModal()">🏷️ 服务定价</button>
   </div>
@@ -499,6 +505,16 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="milestoneModal">
+    <div class="modal-container" style="max-width:700px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">🏆</span> 发展里程碑</div>
+        <button class="close-btn" onclick="closeMilestoneModal()">✕</button>
+      </div>
+      <div class="vehicle-table-wrapper" id="milestoneContent" style="padding:16px 22px;"></div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="pricingModal">
     <div class="modal-container" style="max-width:600px;">
       <div class="modal-header">
@@ -532,6 +548,7 @@
   <script src="js/members.js"></script>
   <script src="js/employees.js"></script>
   <script src="js/finance.js"></script>
+  <script src="js/milestones.js"></script>
   <script src="js/simulation.js"></script>
   <script src="js/scene3d.js"></script>
   <script src="js/ui.js"></script>
@@ -585,8 +602,83 @@
       renderPricingInline();
     }
 
+    var gameSpeedTimer = null;
+    function setGameSpeed(speed) {
+      gameState.gameSpeed = speed;
+      ['speedBtn1','speedBtn5','speedBtn30'].forEach(function(id){
+        var btn = document.getElementById(id);
+        if (btn) btn.style.background = 'rgba(255,255,255,0.08)';
+      });
+      var activeBtn = document.getElementById('speedBtn' + speed);
+      if (activeBtn) activeBtn.style.background = 'linear-gradient(135deg,#3b82f6,#6366f1)';
+      if (gameSpeedTimer) { clearInterval(gameSpeedTimer); gameSpeedTimer = null; }
+      if (speed > 1) {
+        gameSpeedTimer = setInterval(function(){
+          for (var i = 0; i < speed; i++) nextDay();
+        }, speed === 5 ? 1000 : 300);
+      }
+      saveGame();
+    }
+
+    function openMilestoneModal() {
+      document.getElementById('milestoneModal').classList.add('active');
+      renderMilestoneModal();
+    }
+    function closeMilestoneModal() {
+      document.getElementById('milestoneModal').classList.remove('active');
+    }
+    function renderMilestoneModal() {
+      var content = document.getElementById('milestoneContent');
+      var configs = typeof MILESTONE_CONFIGS !== 'undefined' ? MILESTONE_CONFIGS : [];
+      var achieved = gameState.achievedMilestones || [];
+      var rep = gameState.reputation || 50;
+      var share = typeof getMarketShare === 'function' ? getMarketShare() : 0;
+      var mcap = typeof getMarketCap === 'function' ? getMarketCap() : 0;
+      var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">';
+      html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,0.4);">公司阶段</div><div style="font-size:18px;font-weight:700;color:#f1c40f;">' + (gameState.companyStage || 1) + '</div></div>';
+      html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,0.4);">声誉</div><div style="font-size:18px;font-weight:700;color:' + (rep > 70 ? '#4ade80' : rep > 40 ? '#fbbf24' : '#f87171') + ';">' + rep + '</div></div>';
+      html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,0.4);">市场份额</div><div style="font-size:18px;font-weight:700;color:#60a5fa;">' + share.toFixed(1) + '%</div></div>';
+      html += '</div>';
+      configs.forEach(function(m){
+        var done = achieved.indexOf(m.id) !== -1;
+        html += '<div style="background:' + (done ? 'rgba(74,222,128,0.06)' : 'rgba(255,255,255,0.04)') + ';border:1px solid ' + (done ? 'rgba(74,222,128,0.2)' : 'rgba(255,255,255,0.08)') + ';border-radius:12px;padding:14px;margin-bottom:10px;">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+        html += '<div style="display:flex;align-items:center;gap:10px;"><span style="font-size:24px;">' + m.icon + '</span><div><div style="font-size:13px;font-weight:700;color:' + (done ? '#4ade80' : '#fff') + ';">' + m.name + (done ? ' ✓' : '') + '</div><div style="font-size:10px;color:rgba(255,255,255,0.4);">' + m.desc + '</div></div></div>';
+        html += '<div style="text-align:right;"><div style="font-size:10px;color:rgba(255,255,255,0.4);">奖励</div><div style="font-size:11px;color:#fbbf24;">声誉+' + (m.rewards.reputation || 0) + '</div></div>';
+        html += '</div>';
+        if (m.unlocks && m.unlocks.length > 0) {
+          html += '<div style="margin-top:6px;font-size:9px;color:rgba(255,255,255,0.3);">解锁: ' + m.unlocks.join(', ') + '</div>';
+        }
+        html += '</div>';
+      });
+      if (typeof checkWinCondition === 'function' && checkWinCondition()) {
+        html += '<div style="background:linear-gradient(135deg,rgba(241,196,15,0.15),rgba(243,156,18,0.1));border:2px solid #f1c40f;border-radius:16px;padding:24px;text-align:center;margin-top:16px;">';
+        html += '<div style="font-size:28px;margin-bottom:8px;">🏆</div>';
+        html += '<div style="font-size:18px;font-weight:700;color:#f1c40f;">传奇租车帝国</div>';
+        html += '<div style="font-size:12px;color:rgba(255,255,255,0.6);margin-top:6px;">市值 ' + formatCurrency(mcap) + ' · 份额 ' + share.toFixed(1) + '%</div>';
+        html += '</div>';
+      }
+      content.innerHTML = html;
+    }
+
+    function showMilestoneCelebration(milestone) {
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:5000;display:flex;justify-content:center;align-items:center;background:rgba(0,0,0,0.7);animation:fadeIn .5s ease;';
+      overlay.innerHTML = '<div style="text-align:center;animation:modalSlideUp .6s cubic-bezier(.16,1,.3,1);"><div style="font-size:64px;margin-bottom:16px;">' + milestone.icon + '</div><div style="font-size:28px;font-weight:700;color:#f1c40f;">里程碑达成！</div><div style="font-size:18px;color:#fff;margin-top:8px;">' + milestone.name + '</div><div style="font-size:13px;color:rgba(255,255,255,0.6);margin-top:8px;">' + (milestone.rewards.message || '') + '</div></div>';
+      document.body.appendChild(overlay);
+      setTimeout(function(){ overlay.style.opacity = '0'; overlay.style.transition = 'opacity .5s ease'; }, 2500);
+      setTimeout(function(){ document.body.removeChild(overlay); }, 3000);
+    }
+
+    function showWinScreen() {
+      var overlay = document.createElement('div');
+      overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;z-index:6000;display:flex;justify-content:center;align-items:center;background:rgba(0,0,0,0.85);';
+      overlay.innerHTML = '<div style="text-align:center;"><div style="font-size:80px;">🏆</div><div style="font-size:32px;font-weight:700;color:#f1c40f;margin-top:16px;">传奇租车帝国</div><div style="font-size:14px;color:rgba(255,255,255,0.6);margin-top:12px;">你已成为市场第一，市值超10亿！</div><div style="font-size:12px;color:rgba(255,255,255,0.4);margin-top:8px;">游戏进入无限模式，继续经营你的帝国</div><button onclick="this.parentElement.parentElement.remove();" style="margin-top:24px;padding:12px 32px;background:linear-gradient(135deg,#f1c40f,#f39c12);border:none;border-radius:10px;color:#fff;font-size:14px;font-weight:700;cursor:pointer;min-height:44px;">继续经营</button></div>';
+      document.body.appendChild(overlay);
+    }
+
     window.addEventListener('keydown', function(e){
-      if (e.key === 'Escape') { closeFleetModal(); closeOrdersModal(); closeDispatchModal(); closePricingModal(); closeEnergyModal(); closeServiceStatsModal(); closeMemberModal(); closeServicePricingModal(); closeOrderHistoryModal(); closeEmployeeModal(); closeTalentMarket(); closeFinanceModal(); hideOutletPopup(); }
+      if (e.key === 'Escape') { closeFleetModal(); closeOrdersModal(); closeDispatchModal(); closePricingModal(); closeEnergyModal(); closeServiceStatsModal(); closeMemberModal(); closeServicePricingModal(); closeOrderHistoryModal(); closeEmployeeModal(); closeTalentMarket(); closeFinanceModal(); closeMilestoneModal(); hideOutletPopup(); }
     });
 
     window.addEventListener('DOMContentLoaded', function(){
@@ -613,6 +705,13 @@
       console.log('%c租车公司模拟游戏 - 数据重置命令', 'color:#4ade80;font-size:16px;font-weight:bold');
       console.log('%clocalStorage.removeItem("rentalCompanyGame_v3"); location.reload();', 'color:#fbbf24;font-size:12px');
       console.log('%c复制上面一行到控制台执行即可重置所有游戏数据', 'color:rgba(255,255,255,0.5);font-size:11px');
+      console.log('%c--- 作弊命令 ---', 'color:#f87171;font-size:14px;font-weight:bold');
+      console.log('%caddMoney(1000000)  — 增加$1M', 'color:#fbbf24;font-size:11px');
+      console.log('%cunlockAllCities()  — 解锁所有城市', 'color:#fbbf24;font-size:11px');
+      console.log('%cforceIPO()         — 强制IPO上市', 'color:#fbbf24;font-size:11px');
+      window.addMoney = function(n){ gameState.cash += n; updateUI(); saveGame(); console.log('Added $' + n); };
+      window.unlockAllCities = function(){ CITIES.forEach(function(c){ if(gameState.unlockedCities.indexOf(c.id)===-1) gameState.unlockedCities.push(c.id); }); saveGame(); console.log('All cities unlocked'); };
+      window.forceIPO = function(){ if(typeof executeIPO==='function') executeIPO(50); gameState.stocks.isPublic=true; addMessage('🎉 强制IPO成功！','good'); updateUI(); saveGame(); console.log('IPO forced'); };
     });
   </script>
 </body>

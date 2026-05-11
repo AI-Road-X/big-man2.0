@@ -157,6 +157,25 @@ function nextDay() {
 
   if (typeof recordDailyFinancials === 'function') recordDailyFinancials();
 
+  if (gameState.financials && gameState.financials.dailyProfit.length > 0) {
+    var lastProfit = gameState.financials.dailyProfit[gameState.financials.dailyProfit.length - 1];
+    if (lastProfit > 0) gameState.consecutiveProfitDays++;
+    else gameState.consecutiveProfitDays = 0;
+  }
+
+  if (typeof checkMilestones === 'function') {
+    var newMilestones = checkMilestones();
+    newMilestones.forEach(function(m){
+      addMessage('🎉 里程碑达成：' + m.icon + ' ' + m.name + '！' + (m.rewards.message || ''), 'good');
+      if (typeof showMilestoneCelebration === 'function') showMilestoneCelebration(m);
+    });
+  }
+
+  if (typeof checkWinCondition === 'function' && checkWinCondition()) {
+    addMessage('🏆 恭喜！你已成为传奇租车帝国！', 'good');
+    if (typeof showWinScreen === 'function') showWinScreen();
+  }
+
   updateUI(); saveGame();
 }
 

@@ -117,7 +117,18 @@ var defaultGameState = {
     stockHistory: [],
     virtualPrices: {}
   },
-  lastTeamBuildingDay: 0
+  lastTeamBuildingDay: 0,
+  companyStage: 1,
+  achievedMilestones: [],
+  reputation: 50,
+  unlockedCities: ['home'],
+  currentCity: 'home',
+  gameSpeed: 1,
+  brandName: '',
+  brandSlogan: '',
+  consecutiveProfitDays: 0,
+  lastQuarterDay: 0,
+  hostileTakeoverRisk: 0
 };
 
 var gameState = JSON.parse(JSON.stringify(defaultGameState));
@@ -214,6 +225,17 @@ function loadGame() {
       if (!gameState.stocks) gameState.stocks = { isPublic:false, ticker:'RENT', sharePrice:0, playerShares:60, publicShares:40, totalShares:100, portfolio:[], stockHistory:[], virtualPrices:{} };
       if (!gameState.stocks.virtualPrices) gameState.stocks.virtualPrices = {};
       if (!gameState.lastTeamBuildingDay) gameState.lastTeamBuildingDay = 0;
+      if (!gameState.companyStage) gameState.companyStage = 1;
+      if (!gameState.achievedMilestones) gameState.achievedMilestones = [];
+      if (gameState.reputation === undefined) gameState.reputation = 50;
+      if (!gameState.unlockedCities) gameState.unlockedCities = ['home'];
+      if (!gameState.currentCity) gameState.currentCity = 'home';
+      if (!gameState.gameSpeed) gameState.gameSpeed = 1;
+      if (gameState.brandName === undefined) gameState.brandName = '';
+      if (gameState.brandSlogan === undefined) gameState.brandSlogan = '';
+      if (!gameState.consecutiveProfitDays) gameState.consecutiveProfitDays = 0;
+      if (!gameState.lastQuarterDay) gameState.lastQuarterDay = 0;
+      if (!gameState.hostileTakeoverRisk) gameState.hostileTakeoverRisk = 0;
       return true;
     }
   } catch(e) { console.error('加载失败:', e); }
