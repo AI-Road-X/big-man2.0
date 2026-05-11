@@ -26,6 +26,24 @@ var CUSTOMER_TYPE_PREFS = {
 var CUSTOMER_NAMES_BUSINESS = ['王经理','李总','张董','陈主管','刘总监','赵助理','周客户','吴商务','郑代表','孙顾问','朱行长','马主任','胡总裁','林经理','何总监'];
 var CUSTOMER_NAMES_TOURIST = ['小王','阿李','张同学','陈先生','刘女士','赵一家','周游客','吴旅人','郑背包客','孙家庭','朱度假','马旅行','胡探险','林观光','何周末'];
 
+var SERVICE_PRICES = {
+  insurance: 50,
+  wifi: 20,
+  gps: 15,
+  refuelLiters: 20,
+  rechargeKwh: 30,
+  delivery: 80
+};
+
+var SERVICE_PROBABILITIES = {
+  insurance: 0.30,
+  wifi: 0.25,
+  gps: 0.20,
+  delivery: 0.10,
+  refuel: 0.15,
+  recharge: 0.15
+};
+
 var defaultGameState = {
   cash: 1000000,
   currentDay: 1,
@@ -44,7 +62,21 @@ var defaultGameState = {
   lastCompetitorUpdate: 1,
   tutorialStep: 0,
   totalDaysRented: 0,
-  totalRevenue: 0
+  totalRevenue: 0,
+  energy: {
+    oilStorage: 5000,
+    batteryStorage: 5000,
+    oilPrice: 5.0,
+    electricityPrice: 0.8,
+    maxOilCapacity: 10000,
+    maxBatteryCapacity: 10000,
+    prevOilPrice: 5.0,
+    prevElectricityPrice: 0.8
+  },
+  serviceStats: {
+    today: { insurance:0, wifi:0, gps:0, delivery:0, refuel:0, recharge:0, totalIncome:0 },
+    total: { insurance:0, wifi:0, gps:0, delivery:0, refuel:0, recharge:0, totalIncome:0 }
+  }
 };
 
 var gameState = JSON.parse(JSON.stringify(defaultGameState));
@@ -118,6 +150,16 @@ function loadGame() {
       if (gameState.tutorialStep === undefined) gameState.tutorialStep = 0;
       if (!gameState.totalDaysRented) gameState.totalDaysRented = 0;
       if (!gameState.totalRevenue) gameState.totalRevenue = 0;
+      if (!gameState.energy) {
+        gameState.energy = { oilStorage:5000, batteryStorage:5000, oilPrice:5.0, electricityPrice:0.8, maxOilCapacity:10000, maxBatteryCapacity:10000, prevOilPrice:5.0, prevElectricityPrice:0.8 };
+      }
+      if (gameState.energy.maxOilCapacity === undefined) gameState.energy.maxOilCapacity = 10000;
+      if (gameState.energy.maxBatteryCapacity === undefined) gameState.energy.maxBatteryCapacity = 10000;
+      if (gameState.energy.prevOilPrice === undefined) gameState.energy.prevOilPrice = gameState.energy.oilPrice;
+      if (gameState.energy.prevElectricityPrice === undefined) gameState.energy.prevElectricityPrice = gameState.energy.electricityPrice;
+      if (!gameState.serviceStats) {
+        gameState.serviceStats = { today:{insurance:0,wifi:0,gps:0,delivery:0,refuel:0,recharge:0,totalIncome:0}, total:{insurance:0,wifi:0,gps:0,delivery:0,refuel:0,recharge:0,totalIncome:0} };
+      }
       return true;
     }
   } catch(e) { console.error('加载失败:', e); }

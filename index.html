@@ -30,6 +30,10 @@
     .panel-btn.fleet:hover{box-shadow:0 6px 20px rgba(255,107,53,0.4)}
     .panel-btn.pricing{background:linear-gradient(135deg,#9b59b6,#8e44ad)}
     .panel-btn.pricing:hover{box-shadow:0 6px 20px rgba(155,89,182,0.4)}
+    .panel-btn.energy{background:linear-gradient(135deg,#27ae60,#2ecc71)}
+    .panel-btn.energy:hover{box-shadow:0 6px 20px rgba(39,174,96,0.4)}
+    .panel-btn.service-stats{background:linear-gradient(135deg,#e67e22,#f39c12)}
+    .panel-btn.service-stats:hover{box-shadow:0 6px 20px rgba(230,126,34,0.4)}
     .order-badge{position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:10px;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:700;animation:pulse 1.5s infinite}
     .order-badge:empty{display:none}
     #activeEventsBar{display:none;flex-wrap:wrap;gap:4px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08)}
@@ -210,6 +214,44 @@
     .tutorial-btn-skip{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.5);border:1px solid rgba(255,255,255,0.1)}
     .tutorial-btn-skip:hover{color:rgba(255,255,255,0.8)}
 
+    .energy-section{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:16px;margin-bottom:14px}
+    .energy-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+    .energy-icon{font-size:18px}
+    .energy-title{font-size:13px;font-weight:700;color:#fff}
+    .energy-bar-wrap{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+    .energy-bar{flex:1;height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden}
+    .energy-bar-fill{height:100%;border-radius:4px;transition:width .3s ease}
+    .energy-bar-text{font-size:11px;color:rgba(255,255,255,0.6);white-space:nowrap;font-family:'JetBrains Mono',monospace}
+    .energy-price-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;padding:8px 12px;background:rgba(255,255,255,0.03);border-radius:8px}
+    .energy-label{font-size:11px;color:rgba(255,255,255,0.5)}
+    .energy-price{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#fff}
+    .energy-trend{font-size:11px;margin-left:auto}
+    .energy-trade-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    .energy-trade{background:rgba(255,255,255,0.03);border-radius:8px;padding:10px}
+    .energy-trade label{display:block;font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:6px}
+    .energy-input-wrap{display:flex;gap:6px;margin-bottom:6px}
+    .energy-input{flex:1;padding:8px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;min-height:36px}
+    .energy-input:focus{border-color:rgba(255,255,255,0.3)}
+    .energy-trade-btn{padding:8px 14px;border:none;border-radius:6px;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:600;cursor:pointer;transition:all .2s ease;min-height:36px}
+    .energy-trade-btn.buy{background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff}
+    .energy-trade-btn.buy:hover{box-shadow:0 4px 12px rgba(39,174,96,0.4)}
+    .energy-trade-btn.sell{background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.7);border:1px solid rgba(255,255,255,0.1)}
+    .energy-trade-btn.sell:hover{background:rgba(231,76,60,0.2);color:#e74c3c;border-color:#e74c3c}
+    .energy-trade-info{font-size:9px;color:rgba(255,255,255,0.35);line-height:1.5}
+
+    .service-stats-section{margin-bottom:16px}
+    .service-stats-title{font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.08)}
+    .service-stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .service-stat-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px;text-align:center}
+    .service-stat-card.total{grid-column:1/-1;background:rgba(74,222,128,0.06);border-color:rgba(74,222,128,0.15)}
+    .service-stat-icon{font-size:20px;margin-bottom:4px}
+    .service-stat-name{font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:4px}
+    .service-stat-count{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#fff}
+    .service-stat-price{font-size:9px;color:rgba(255,255,255,0.3);margin-top:2px}
+    .service-prob-section{background:rgba(255,255,255,0.03);border-radius:10px;padding:12px}
+    .service-prob-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+    .service-prob-item{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(255,255,255,0.03);border-radius:6px;font-size:11px;color:rgba(255,255,255,0.6)}
+
     @media(max-width:768px){
       #control-panel{bottom:8px;right:8px;left:8px;min-width:auto;padding:12px 14px;border-radius:12px}
       #control-panel h2{font-size:12px;margin-bottom:6px;padding-bottom:6px}
@@ -226,6 +268,9 @@
       .status-grid{grid-template-columns:repeat(2,1fr)}
       #outlet-popup{width:calc(100% - 32px);left:16px!important}
       .order-details{grid-template-columns:1fr 1fr}
+      .energy-trade-row{grid-template-columns:1fr}
+      .service-stats-grid{grid-template-columns:repeat(2,1fr)}
+      .service-prob-grid{grid-template-columns:1fr}
     }
   </style>
 </head>
@@ -246,11 +291,17 @@
     <div class="stat"><span class="stat-label">今日收入</span><span class="stat-value income" id="todayIncome">$0</span></div>
     <div class="stat"><span class="stat-label">今日支出</span><span class="stat-value expense" id="todayExpense">$0</span></div>
     <div id="marketCoeffDisplay">市场系数: 1.00</div>
+    <div style="display:flex;gap:8px;font-size:10px;">
+      <span id="oilPriceDisplay" style="flex:1;text-align:center;">⛽ 5.00</span>
+      <span id="elecPriceDisplay" style="flex:1;text-align:center;">🔋 0.80</span>
+    </div>
     <div id="activeEventsBar"></div>
     <button class="panel-btn next-day" onclick="nextDay()">⏭ 下一日</button>
     <button class="panel-btn orders" onclick="openOrdersModal()">📋 待处理订单<span class="order-badge" id="orderBadge"></span></button>
     <button class="panel-btn fleet" onclick="openFleetModal()">🚗 车队管理</button>
     <button class="panel-btn pricing" onclick="openPricingModal()">💰 调价</button>
+    <button class="panel-btn energy" onclick="openEnergyModal()">⛽ 能源</button>
+    <button class="panel-btn service-stats" onclick="openServiceStatsModal()">📊 增值服务</button>
   </div>
 
   <div id="outlet-popup">
@@ -319,6 +370,26 @@
         <button class="close-btn" onclick="closeDispatchModal()">✕</button>
       </div>
       <div class="dispatch-modal-content" id="dispatchContent"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="energyModal">
+    <div class="modal-container" style="max-width:600px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">⛽</span> 能源管理中心</div>
+        <button class="close-btn" onclick="closeEnergyModal()">✕</button>
+      </div>
+      <div class="vehicle-table-wrapper" id="energyContent" style="padding:16px 22px;"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="serviceStatsModal">
+    <div class="modal-container" style="max-width:650px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">📊</span> 增值服务统计</div>
+        <button class="close-btn" onclick="closeServiceStatsModal()">✕</button>
+      </div>
+      <div class="vehicle-table-wrapper" id="serviceStatsContent" style="padding:16px 22px;"></div>
     </div>
   </div>
 
@@ -406,7 +477,7 @@
     }
 
     window.addEventListener('keydown', function(e){
-      if (e.key === 'Escape') { closeFleetModal(); closeOrdersModal(); closeDispatchModal(); closePricingModal(); hideOutletPopup(); }
+      if (e.key === 'Escape') { closeFleetModal(); closeOrdersModal(); closeDispatchModal(); closePricingModal(); closeEnergyModal(); closeServiceStatsModal(); hideOutletPopup(); }
     });
 
     window.addEventListener('DOMContentLoaded', function(){

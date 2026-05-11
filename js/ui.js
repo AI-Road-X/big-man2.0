@@ -25,6 +25,19 @@ function updateUI() {
     coeffEl.textContent = '市场系数: ' + coeff.toFixed(2);
     coeffEl.style.color = coeff > 1.0 ? '#4ade80' : coeff < 1.0 ? '#f87171' : 'rgba(255,255,255,0.6)';
   }
+  var en = gameState.energy;
+  var oilEl = document.getElementById('oilPriceDisplay');
+  if (oilEl) {
+    var oilTrend = en.oilPrice > en.prevOilPrice + 0.01 ? ' ⬆' : en.oilPrice < en.prevOilPrice - 0.01 ? ' ⬇' : '';
+    oilEl.textContent = '⛽ ' + en.oilPrice.toFixed(2) + oilTrend;
+    oilEl.style.color = en.oilPrice > en.prevOilPrice ? '#f87171' : en.oilPrice < en.prevOilPrice ? '#4ade80' : 'rgba(255,255,255,0.6)';
+  }
+  var elecEl = document.getElementById('elecPriceDisplay');
+  if (elecEl) {
+    var elecTrend = en.electricityPrice > en.prevElectricityPrice + 0.01 ? ' ⬆' : en.electricityPrice < en.prevElectricityPrice - 0.01 ? ' ⬇' : '';
+    elecEl.textContent = '🔋 ' + en.electricityPrice.toFixed(2) + elecTrend;
+    elecEl.style.color = en.electricityPrice > en.prevElectricityPrice ? '#f87171' : en.electricityPrice < en.prevElectricityPrice ? '#4ade80' : 'rgba(255,255,255,0.6)';
+  }
 }
 
 function addMessage(text, type) {
@@ -645,4 +658,175 @@ function skipTutorial() {
   gameState.tutorialStep = 7;
   document.getElementById('tutorialOverlay').classList.remove('active');
   saveGame();
+}
+
+function openEnergyModal() {
+  document.getElementById('energyModal').classList.add('active');
+  renderEnergyModal();
+}
+
+function closeEnergyModal() {
+  document.getElementById('energyModal').classList.remove('active');
+}
+
+function renderEnergyModal() {
+  var en = gameState.energy;
+  var oilPct = Math.round(en.oilStorage / en.maxOilCapacity * 100);
+  var batPct = Math.round(en.batteryStorage / en.maxBatteryCapacity * 100);
+  var oilTrend = en.oilPrice > en.prevOilPrice + 0.01 ? '<span style="color:#f87171;">⬆ 上涨</span>' : en.oilPrice < en.prevOilPrice - 0.01 ? '<span style="color:#4ade80;">⬇ 下跌</span>' : '<span style="color:rgba(255,255,255,0.4);">— 持平</span>';
+  var elecTrend = en.electricityPrice > en.prevElectricityPrice + 0.01 ? '<span style="color:#f87171;">⬆ 上涨</span>' : en.electricityPrice < en.prevElectricityPrice - 0.01 ? '<span style="color:#4ade80;">⬇ 下跌</span>' : '<span style="color:rgba(255,255,255,0.4);">— 持平</span>';
+  var oilBarColor = oilPct > 50 ? '#4ade80' : oilPct > 20 ? '#fbbf24' : '#f87171';
+  var batBarColor = batPct > 50 ? '#60a5fa' : batPct > 20 ? '#fbbf24' : '#f87171';
+  var sellOilPrice = Math.round(en.oilPrice * 0.8 * 100) / 100;
+  var sellElecPrice = Math.round(en.electricityPrice * 0.8 * 100) / 100;
+
+  var content = document.getElementById('energyContent');
+  content.innerHTML =
+    '<div class="energy-section">' +
+      '<div class="energy-header"><span class="energy-icon">⛽</span><span class="energy-title">燃油储备</span></div>' +
+      '<div class="energy-bar-wrap"><div class="energy-bar"><div class="energy-bar-fill" style="width:' + oilPct + '%;background:' + oilBarColor + ';"></div></div><span class="energy-bar-text">' + en.oilStorage + ' / ' + en.maxOilCapacity + ' 升</span></div>' +
+      '<div class="energy-price-row"><span class="energy-label">当前油价</span><span class="energy-price">' + en.oilPrice.toFixed(2) + ' 元/升</span><span class="energy-trend">' + oilTrend + '</span></div>' +
+      '<div class="energy-trade-row">' +
+        '<div class="energy-trade"><label>购买燃油（升）</label><div class="energy-input-wrap"><input type="number" id="buyOilAmount" min="1" max="' + (en.maxOilCapacity - en.oilStorage) + '" value="100" class="energy-input"><button class="energy-trade-btn buy" onclick="buyOil()">购买</button></div><div class="energy-trade-info">花费: <span id="buyOilCost">' + formatCurrency(Math.round(100 * en.oilPrice)) + '</span> · 上限可购 ' + (en.maxOilCapacity - en.oilStorage) + ' 升</div></div>' +
+        '<div class="energy-trade"><label>出售燃油（升）</label><div class="energy-input-wrap"><input type="number" id="sellOilAmount" min="1" max="' + en.oilStorage + '" value="100" class="energy-input"><button class="energy-trade-btn sell" onclick="sellOil()">出售</button></div><div class="energy-trade-info">回收: <span id="sellOilRevenue">' + formatCurrency(Math.round(100 * sellOilPrice)) + '</span> · 出售价 ' + sellOilPrice.toFixed(2) + ' 元/升</div></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="energy-section">' +
+      '<div class="energy-header"><span class="energy-icon">🔋</span><span class="energy-title">电力储备</span></div>' +
+      '<div class="energy-bar-wrap"><div class="energy-bar"><div class="energy-bar-fill" style="width:' + batPct + '%;background:' + batBarColor + ';"></div></div><span class="energy-bar-text">' + en.batteryStorage + ' / ' + en.maxBatteryCapacity + ' 度</span></div>' +
+      '<div class="energy-price-row"><span class="energy-label">当前电价</span><span class="energy-price">' + en.electricityPrice.toFixed(2) + ' 元/度</span><span class="energy-trend">' + elecTrend + '</span></div>' +
+      '<div class="energy-trade-row">' +
+        '<div class="energy-trade"><label>购买电力（度）</label><div class="energy-input-wrap"><input type="number" id="buyElecAmount" min="1" max="' + (en.maxBatteryCapacity - en.batteryStorage) + '" value="100" class="energy-input"><button class="energy-trade-btn buy" onclick="buyElec()">购买</button></div><div class="energy-trade-info">花费: <span id="buyElecCost">' + formatCurrency(Math.round(100 * en.electricityPrice)) + '</span> · 上限可购 ' + (en.maxBatteryCapacity - en.batteryStorage) + ' 度</div></div>' +
+        '<div class="energy-trade"><label>出售电力（度）</label><div class="energy-input-wrap"><input type="number" id="sellElecAmount" min="1" max="' + en.batteryStorage + '" value="100" class="energy-input"><button class="energy-trade-btn sell" onclick="sellElec()">出售</button></div><div class="energy-trade-info">回收: <span id="sellElecRevenue">' + formatCurrency(Math.round(100 * sellElecPrice)) + '</span> · 出售价 ' + sellElecPrice.toFixed(2) + ' 元/度</div></div>' +
+      '</div>' +
+    '</div>';
+
+  var buyOilInput = document.getElementById('buyOilAmount');
+  if (buyOilInput) buyOilInput.addEventListener('input', function(){ updateEnergyTradeCost('buyOil', en.oilPrice); });
+  var sellOilInput = document.getElementById('sellOilAmount');
+  if (sellOilInput) sellOilInput.addEventListener('input', function(){ updateEnergyTradeCost('sellOil', sellOilPrice); });
+  var buyElecInput = document.getElementById('buyElecAmount');
+  if (buyElecInput) buyElecInput.addEventListener('input', function(){ updateEnergyTradeCost('buyElec', en.electricityPrice); });
+  var sellElecInput = document.getElementById('sellElecAmount');
+  if (sellElecInput) sellElecInput.addEventListener('input', function(){ updateEnergyTradeCost('sellElec', sellElecPrice); });
+}
+
+function updateEnergyTradeCost(prefix, unitPrice) {
+  var input = document.getElementById(prefix + 'Amount');
+  if (!input) return;
+  var amount = parseInt(input.value) || 0;
+  var cost = Math.round(amount * unitPrice);
+  var elId = prefix === 'buyOil' ? 'buyOilCost' : prefix === 'sellOil' ? 'sellOilRevenue' : prefix === 'buyElec' ? 'buyElecCost' : 'sellElecRevenue';
+  var el = document.getElementById(elId);
+  if (el) el.textContent = formatCurrency(cost);
+}
+
+function buyOil() {
+  var amount = parseInt(document.getElementById('buyOilAmount').value) || 0;
+  var en = gameState.energy;
+  if (amount <= 0) { showToast('请输入有效数量', 'error'); return; }
+  if (amount > en.maxOilCapacity - en.oilStorage) { showToast('超出油罐容量上限！', 'error'); return; }
+  var cost = Math.round(amount * en.oilPrice);
+  if (gameState.cash < cost) { showToast('资金不足！', 'error'); return; }
+  gameState.cash -= cost;
+  gameState.todayExpense += cost;
+  en.oilStorage += amount;
+  addMessage('⛽ 购入燃油 ' + amount + ' 升，花费 ' + formatCurrency(cost), 'warn');
+  updateUI(); renderEnergyModal(); saveGame();
+  showToast('成功购入 ' + amount + ' 升燃油', 'success');
+}
+
+function sellOil() {
+  var amount = parseInt(document.getElementById('sellOilAmount').value) || 0;
+  var en = gameState.energy;
+  if (amount <= 0) { showToast('请输入有效数量', 'error'); return; }
+  if (amount > en.oilStorage) { showToast('库存不足！', 'error'); return; }
+  var revenue = Math.round(amount * en.oilPrice * 0.8);
+  gameState.cash += revenue;
+  gameState.todayIncome += revenue;
+  en.oilStorage -= amount;
+  addMessage('⛽ 出售燃油 ' + amount + ' 升，获得 ' + formatCurrency(revenue), 'good');
+  updateUI(); renderEnergyModal(); saveGame();
+  showToast('成功出售 ' + amount + ' 升燃油', 'success');
+}
+
+function buyElec() {
+  var amount = parseInt(document.getElementById('buyElecAmount').value) || 0;
+  var en = gameState.energy;
+  if (amount <= 0) { showToast('请输入有效数量', 'error'); return; }
+  if (amount > en.maxBatteryCapacity - en.batteryStorage) { showToast('超出电池容量上限！', 'error'); return; }
+  var cost = Math.round(amount * en.electricityPrice);
+  if (gameState.cash < cost) { showToast('资金不足！', 'error'); return; }
+  gameState.cash -= cost;
+  gameState.todayExpense += cost;
+  en.batteryStorage += amount;
+  addMessage('🔋 购入电力 ' + amount + ' 度，花费 ' + formatCurrency(cost), 'warn');
+  updateUI(); renderEnergyModal(); saveGame();
+  showToast('成功购入 ' + amount + ' 度电力', 'success');
+}
+
+function sellElec() {
+  var amount = parseInt(document.getElementById('sellElecAmount').value) || 0;
+  var en = gameState.energy;
+  if (amount <= 0) { showToast('请输入有效数量', 'error'); return; }
+  if (amount > en.batteryStorage) { showToast('库存不足！', 'error'); return; }
+  var revenue = Math.round(amount * en.electricityPrice * 0.8);
+  gameState.cash += revenue;
+  gameState.todayIncome += revenue;
+  en.batteryStorage -= amount;
+  addMessage('🔋 出售电力 ' + amount + ' 度，获得 ' + formatCurrency(revenue), 'good');
+  updateUI(); renderEnergyModal(); saveGame();
+  showToast('成功出售 ' + amount + ' 度电力', 'success');
+}
+
+function openServiceStatsModal() {
+  document.getElementById('serviceStatsModal').classList.add('active');
+  renderServiceStats();
+}
+
+function closeServiceStatsModal() {
+  document.getElementById('serviceStatsModal').classList.remove('active');
+}
+
+function renderServiceStats() {
+  var today = gameState.serviceStats.today;
+  var total = gameState.serviceStats.total;
+  var content = document.getElementById('serviceStatsContent');
+  var services = [
+    { key:'insurance', name:'基础保险', icon:'🛡️', unitPrice: SERVICE_PRICES.insurance + '元/天' },
+    { key:'wifi', name:'WiFi热点', icon:'📶', unitPrice: SERVICE_PRICES.wifi + '元/天' },
+    { key:'gps', name:'GPS导航', icon:'🧭', unitPrice: SERVICE_PRICES.gps + '元/天' },
+    { key:'delivery', name:'送车上门', icon:'🚗', unitPrice: SERVICE_PRICES.delivery + '元/次' },
+    { key:'refuel', name:'加油服务', icon:'⛽', unitPrice: '油价×' + SERVICE_PRICES.refuelLiters + '升' },
+    { key:'recharge', name:'充电服务', icon:'🔋', unitPrice: '电价×' + SERVICE_PRICES.rechargeKwh + '度' }
+  ];
+
+  var html = '<div class="service-stats-section"><div class="service-stats-title">📊 今日增值服务</div>' +
+    '<div class="service-stats-grid">';
+  services.forEach(function(s){
+    html += '<div class="service-stat-card"><div class="service-stat-icon">' + s.icon + '</div><div class="service-stat-name">' + s.name + '</div>' +
+      '<div class="service-stat-count">' + (today[s.key] || 0) + ' 次</div><div class="service-stat-price">' + s.unitPrice + '</div></div>';
+  });
+  html += '<div class="service-stat-card total"><div class="service-stat-icon">💰</div><div class="service-stat-name">今日服务总收入</div>' +
+    '<div class="service-stat-count" style="color:#4ade80;">' + formatCurrency(today.totalIncome || 0) + '</div><div class="service-stat-price"></div></div>';
+  html += '</div></div>';
+
+  html += '<div class="service-stats-section"><div class="service-stats-title">📈 累计增值服务</div>' +
+    '<div class="service-stats-grid">';
+  services.forEach(function(s){
+    html += '<div class="service-stat-card"><div class="service-stat-icon">' + s.icon + '</div><div class="service-stat-name">' + s.name + '</div>' +
+      '<div class="service-stat-count">' + (total[s.key] || 0) + ' 次</div><div class="service-stat-price">' + s.unitPrice + '</div></div>';
+  });
+  html += '<div class="service-stat-card total"><div class="service-stat-icon">💰</div><div class="service-stat-name">累计服务总收入</div>' +
+    '<div class="service-stat-count" style="color:#4ade80;">' + formatCurrency(total.totalIncome || 0) + '</div><div class="service-stat-price"></div></div>';
+  html += '</div></div>';
+
+  html += '<div class="service-prob-section"><div class="service-stats-title">🎲 服务触发概率</div><div class="service-prob-grid">';
+  services.forEach(function(s){
+    var prob = Math.round(SERVICE_PROBABILITIES[s.key] * 100);
+    html += '<div class="service-prob-item"><span>' + s.icon + ' ' + s.name + '</span><span style="color:#4ade80;font-weight:600;">' + prob + '%</span></div>';
+  });
+  html += '</div></div>';
+
+  content.innerHTML = html;
 }

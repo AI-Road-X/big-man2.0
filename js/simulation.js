@@ -47,10 +47,16 @@ function nextDay() {
   gameState.todayIncome = 0;
   gameState.todayExpense = 0;
   gameState.outletOrderCounts = {};
+  gameState.serviceStats.today = { insurance:0, wifi:0, gps:0, delivery:0, refuel:0, recharge:0, totalIncome:0 };
 
   processRentalCosts();
   processTransfers();
   processEventExpiry();
+
+  var energyMessages = updateEnergyPrices();
+  energyMessages.forEach(function(msg){
+    addMessage('⛽ ' + msg, 'warn');
+  });
 
   var eventResult = checkRandomEvent();
   if (eventResult) {
@@ -148,24 +154,105 @@ function acceptOrder(orderId) {
   if (vehicle.rentedUntil && vehicle.rentedUntil >= gameState.currentDay) { addMessage('订单取消：' + order.vehicleName + ' 已被租出', 'bad'); gameState.pendingOrders.splice(idx,1); renderOrders(); saveGame(); return; }
   if (isInTransit(vehicle.id)) { addMessage('订单取消：' + order.vehicleName + ' 正在调度中', 'bad'); gameState.pendingOrders.splice(idx,1); renderOrders(); saveGame(); return; }
 
-  gameState.cash += order.totalIncome;
-  gameState.todayIncome += order.totalIncome;
+  var serviceResult = applyValueAddedServices(vehicle, order.rentalDays);
+  var totalIncome = order.totalIncome + serviceResult.serviceIncome;
+
+  gameState.cash += totalIncome;
+  gameState.todayIncome += totalIncome;
   vehicle.rentedUntil = gameState.currentDay + order.rentalDays - 1;
 
   if (!gameState.outletOrderCounts[order.outletId]) gameState.outletOrderCounts[order.outletId] = 0;
   gameState.outletOrderCounts[order.outletId]++;
 
   gameState.totalDaysRented += order.rentalDays;
-  gameState.totalRevenue += order.totalIncome;
+  gameState.totalRevenue += totalIncome;
 
   if (typeof showDollarSign === 'function') showDollarSign(order.outletId);
 
   gameState.pendingOrders.splice(idx, 1);
   var typeLabel = order.customerType === 'business' ? '商务' : '旅游';
-  addMessage(typeLabel + '客户 <span class="msg-highlight">' + order.customerName + '</span> 租用 ' + order.vehicleName + ' ' + order.rentalDays + '天，收入 ' + formatCurrency(order.totalIncome), 'good');
+  var serviceMsg = serviceResult.serviceNames.length > 0 ? '，购买 ' + serviceResult.serviceNames.join(' + ') : '';
+  addMessage(typeLabel + '客户 <span class="msg-highlight">' + order.customerName + '</span> 租用 ' + order.vehicleName + ' ' + order.rentalDays + '天' + serviceMsg + '，共支付 ' + formatCurrency(totalIncome), 'good');
 
   if (gameState.tutorialStep < 7) { gameState.tutorialStep = 7; saveGame(); }
   renderOrders(); updateUI(); saveGame();
+}
+
+function applyValueAddedServices(vehicle, rentalDays) {
+  var result = { serviceIncome: 0, serviceNames: [], energyCost: 0 };
+  var en = gameState.energy;
+  var stats = gameState.serviceStats;
+
+  if (Math.random() < SERVICE_PROBABILITIES.insurance) {
+    var income = SERVICE_PRICES.insurance * rentalDays;
+    result.serviceIncome += income;
+    result.serviceNames.push('保险');
+    stats.today.insurance++;
+    stats.total.insurance++;
+  }
+
+  if (Math.random() < SERVICE_PROBABILITIES.wifi) {
+    var income = SERVICE_PRICES.wifi * rentalDays;
+    result.serviceIncome += income;
+    result.serviceNames.push('WiFi');
+    stats.today.wifi++;
+    stats.total.wifi++;
+  }
+
+  if (Math.random() < SERVICE_PROBABILITIES.gps) {
+    var income = SERVICE_PRICES.gps * rentalDays;
+    result.serviceIncome += income;
+    result.serviceNames.push('GPS');
+    stats.today.gps++;
+    stats.total.gps++;
+  }
+
+  if (Math.random() < SERVICE_PROBABILITIES.delivery) {
+    result.serviceIncome += SERVICE_PRICES.delivery;
+    result.serviceNames.push('送车上门');
+    stats.today.delivery++;
+    stats.total.delivery++;
+  }
+
+  if (isFuelVehicle(vehicle.fuelType) && Math.random() < SERVICE_PROBABILITIES.refuel) {
+    var liters = SERVICE_PRICES.refuelLiters;
+    var serviceCharge = Math.round(en.oilPrice * liters);
+    if (en.oilStorage >= liters) {
+      en.oilStorage -= liters;
+      result.serviceIncome += serviceCharge;
+      result.serviceNames.push('加油');
+    } else {
+      var emergencyCost = Math.round(en.oilPrice * liters);
+      gameState.cash -= emergencyCost;
+      gameState.todayExpense += emergencyCost;
+      result.serviceNames.push('加油(紧急采购)');
+    }
+    stats.today.refuel++;
+    stats.total.refuel++;
+  }
+
+  if (isElectricVehicle(vehicle.fuelType) && Math.random() < SERVICE_PROBABILITIES.recharge) {
+    var kwh = SERVICE_PRICES.rechargeKwh;
+    var serviceCharge = Math.round(en.electricityPrice * kwh);
+    if (en.batteryStorage >= kwh) {
+      en.batteryStorage -= kwh;
+      result.serviceIncome += serviceCharge;
+      result.serviceNames.push('充电');
+    } else {
+      var emergencyCost = Math.round(en.electricityPrice * kwh);
+      gameState.cash -= emergencyCost;
+      gameState.todayExpense += emergencyCost;
+      result.serviceNames.push('充电(紧急采购)');
+    }
+    stats.today.recharge++;
+    stats.total.recharge++;
+  }
+
+  result.serviceIncome = Math.round(result.serviceIncome);
+  stats.today.totalIncome += result.serviceIncome;
+  stats.total.totalIncome += result.serviceIncome;
+
+  return result;
 }
 
 function rejectOrder(orderId) {

@@ -8,7 +8,10 @@ var RANDOM_EVENTS = [
   { id:'new_comp', name:'新竞争对手', desc:'市场系数-10%', icon:'🏪', effect:{marketCoeffDelta:-0.1}, duration:3 },
   { id:'subsidy', name:'新能源补贴', desc:'电动车需求+40%', icon:'🔋', effect:{fuelDemandMultiplier:{'纯电':1.4,'插电混动':1.3,'增程':1.2}}, duration:3 },
   { id:'downturn', name:'经济下行', desc:'所有需求-20%', icon:'📉', effect:{demandMultiplier:0.8}, duration:3 },
-  { id:'festival', name:'节日促销', desc:'所有需求+25%', icon:'🎉', effect:{demandMultiplier:1.25}, duration:3 }
+  { id:'festival', name:'节日促销', desc:'所有需求+25%', icon:'🎉', effect:{demandMultiplier:1.25}, duration:3 },
+  { id:'energy_crisis', name:'能源短缺', desc:'油价+40%，电价+30%', icon:'⚡', effect:{oilPriceDelta:0.4, electricityPriceDelta:0.3}, duration:3 },
+  { id:'oil_glut', name:'原油过剩', desc:'油价-25%', icon:'🛢️', effect:{oilPriceDelta:-0.25}, duration:3 },
+  { id:'power_surplus', name:'电力充裕', desc:'电价-20%', icon:'💡', effect:{electricityPriceDelta:-0.2}, duration:3 }
 ];
 
 function checkRandomEvent() {
@@ -36,12 +39,14 @@ function processEventExpiry() {
 }
 
 function getEventEffects() {
-  var effects = { maintenanceMultiplier:1, fuelMultiplier:1, demandMultiplier:1, typeDemandMultiplier:{}, fuelDemandMultiplier:{}, marketCoeffDelta:0 };
+  var effects = { maintenanceMultiplier:1, fuelMultiplier:1, demandMultiplier:1, typeDemandMultiplier:{}, fuelDemandMultiplier:{}, marketCoeffDelta:0, oilPriceDelta:0, electricityPriceDelta:0 };
   gameState.activeEvents.forEach(function(e){
     if (e.effect.maintenanceMultiplier) effects.maintenanceMultiplier *= e.effect.maintenanceMultiplier;
     if (e.effect.fuelMultiplier) effects.fuelMultiplier *= e.effect.fuelMultiplier;
     if (e.effect.demandMultiplier) effects.demandMultiplier *= e.effect.demandMultiplier;
     if (e.effect.marketCoeffDelta) effects.marketCoeffDelta += e.effect.marketCoeffDelta;
+    if (e.effect.oilPriceDelta) effects.oilPriceDelta += e.effect.oilPriceDelta;
+    if (e.effect.electricityPriceDelta) effects.electricityPriceDelta += e.effect.electricityPriceDelta;
     if (e.effect.typeDemandMultiplier) {
       Object.keys(e.effect.typeDemandMultiplier).forEach(function(k){
         effects.typeDemandMultiplier[k] = (effects.typeDemandMultiplier[k] || 1) * e.effect.typeDemandMultiplier[k];
@@ -86,4 +91,48 @@ function getEffectiveDailyRate(vehicle) {
   var typeMultiplier = getRateMultiplier(vehicle.type);
   var marketCoeff = gameState.marketCoefficient;
   return Math.round(base * typeMultiplier * marketCoeff);
+}
+
+function updateEnergyPrices() {
+  var en = gameState.energy;
+  en.prevOilPrice = en.oilPrice;
+  en.prevElectricityPrice = en.electricityPrice;
+
+  var oilFactor = 0.95 + Math.random() * 0.10;
+  var elecFactor = 0.95 + Math.random() * 0.10;
+
+  en.oilPrice = Math.round(en.oilPrice * oilFactor * 100) / 100;
+  en.electricityPrice = Math.round(en.electricityPrice * elecFactor * 100) / 100;
+
+  var eventEffects = getEventEffects();
+  if (eventEffects.oilPriceDelta) {
+    en.oilPrice = Math.round(en.oilPrice * (1 + eventEffects.oilPriceDelta) * 100) / 100;
+  }
+  if (eventEffects.electricityPriceDelta) {
+    en.electricityPrice = Math.round(en.electricityPrice * (1 + eventEffects.electricityPriceDelta) * 100) / 100;
+  }
+
+  en.oilPrice = Math.max(3, Math.min(15, en.oilPrice));
+  en.electricityPrice = Math.max(0.3, Math.min(3, en.electricityPrice));
+
+  var messages = [];
+  if (en.oilPrice > en.prevOilPrice + 0.01) {
+    messages.push('油价上涨至 ' + en.oilPrice.toFixed(2) + ' 元/升 ⬆');
+  } else if (en.oilPrice < en.prevOilPrice - 0.01) {
+    messages.push('油价下跌至 ' + en.oilPrice.toFixed(2) + ' 元/升 ⬇');
+  }
+  if (en.electricityPrice > en.prevElectricityPrice + 0.01) {
+    messages.push('电价上涨至 ' + en.electricityPrice.toFixed(2) + ' 元/度 ⬆');
+  } else if (en.electricityPrice < en.prevElectricityPrice - 0.01) {
+    messages.push('电价下跌至 ' + en.electricityPrice.toFixed(2) + ' 元/度 ⬇');
+  }
+  return messages;
+}
+
+function isFuelVehicle(fuelType) {
+  return fuelType === FUEL_TYPES.GASOLINE || fuelType === FUEL_TYPES.DIESEL || fuelType === FUEL_TYPES.HYBRID;
+}
+
+function isElectricVehicle(fuelType) {
+  return fuelType === FUEL_TYPES.ELECTRIC || fuelType === FUEL_TYPES.PLUGIN_HYBRID || fuelType === FUEL_TYPES.RANGE_EXTENDER;
 }
