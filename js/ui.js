@@ -1111,3 +1111,416 @@ function renderServiceStats() {
 
   content.innerHTML = html;
 }
+var orderSortField = 'day';
+var orderSortAsc = false;
+var orderPage = 1;
+var ORDER_PAGE_SIZE = 15;
+
+function openOrderHistoryModal() {
+  document.getElementById('orderHistoryModal').classList.add('active');
+  orderPage = 1;
+  renderOrderHistory();
+}
+function closeOrderHistoryModal() {
+  document.getElementById('orderHistoryModal').classList.remove('active');
+}
+function sortOrders(field) {
+  if (orderSortField === field) orderSortAsc = !orderSortAsc;
+  else { orderSortField = field; orderSortAsc = false; }
+  renderOrderHistory();
+}
+function renderOrderHistory() {
+  var orders = gameState.orderHistory || [];
+  var content = document.getElementById('orderHistoryContent');
+  var sorted = orders.slice();
+  sorted.sort(function(a,b){
+    var va,vb;
+    switch(orderSortField) {
+      case 'day': va=a.acceptedDay||a.createdDay; vb=b.acceptedDay||b.createdDay; break;
+      case 'income': va=a.actualIncome||a.totalIncome; vb=b.actualIncome||b.totalIncome; break;
+      case 'days': va=a.rentalDays; vb=b.rentalDays; break;
+      case 'vehicle': va=a.vehicleName; vb=b.vehicleName; break;
+      default: va=a.acceptedDay||a.createdDay; vb=b.acceptedDay||b.createdDay;
+    }
+    if (va < vb) return orderSortAsc ? -1 : 1;
+    if (va > vb) return orderSortAsc ? 1 : -1;
+    return 0;
+  });
+  var totalPages = Math.max(1, Math.ceil(sorted.length / ORDER_PAGE_SIZE));
+  if (orderPage > totalPages) orderPage = totalPages;
+  var start = (orderPage - 1) * ORDER_PAGE_SIZE;
+  var pageOrders = sorted.slice(start, start + ORDER_PAGE_SIZE);
+  var sa = function(f){ return orderSortField===f ? (orderSortAsc?' ↑':' ↓') : ''; };
+  var html = '<div style="margin-bottom:10px;font-size:12px;color:rgba(255,255,255,0.5);">共 '+orders.length+' 条历史订单</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">';
+  html += '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);cursor:pointer;" onclick="sortOrders(\'day\')">日期'+sa('day')+'</th>';
+  html += '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);">客户</th>';
+  html += '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);cursor:pointer;" onclick="sortOrders(\'vehicle\')">车型'+sa('vehicle')+'</th>';
+  html += '<th style="text-align:right;padding:6px 8px;color:rgba(255,255,255,0.5);cursor:pointer;" onclick="sortOrders(\'days\')">天数'+sa('days')+'</th>';
+  html += '<th style="text-align:right;padding:6px 8px;color:rgba(255,255,255,0.5);cursor:pointer;" onclick="sortOrders(\'income\')">收入'+sa('income')+'</th>';
+  html += '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);">增值服务</th>';
+  html += '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);">网点</th>';
+  html += '</tr></thead><tbody>';
+  pageOrders.forEach(function(o){
+    var svc = (o.services && o.services.length > 0) ? o.services.join(', ') : '—';
+    html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">';
+    html += '<td style="padding:6px 8px;color:rgba(255,255,255,0.5);">D'+(o.acceptedDay||o.createdDay)+'</td>';
+    html += '<td style="padding:6px 8px;color:rgba(255,255,255,0.7);">'+o.customerName+'</td>';
+    html += '<td style="padding:6px 8px;color:rgba(255,255,255,0.7);">'+o.vehicleName+'</td>';
+    html += '<td style="padding:6px 8px;text-align:right;color:rgba(255,255,255,0.7);">'+o.rentalDays+'</td>';
+    html += '<td style="padding:6px 8px;text-align:right;color:#4ade80;">'+formatCurrency(o.actualIncome||o.totalIncome)+'</td>';
+    html += '<td style="padding:6px 8px;color:rgba(255,255,255,0.5);font-size:10px;">'+svc+'</td>';
+    html += '<td style="padding:6px 8px;color:rgba(255,255,255,0.5);">'+o.outletName+'</td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  if (totalPages > 1) {
+    html += '<div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:12px;">';
+    html += '<button class="action-btn" style="padding:4px 12px;font-size:11px;" onclick="orderPage=1;renderOrderHistory();"'+(orderPage<=1?' disabled':'')+'>首页</button>';
+    html += '<button class="action-btn" style="padding:4px 12px;font-size:11px;" onclick="orderPage--;renderOrderHistory();"'+(orderPage<=1?' disabled':'')+'>上一页</button>';
+    html += '<span style="color:rgba(255,255,255,0.5);font-size:11px;">'+orderPage+' / '+totalPages+'</span>';
+    html += '<button class="action-btn" style="padding:4px 12px;font-size:11px;" onclick="orderPage++;renderOrderHistory();"'+(orderPage>=totalPages?' disabled':'')+'>下一页</button>';
+    html += '<button class="action-btn" style="padding:4px 12px;font-size:11px;" onclick="orderPage='+totalPages+';renderOrderHistory();"'+(orderPage>=totalPages?' disabled':'')+'>末页</button>';
+    html += '</div>';
+  }
+  content.innerHTML = html;
+}
+function openEmployeeModal() {
+  document.getElementById('employeeModal').classList.add('active');
+  renderEmployeeModal();
+}
+function closeEmployeeModal() {
+  document.getElementById('employeeModal').classList.remove('active');
+}
+function renderEmployeeModal() {
+  var emps = gameState.employees || [];
+  var content = document.getElementById('employeeContent');
+  var totalSalary = emps.reduce(function(s,e){ return s + e.salary * 8; }, 0);
+  var striking = emps.filter(function(e){ return e.onStrike; }).length;
+  var html = '<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">';
+  html += '<div style="padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:8px;"><span style="color:rgba(255,255,255,0.5);">员工总数</span> <span style="color:#60a5fa;font-weight:700;">'+emps.length+'</span></div>';
+  html += '<div style="padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:8px;"><span style="color:rgba(255,255,255,0.5);">日工资总额</span> <span style="color:#fbbf24;font-weight:700;">'+formatCurrency(totalSalary)+'</span></div>';
+  html += '<div style="padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:8px;"><span style="color:rgba(255,255,255,0.5);">罢工</span> <span style="color:#f87171;font-weight:700;">'+striking+'</span></div>';
+  html += '<div style="padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:8px;"><button class="action-btn btn-buy" style="padding:4px 10px;font-size:10px;" onclick="openTalentMarket()">👔 人才市场</button></div>';
+  html += '<div style="padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:8px;"><button class="action-btn" style="padding:4px 10px;font-size:10px;background:linear-gradient(135deg,#e67e22,#f39c12);color:#fff;" onclick="doTeamBuilding()"'+(gameState.currentDay - (gameState.lastTeamBuildingDay||0) < 7?' disabled':'')+'>🎉 团建($5000)</button></div>';
+  html += '</div>';
+  if (emps.length === 0) {
+    html += '<div class="empty-state"><div class="icon">👔</div><div class="text">暂无员工，前往人才市场招聘</div></div>';
+  } else {
+    html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">';
+    html += '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);">姓名</th>';
+    html += '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);">角色</th>';
+    html += '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);">网点</th>';
+    html += '<th style="text-align:right;padding:6px 8px;color:rgba(255,255,255,0.5);">时薪</th>';
+    html += '<th style="text-align:center;padding:6px 8px;color:rgba(255,255,255,0.5);">士气</th>';
+    html += '<th style="text-align:center;padding:6px 8px;color:rgba(255,255,255,0.5);">技能</th>';
+    html += '<th style="text-align:center;padding:6px 8px;color:rgba(255,255,255,0.5);">操作</th>';
+    html += '</tr></thead><tbody>';
+    emps.forEach(function(e){
+      var moraleColor = e.morale > 80 ? '#4ade80' : e.morale > 30 ? '#fbbf24' : '#f87171';
+      var strikeTag = e.onStrike ? ' <span style="color:#f87171;font-weight:700;">⚠罢工</span>' : '';
+      var outletName = OUTLET_CONFIGS.find(function(c){ return c.id === e.outletId; });
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">';
+      html += '<td style="padding:6px 8px;color:rgba(255,255,255,0.8);">'+e.name+strikeTag+'</td>';
+      html += '<td style="padding:6px 8px;"><span style="padding:2px 6px;border-radius:4px;font-size:10px;background:rgba(52,152,219,0.15);color:#3498db;">'+e.type+'</span></td>';
+      html += '<td style="padding:6px 8px;color:rgba(255,255,255,0.5);">'+(outletName?outletName.name:'—')+'</td>';
+      html += '<td style="padding:6px 8px;text-align:right;color:rgba(255,255,255,0.7);">$'+e.salary+'/h</td>';
+      html += '<td style="padding:6px 8px;text-align:center;color:'+moraleColor+';">'+e.morale+'</td>';
+      html += '<td style="padding:6px 8px;text-align:center;color:rgba(255,255,255,0.7);">'+e.skillLevel+'</td>';
+      html += '<td style="padding:6px 8px;text-align:center;"><button class="action-btn" style="padding:2px 6px;font-size:9px;background:linear-gradient(135deg,#3498db,#2980b9);color:#fff;margin:1px;" onclick="trainEmployee(\''+e.id+'\')">培训$3K</button><button class="action-btn" style="padding:2px 6px;font-size:9px;background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;margin:1px;" onclick="raiseSalary(\''+e.id+'\')">加薪</button><button class="action-btn" style="padding:2px 6px;font-size:9px;background:rgba(231,76,60,0.2);color:#e74c3c;border:1px solid #e74c3c;margin:1px;" onclick="fireEmployee(\''+e.id+'\');renderEmployeeModal();">解雇</button></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+  }
+  content.innerHTML = html;
+}
+function openTalentMarket() {
+  document.getElementById('talentModal').classList.add('active');
+  renderTalentMarket();
+}
+function closeTalentMarket() {
+  document.getElementById('talentModal').classList.remove('active');
+}
+function renderTalentMarket() {
+  var candidates = gameState.jobCandidates || [];
+  var content = document.getElementById('talentContent');
+  if (candidates.length === 0) {
+    content.innerHTML = '<div class="empty-state"><div class="icon">👔</div><div class="text">暂无候选人，每周刷新5名</div></div>';
+    return;
+  }
+  var html = '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">';
+  html += '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);">姓名</th>';
+  html += '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);">角色</th>';
+  html += '<th style="text-align:right;padding:6px 8px;color:rgba(255,255,255,0.5);">期望时薪</th>';
+  html += '<th style="text-align:center;padding:6px 8px;color:rgba(255,255,255,0.5);">士气</th>';
+  html += '<th style="text-align:center;padding:6px 8px;color:rgba(255,255,255,0.5);">技能</th>';
+  html += '<th style="text-align:center;padding:6px 8px;color:rgba(255,255,255,0.5);">录用到</th>';
+  html += '</tr></thead><tbody>';
+  candidates.forEach(function(c,i){
+    var moraleColor = c.morale > 80 ? '#4ade80' : c.morale > 30 ? '#fbbf24' : '#f87171';
+    var ownedOutlets = gameState.outlets.filter(function(o){ return o.owned; });
+    var opts = ownedOutlets.map(function(o){ return '<option value="'+o.id+'">'+OUTLET_CONFIGS.find(function(c){return c.id===o.id;}).name+'</option>'; }).join('');
+    html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">';
+    html += '<td style="padding:6px 8px;color:rgba(255,255,255,0.8);">'+c.name+'</td>';
+    html += '<td style="padding:6px 8px;"><span style="padding:2px 6px;border-radius:4px;font-size:10px;background:rgba(52,152,219,0.15);color:#3498db;">'+c.type+'</span></td>';
+    html += '<td style="padding:6px 8px;text-align:right;color:rgba(255,255,255,0.7);">$'+c.salary+'/h</td>';
+    html += '<td style="padding:6px 8px;text-align:center;color:'+moraleColor+';">'+c.morale+'</td>';
+    html += '<td style="padding:6px 8px;text-align:center;color:rgba(255,255,255,0.7);">'+c.skillLevel+'</td>';
+    html += '<td style="padding:6px 8px;text-align:center;"><select id="talentOutlet_'+i+'" style="padding:4px 6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:#fff;font-size:10px;min-height:30px;">'+opts+'</select><button class="action-btn btn-buy" style="padding:2px 8px;font-size:9px;margin-left:4px;" onclick="hireCandidate('+i+')">录用$2K</button></td>';
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  content.innerHTML = html;
+}
+function hireCandidate(index) {
+  var candidates = gameState.jobCandidates;
+  if (!candidates || !candidates[index]) return;
+  var c = candidates[index];
+  var selectEl = document.getElementById('talentOutlet_'+index);
+  if (!selectEl) { showToast('请选择网点','error'); return; }
+  var outletId = parseInt(selectEl.value);
+  if (gameState.cash < 2000) { showToast('资金不足！','error'); return; }
+  gameState.cash -= 2000;
+  hireEmployee(c, outletId);
+  candidates.splice(index, 1);
+  addMessage('👔 录用 '+c.name+'（'+c.type+'）→ '+OUTLET_CONFIGS.find(function(cfg){return cfg.id===outletId;}).name, 'good');
+  showToast('成功录用 '+c.name, 'success');
+  updateUI(); saveGame();
+  renderTalentMarket();
+}
+function doTeamBuilding() {
+  if (gameState.currentDay - (gameState.lastTeamBuildingDay||0) < 7) { showToast('团建冷却中（7天一次）','error'); return; }
+  if (gameState.cash < 5000) { showToast('资金不足！','error'); return; }
+  teamBuildingActivity();
+  showToast('团建活动完成，全员士气+10','success');
+  updateUI(); saveGame();
+  renderEmployeeModal();
+}
+var financeTab = 'pnl';
+function openFinanceModal() {
+  document.getElementById('financeModal').classList.add('active');
+  financeTab = 'pnl';
+  renderFinanceModal();
+}
+function closeFinanceModal() {
+  document.getElementById('financeModal').classList.remove('active');
+}
+function switchFinanceTab(tab) {
+  financeTab = tab;
+  renderFinanceModal();
+}
+function renderFinanceModal() {
+  var content = document.getElementById('financeContent');
+  var tabs = '<div style="display:flex;gap:6px;margin-bottom:14px;">';
+  var tabDefs = [{key:'pnl',label:'📊 损益表'},{key:'balance',label:'📋 资产负债'},{key:'cashflow',label:'💸 现金流'},{key:'loans',label:'🏦 贷款'},{key:'stocks',label:'📈 股票'}];
+  tabDefs.forEach(function(t){
+    tabs += '<button style="padding:8px 14px;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;min-height:36px;'+(financeTab===t.key?'background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;':'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.1);')+'" onclick="switchFinanceTab(\''+t.key+'\')">'+t.label+'</button>';
+  });
+  tabs += '</div>';
+  var body = '';
+  if (financeTab === 'pnl') body = renderPnL();
+  else if (financeTab === 'balance') body = renderBalanceSheet();
+  else if (financeTab === 'cashflow') body = renderCashFlow();
+  else if (financeTab === 'loans') body = renderLoans();
+  else if (financeTab === 'stocks') body = renderStocks();
+  content.innerHTML = tabs + body;
+}
+function renderPnL() {
+  var today = getPnL('today');
+  var month = getPnL('month');
+  var total = getPnL('total');
+  var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">';
+  [{label:'今日',data:today},{label:'本月(30天)',data:month},{label:'累计',data:total}].forEach(function(p){
+    html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;">';
+    html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">'+p.label+'</div>';
+    html += '<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:4px;">收入: <span style="color:#4ade80;">'+formatCurrency(p.data.revenue)+'</span></div>';
+    html += '<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:4px;">支出: <span style="color:#f87171;">'+formatCurrency(p.data.expenses)+'</span></div>';
+    html += '<div style="font-size:11px;color:rgba(255,255,255,0.5);">净利润: <span style="color:'+(p.data.netProfit>=0?'#4ade80':'#f87171')+';font-weight:700;">'+formatCurrency(p.data.netProfit)+'</span></div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  if (typeof gameState.financials !== 'undefined' && gameState.financials.dailyProfit.length > 0) {
+    html += '<div style="margin-top:14px;"><div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">利润走势(近30天)</div>';
+    html += '<canvas id="profitChartCanvas" width="560" height="160" style="width:100%;max-width:560px;height:160px;"></canvas></div>';
+    setTimeout(drawProfitChart, 50);
+  }
+  return html;
+}
+function renderBalanceSheet() {
+  var bs = getBalanceSheet();
+  var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+  html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;">';
+  html += '<div style="font-size:12px;font-weight:700;color:#4ade80;margin-bottom:8px;">资产</div>';
+  html += '<div style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:3px;">现金: '+formatCurrency(bs.assets.cash)+'</div>';
+  html += '<div style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:3px;">车辆净值: '+formatCurrency(bs.assets.vehicles)+'</div>';
+  html += '<div style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:3px;">能源库存: '+formatCurrency(bs.assets.energy)+'</div>';
+  html += '<div style="font-size:11px;color:rgba(255,255,255,0.6);">股票持仓: '+formatCurrency(bs.assets.stocks)+'</div>';
+  html += '<div style="font-size:13px;font-weight:700;color:#fff;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);">总资产: '+formatCurrency(bs.assets.total)+'</div></div>';
+  html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;">';
+  html += '<div style="font-size:12px;font-weight:700;color:#f87171;margin-bottom:8px;">负债</div>';
+  html += '<div style="font-size:11px;color:rgba(255,255,255,0.6);">贷款: '+formatCurrency(bs.liabilities.loans)+'</div>';
+  html += '<div style="font-size:13px;font-weight:700;color:#fff;margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);">总负债: '+formatCurrency(bs.liabilities.total)+'</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#60a5fa;margin-top:12px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.1);">所有者权益: '+formatCurrency(bs.equity)+'</div></div>';
+  html += '</div>';
+  return html;
+}
+function renderCashFlow() {
+  var cf = getCashFlow();
+  var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">';
+  [{label:'经营活动',data:cf.operating,color:'#4ade80'},{label:'投资活动',data:cf.investing,color:'#60a5fa'},{label:'筹资活动',data:cf.financing,color:'#fbbf24'}].forEach(function(p){
+    html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;">';
+    html += '<div style="font-size:12px;font-weight:700;color:'+p.color+';margin-bottom:8px;">'+p.label+'</div>';
+    html += '<div style="font-size:14px;font-weight:700;color:'+(p.data>=0?'#4ade80':'#f87171')+';">'+formatCurrency(p.data)+'</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+function renderLoans() {
+  var loans = gameState.loans || [];
+  var bs = getBalanceSheet();
+  var maxLoan = Math.round(bs.assets.total * 0.5);
+  var existingDebt = loans.reduce(function(s,l){ return s + l.remainingAmount; }, 0);
+  var available = Math.max(0, maxLoan - existingDebt);
+  var html = '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;margin-bottom:14px;">';
+  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">🏦 申请贷款</div>';
+  html += '<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px;">可贷额度: '+formatCurrency(available)+' (总资产50% - 已贷)</div>';
+  html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
+  html += '<input type="number" id="loanAmount" min="10000" step="10000" value="100000" style="width:120px;padding:6px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;font-size:12px;min-height:36px;">';
+  html += '<select id="loanTerm" style="padding:6px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;font-size:12px;min-height:36px;"><option value="30">30天(8%)</option><option value="90">90天(11%)</option><option value="180">180天(15%)</option></select>';
+  html += '<button class="action-btn btn-buy" onclick="doApplyLoan()">申请贷款</button></div></div>';
+  if (loans.length === 0) {
+    html += '<div class="empty-state"><div class="icon">🏦</div><div class="text">暂无贷款</div></div>';
+  } else {
+    html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">';
+    html += '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);">贷款ID</th>';
+    html += '<th style="text-align:right;padding:6px 8px;color:rgba(255,255,255,0.5);">剩余金额</th>';
+    html += '<th style="text-align:right;padding:6px 8px;color:rgba(255,255,255,0.5);">日利息</th>';
+    html += '<th style="text-align:center;padding:6px 8px;color:rgba(255,255,255,0.5);">到期日</th>';
+    html += '<th style="text-align:center;padding:6px 8px;color:rgba(255,255,255,0.5);">操作</th>';
+    html += '</tr></thead><tbody>';
+    loans.forEach(function(l){
+      var overdue = gameState.currentDay > l.dueDay;
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);'+(overdue?'background:rgba(231,76,60,0.1);':'')+'">';
+      html += '<td style="padding:6px 8px;color:rgba(255,255,255,0.7);">'+l.id+(overdue?' <span style="color:#f87171;">⚠逾期</span>':'')+'</td>';
+      html += '<td style="padding:6px 8px;text-align:right;color:#fbbf24;">'+formatCurrency(Math.round(l.remainingAmount))+'</td>';
+      html += '<td style="padding:6px 8px;text-align:right;color:rgba(255,255,255,0.5);">'+formatCurrency(Math.round(l.dailyInterest))+'</td>';
+      html += '<td style="padding:6px 8px;text-align:center;color:rgba(255,255,255,0.5);">D'+l.dueDay+'</td>';
+      html += '<td style="padding:6px 8px;text-align:center;"><button class="action-btn btn-buy" style="padding:2px 8px;font-size:9px;" onclick="doRepayLoan(\''+l.id+'\')">还款</button></td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+  }
+  return html;
+}
+function renderStocks() {
+  var st = gameState.stocks || {};
+  var html = '';
+  if (!st.isPublic) {
+    html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:16px;margin-bottom:14px;">';
+    html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">🏢 IPO上市</div>';
+    html += '<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px;">上市条件：现金 > $50M 且 累计营收 > $5M</div>';
+    var eligible = typeof checkIPOEligibility === 'function' && checkIPOEligibility();
+    html += '<div style="font-size:11px;color:'+(eligible?'#4ade80':'#f87171')+';">当前状态：'+(eligible?'✓ 满足条件':'✕ 不满足条件')+'</div>';
+    if (eligible) {
+      html += '<div style="margin-top:8px;display:flex;gap:8px;align-items:center;">';
+      html += '<span style="font-size:11px;color:rgba(255,255,255,0.5);">发行价:</span>';
+      html += '<input type="number" id="ipoPrice" min="10" max="500" value="50" style="width:80px;padding:6px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;font-size:12px;min-height:36px;">';
+      html += '<button class="action-btn btn-buy" onclick="doIPO()">执行IPO</button></div>';
+    }
+    html += '</div>';
+  } else {
+    html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;margin-bottom:14px;">';
+    html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">📈 RENT 股票</div>';
+    html += '<div style="font-size:11px;color:rgba(255,255,255,0.6);">当前股价: <span style="color:#4ade80;font-weight:700;">$'+(st.sharePrice||0).toFixed(2)+'</span> · 持有: '+st.playerShares+'股(锁定) · 流通: '+st.publicShares+'股</div>';
+    html += '</div>';
+  }
+  html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;">';
+  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">📊 虚拟股票市场</div>';
+  var vStocks = typeof VIRTUAL_STOCKS !== 'undefined' ? VIRTUAL_STOCKS : [];
+  vStocks.forEach(function(vs){
+    var price = (st.virtualPrices && st.virtualPrices[vs.ticker]) || vs.basePrice;
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);">';
+    html += '<div><span style="color:#fff;font-weight:600;">'+vs.ticker+'</span> <span style="color:rgba(255,255,255,0.5);font-size:10px;">'+vs.name+'</span></div>';
+    html += '<div style="display:flex;gap:6px;align-items:center;">';
+    html += '<span style="color:#4ade80;font-weight:700;">$'+price.toFixed(2)+'</span>';
+    html += '<input type="number" id="stockQty_'+vs.ticker+'" min="1" value="10" style="width:60px;padding:4px 6px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:#fff;font-size:10px;min-height:30px;">';
+    html += '<button class="action-btn" style="padding:2px 6px;font-size:9px;background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;" onclick="doBuyStock(\''+vs.ticker+'\')">买</button>';
+    html += '<button class="action-btn" style="padding:2px 6px;font-size:9px;background:rgba(231,76,60,0.2);color:#e74c3c;border:1px solid #e74c3c;" onclick="doSellStock(\''+vs.ticker+'\')">卖</button>';
+    html += '</div></div>';
+  });
+  html += '</div>';
+  var portfolio = st.portfolio || [];
+  if (portfolio.length > 0) {
+    html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;margin-top:10px;">';
+    html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">💼 我的持仓</div>';
+    portfolio.forEach(function(p){
+      var curPrice = (st.virtualPrices && st.virtualPrices[p.ticker]) || 0;
+      var val = Math.round(p.shares * curPrice);
+      html += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:11px;color:rgba(255,255,255,0.6);">';
+      html += '<span>'+p.ticker+' × '+p.shares+'</span><span style="color:#4ade80;">'+formatCurrency(val)+'</span></div>';
+    });
+    html += '</div>';
+  }
+  return html;
+}
+function drawProfitChart() {
+  var canvas = document.getElementById('profitChartCanvas');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width; var h = canvas.height;
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  ctx.fillRect(0,0,w,h);
+  var data = (gameState.financials && gameState.financials.dailyProfit) ? gameState.financials.dailyProfit.slice(-30) : [];
+  if (data.length < 2) { ctx.fillStyle='rgba(255,255,255,0.3)'; ctx.font='12px sans-serif'; ctx.textAlign='center'; ctx.fillText('数据不足',w/2,h/2); return; }
+  var padL=50,padR=20,padT=20,padB=20;
+  var cW=w-padL-padR; var cH=h-padT-padB;
+  var maxV=Math.max.apply(null,data.map(Math.abs)); if(maxV===0)maxV=1;
+  var scale=cH/(maxV*2.5);
+  var zeroY=padT+cH/2;
+  ctx.strokeStyle='rgba(255,255,255,0.1)'; ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(padL,zeroY); ctx.lineTo(padL+cW,zeroY); ctx.stroke();
+  ctx.strokeStyle='rgba(74,222,128,0.8)'; ctx.lineWidth=2;
+  ctx.beginPath();
+  for(var i=0;i<data.length;i++){
+    var x=padL+(i/(data.length-1))*cW;
+    var yy=zeroY-data[i]*scale;
+    if(i===0)ctx.moveTo(x,yy);else ctx.lineTo(x,yy);
+  }
+  ctx.stroke();
+}
+function doApplyLoan() {
+  var amount=parseInt(document.getElementById('loanAmount').value)||0;
+  var term=parseInt(document.getElementById('loanTerm').value)||30;
+  if(amount<10000){showToast('最低贷款$10,000','error');return;}
+  if(typeof applyLoan==='function')applyLoan(amount,term);
+  showToast('贷款申请成功','success');
+  updateUI();saveGame();renderFinanceModal();
+}
+function doRepayLoan(loanId) {
+  if(typeof repayLoan==='function')repayLoan(loanId,Infinity);
+  showToast('贷款已还清','success');
+  updateUI();saveGame();renderFinanceModal();
+}
+function doIPO() {
+  var price=parseFloat(document.getElementById('ipoPrice').value)||50;
+  if(typeof executeIPO==='function')executeIPO(price);
+  showToast('IPO成功！RENT已上市','success');
+  addMessage('🎉 公司成功上市！股票代码 RENT，发行价 $'+price.toFixed(2),'good');
+  updateUI();saveGame();renderFinanceModal();
+}
+function doBuyStock(ticker) {
+  var qty=parseInt(document.getElementById('stockQty_'+ticker).value)||0;
+  if(qty<=0){showToast('请输入数量','error');return;}
+  if(typeof buyStock==='function')buyStock(ticker,qty);
+  showToast('买入成功','success');
+  updateUI();saveGame();renderFinanceModal();
+}
+function doSellStock(ticker) {
+  var qty=parseInt(document.getElementById('stockQty_'+ticker).value)||0;
+  if(qty<=0){showToast('请输入数量','error');return;}
+  if(typeof sellStock==='function')sellStock(ticker,qty);
+  showToast('卖出成功','success');
+  updateUI();saveGame();renderFinanceModal();
+}

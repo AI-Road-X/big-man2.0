@@ -96,7 +96,28 @@ var defaultGameState = {
   priceHistory: {
     oil: [],
     electricity: []
-  }
+  },
+  employees: [],
+  jobCandidates: [],
+  orderHistory: [],
+  financials: {
+    dailyRevenue: [],
+    dailyExpenses: [],
+    dailyProfit: []
+  },
+  loans: [],
+  stocks: {
+    isPublic: false,
+    ticker: 'RENT',
+    sharePrice: 0,
+    playerShares: 60,
+    publicShares: 40,
+    totalShares: 100,
+    portfolio: [],
+    stockHistory: [],
+    virtualPrices: {}
+  },
+  lastTeamBuildingDay: 0
 };
 
 var gameState = JSON.parse(JSON.stringify(defaultGameState));
@@ -185,6 +206,14 @@ function loadGame() {
         gameState.servicePricing = { insurance:50, wifi:20, gps:15, delivery:80, refuelMargin:1.0, rechargeMargin:1.0 };
       }
       if (!gameState.priceHistory) gameState.priceHistory = { oil:[], electricity:[] };
+      if (!gameState.employees) gameState.employees = [];
+      if (!gameState.jobCandidates) gameState.jobCandidates = [];
+      if (!gameState.orderHistory) gameState.orderHistory = [];
+      if (!gameState.financials) gameState.financials = { dailyRevenue:[], dailyExpenses:[], dailyProfit:[] };
+      if (!gameState.loans) gameState.loans = [];
+      if (!gameState.stocks) gameState.stocks = { isPublic:false, ticker:'RENT', sharePrice:0, playerShares:60, publicShares:40, totalShares:100, portfolio:[], stockHistory:[], virtualPrices:{} };
+      if (!gameState.stocks.virtualPrices) gameState.stocks.virtualPrices = {};
+      if (!gameState.lastTeamBuildingDay) gameState.lastTeamBuildingDay = 0;
       return true;
     }
   } catch(e) { console.error('加载失败:', e); }

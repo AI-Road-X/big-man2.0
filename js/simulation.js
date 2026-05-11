@@ -68,6 +68,16 @@ function nextDay() {
   processTransfers();
   processEventExpiry();
 
+  var totalWages = processDailyEmployeeEffects();
+  if (totalWages > 0) {
+    gameState.cash -= totalWages;
+    gameState.todayExpense += totalWages;
+    addMessage('💼 员工工资支出 ' + formatCurrency(totalWages), 'warn');
+  }
+
+  if (typeof processLoanInterest === 'function') processLoanInterest();
+  if (typeof processDailyFinance === 'function') processDailyFinance();
+
   var energyMessages = updateEnergyPrices();
   energyMessages.forEach(function(msg){
     addMessage('⛽ ' + msg, 'warn');
@@ -139,6 +149,14 @@ function nextDay() {
   }
 
   gameState.currentDay++;
+
+  if (gameState.currentDay % 7 === 0 && typeof generateJobCandidates === 'function') {
+    gameState.jobCandidates = generateJobCandidates(5);
+    addMessage('👔 人才市场已刷新，5名候选人等待录用', 'good');
+  }
+
+  if (typeof recordDailyFinancials === 'function') recordDailyFinancials();
+
   updateUI(); saveGame();
 }
 
@@ -211,6 +229,13 @@ function acceptOrder(orderId) {
   var memberTag = order.memberId ? '👤' : '';
   var serviceMsg = serviceResult.serviceNames.length > 0 ? '，购买 ' + serviceResult.serviceNames.join(' + ') : '';
   addMessage(memberTag + typeLabel + '客户 <span class="msg-highlight">' + order.customerName + '</span> 租用 ' + order.vehicleName + ' ' + order.rentalDays + '天' + serviceMsg + '，共支付 ' + formatCurrency(totalIncome), 'good');
+
+  order.acceptedDay = gameState.currentDay;
+  order.actualIncome = totalIncome;
+  order.serviceIncome = serviceResult.serviceIncome;
+  order.services = serviceResult.serviceNames;
+  gameState.orderHistory.push(order);
+  if (gameState.orderHistory.length > 500) gameState.orderHistory.shift();
 
   if (gameState.tutorialStep < 7) { gameState.tutorialStep = 7; saveGame(); }
   renderOrders(); updateUI(); saveGame();

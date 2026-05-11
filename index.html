@@ -38,6 +38,12 @@
     .panel-btn.members:hover{box-shadow:0 6px 20px rgba(26,188,156,0.4)}
     .panel-btn.service-pricing{background:linear-gradient(135deg,#e74c3c,#c0392b)}
     .panel-btn.service-pricing:hover{box-shadow:0 6px 20px rgba(231,76,60,0.4)}
+    .panel-btn.employees{background:linear-gradient(135deg,#8e44ad,#9b59b6)}
+    .panel-btn.employees:hover{box-shadow:0 6px 20px rgba(142,68,173,0.4)}
+    .panel-btn.finance{background:linear-gradient(135deg,#2c3e50,#34495e)}
+    .panel-btn.finance:hover{box-shadow:0 6px 20px rgba(44,62,80,0.4)}
+    .panel-btn.order-history{background:linear-gradient(135deg,#16a085,#1abc9c)}
+    .panel-btn.order-history:hover{box-shadow:0 6px 20px rgba(22,160,133,0.4)}
     .order-badge{position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:10px;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:700;animation:pulse 1.5s infinite}
     .order-badge:empty{display:none}
     #activeEventsBar{display:none;flex-wrap:wrap;gap:4px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08)}
@@ -337,6 +343,9 @@
     <button class="panel-btn pricing" onclick="openPricingModal()">💰 调价</button>
     <button class="panel-btn energy" onclick="openEnergyModal()">⛽ 能源</button>
     <button class="panel-btn members" onclick="openMemberModal()">👤 会员</button>
+    <button class="panel-btn employees" onclick="openEmployeeModal()">👔 员工</button>
+    <button class="panel-btn finance" onclick="openFinanceModal()">🏦 财务</button>
+    <button class="panel-btn order-history" onclick="openOrderHistoryModal()">📋 订单</button>
     <button class="panel-btn service-stats" onclick="openServiceStatsModal()">📊 增值服务</button>
     <button class="panel-btn service-pricing" onclick="openServicePricingModal()">🏷️ 服务定价</button>
   </div>
@@ -450,6 +459,46 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="orderHistoryModal">
+    <div class="modal-container" style="max-width:900px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">📋</span> 订单历史</div>
+        <button class="close-btn" onclick="closeOrderHistoryModal()">✕</button>
+      </div>
+      <div class="vehicle-table-wrapper" id="orderHistoryContent" style="padding:16px 22px;"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="employeeModal">
+    <div class="modal-container" style="max-width:900px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">👔</span> 员工管理</div>
+        <button class="close-btn" onclick="closeEmployeeModal()">✕</button>
+      </div>
+      <div class="vehicle-table-wrapper" id="employeeContent" style="padding:16px 22px;"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="talentModal">
+    <div class="modal-container" style="max-width:750px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">🎯</span> 人才市场</div>
+        <button class="close-btn" onclick="closeTalentMarket()">✕</button>
+      </div>
+      <div class="vehicle-table-wrapper" id="talentContent" style="padding:16px 22px;"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="financeModal">
+    <div class="modal-container" style="max-width:800px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">🏦</span> 财务管理</div>
+        <button class="close-btn" onclick="closeFinanceModal()">✕</button>
+      </div>
+      <div class="vehicle-table-wrapper" id="financeContent" style="padding:16px 22px;"></div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="pricingModal">
     <div class="modal-container" style="max-width:600px;">
       <div class="modal-header">
@@ -481,6 +530,8 @@
   <script src="js/game-core.js"></script>
   <script src="js/economy.js"></script>
   <script src="js/members.js"></script>
+  <script src="js/employees.js"></script>
+  <script src="js/finance.js"></script>
   <script src="js/simulation.js"></script>
   <script src="js/scene3d.js"></script>
   <script src="js/ui.js"></script>
@@ -535,7 +586,7 @@
     }
 
     window.addEventListener('keydown', function(e){
-      if (e.key === 'Escape') { closeFleetModal(); closeOrdersModal(); closeDispatchModal(); closePricingModal(); closeEnergyModal(); closeServiceStatsModal(); closeMemberModal(); closeServicePricingModal(); hideOutletPopup(); }
+      if (e.key === 'Escape') { closeFleetModal(); closeOrdersModal(); closeDispatchModal(); closePricingModal(); closeEnergyModal(); closeServiceStatsModal(); closeMemberModal(); closeServicePricingModal(); closeOrderHistoryModal(); closeEmployeeModal(); closeTalentMarket(); closeFinanceModal(); hideOutletPopup(); }
     });
 
     window.addEventListener('DOMContentLoaded', function(){
