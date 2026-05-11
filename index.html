@@ -34,6 +34,10 @@
     .panel-btn.energy:hover{box-shadow:0 6px 20px rgba(39,174,96,0.4)}
     .panel-btn.service-stats{background:linear-gradient(135deg,#e67e22,#f39c12)}
     .panel-btn.service-stats:hover{box-shadow:0 6px 20px rgba(230,126,34,0.4)}
+    .panel-btn.members{background:linear-gradient(135deg,#1abc9c,#16a085)}
+    .panel-btn.members:hover{box-shadow:0 6px 20px rgba(26,188,156,0.4)}
+    .panel-btn.service-pricing{background:linear-gradient(135deg,#e74c3c,#c0392b)}
+    .panel-btn.service-pricing:hover{box-shadow:0 6px 20px rgba(231,76,60,0.4)}
     .order-badge{position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:10px;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:700;animation:pulse 1.5s infinite}
     .order-badge:empty{display:none}
     #activeEventsBar{display:none;flex-wrap:wrap;gap:4px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08)}
@@ -252,6 +256,30 @@
     .service-prob-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
     .service-prob-item{display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:rgba(255,255,255,0.03);border-radius:6px;font-size:11px;color:rgba(255,255,255,0.6)}
 
+    .member-summary{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px}
+    .member-summary-card{background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:10px;text-align:center}
+    .member-summary-icon{font-size:18px;margin-bottom:2px}
+    .member-summary-label{font-size:9px;color:rgba(255,255,255,0.4)}
+    .member-summary-value{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#fff}
+    .member-level-bar{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
+    .member-level-chip{padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600;display:flex;align-items:center;gap:4px}
+    .member-table{width:100%;border-collapse:separate;border-spacing:0}
+    .member-table th{padding:8px 10px;text-align:left;font-size:9px;font-weight:600;color:rgba(255,255,255,0.4);background:rgba(0,0,0,0.3);border-bottom:1px solid rgba(255,255,255,0.08);cursor:pointer;white-space:nowrap}
+    .member-table td{padding:8px 10px;border-bottom:1px solid rgba(255,255,255,0.04);font-size:11px}
+    .member-level-badge{padding:2px 6px;border-radius:4px;font-size:9px;font-weight:600;color:#fff}
+    .member-pagination{display:flex;justify-content:center;gap:6px;margin-top:12px}
+    .member-page-btn{padding:6px 12px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:rgba(255,255,255,0.6);font-family:'JetBrains Mono',monospace;font-size:10px;cursor:pointer;min-height:36px}
+    .member-page-btn:hover{background:rgba(255,255,255,0.12);color:#fff}
+    .member-page-btn:disabled{opacity:0.3;cursor:not-allowed}
+
+    .pricing-service-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+    .pricing-service-card{background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px}
+    .pricing-service-name{font-size:11px;font-weight:600;color:#fff;margin-bottom:6px;display:flex;align-items:center;gap:6px}
+    .pricing-service-input{width:100%;padding:8px 10px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.15);border-radius:6px;color:#fff;font-family:'JetBrains Mono',monospace;font-size:12px;outline:none;min-height:36px}
+    .pricing-service-input:focus{border-color:rgba(255,255,255,0.3)}
+    .pricing-prob{font-size:9px;color:rgba(255,255,255,0.4);margin-top:4px}
+    .pricing-prob span{color:#4ade80;font-weight:600}
+
     @media(max-width:768px){
       #control-panel{bottom:8px;right:8px;left:8px;min-width:auto;padding:12px 14px;border-radius:12px}
       #control-panel h2{font-size:12px;margin-bottom:6px;padding-bottom:6px}
@@ -271,6 +299,9 @@
       .energy-trade-row{grid-template-columns:1fr}
       .service-stats-grid{grid-template-columns:repeat(2,1fr)}
       .service-prob-grid{grid-template-columns:1fr}
+      .member-summary{grid-template-columns:repeat(2,1fr)}
+      .member-table td{font-size:10px;padding:6px}
+      .pricing-service-row{grid-template-columns:1fr}
     }
   </style>
 </head>
@@ -295,13 +326,19 @@
       <span id="oilPriceDisplay" style="flex:1;text-align:center;">⛽ 5.00</span>
       <span id="elecPriceDisplay" style="flex:1;text-align:center;">🔋 0.80</span>
     </div>
+    <div style="display:flex;gap:8px;font-size:9px;">
+      <span id="oilStorageDisplay" style="flex:1;text-align:center;color:rgba(255,255,255,0.4);">⛽ 5000/10000L</span>
+      <span id="elecStorageDisplay" style="flex:1;text-align:center;color:rgba(255,255,255,0.4);">🔋 5000/10000kWh</span>
+    </div>
     <div id="activeEventsBar"></div>
     <button class="panel-btn next-day" onclick="nextDay()">⏭ 下一日</button>
     <button class="panel-btn orders" onclick="openOrdersModal()">📋 待处理订单<span class="order-badge" id="orderBadge"></span></button>
     <button class="panel-btn fleet" onclick="openFleetModal()">🚗 车队管理</button>
     <button class="panel-btn pricing" onclick="openPricingModal()">💰 调价</button>
     <button class="panel-btn energy" onclick="openEnergyModal()">⛽ 能源</button>
+    <button class="panel-btn members" onclick="openMemberModal()">👤 会员</button>
     <button class="panel-btn service-stats" onclick="openServiceStatsModal()">📊 增值服务</button>
+    <button class="panel-btn service-pricing" onclick="openServicePricingModal()">🏷️ 服务定价</button>
   </div>
 
   <div id="outlet-popup">
@@ -393,6 +430,26 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="memberModal">
+    <div class="modal-container" style="max-width:900px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">👤</span> 会员管理</div>
+        <button class="close-btn" onclick="closeMemberModal()">✕</button>
+      </div>
+      <div class="vehicle-table-wrapper" id="memberContent" style="padding:16px 22px;"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="servicePricingModal">
+    <div class="modal-container" style="max-width:650px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">🏷️</span> 服务定价</div>
+        <button class="close-btn" onclick="closeServicePricingModal()">✕</button>
+      </div>
+      <div class="vehicle-table-wrapper" id="servicePricingContent" style="padding:16px 22px;"></div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="pricingModal">
     <div class="modal-container" style="max-width:600px;">
       <div class="modal-header">
@@ -423,6 +480,7 @@
   <script src="js/vehicles.js"></script>
   <script src="js/game-core.js"></script>
   <script src="js/economy.js"></script>
+  <script src="js/members.js"></script>
   <script src="js/simulation.js"></script>
   <script src="js/scene3d.js"></script>
   <script src="js/ui.js"></script>
@@ -477,7 +535,7 @@
     }
 
     window.addEventListener('keydown', function(e){
-      if (e.key === 'Escape') { closeFleetModal(); closeOrdersModal(); closeDispatchModal(); closePricingModal(); closeEnergyModal(); closeServiceStatsModal(); hideOutletPopup(); }
+      if (e.key === 'Escape') { closeFleetModal(); closeOrdersModal(); closeDispatchModal(); closePricingModal(); closeEnergyModal(); closeServiceStatsModal(); closeMemberModal(); closeServicePricingModal(); hideOutletPopup(); }
     });
 
     window.addEventListener('DOMContentLoaded', function(){
@@ -492,11 +550,18 @@
       if (gameState.usedCarMarketList.length === 0) {
         gameState.usedCarMarketList = generateUsedCarListing(20);
       }
+      if (gameState.members.length === 0) {
+        gameState.members = generateInitialMembers(30);
+      }
       updateUI();
       saveGame();
       if (gameState.tutorialStep < 7) {
         setTimeout(showTutorial, 1200);
       }
+
+      console.log('%c租车公司模拟游戏 - 数据重置命令', 'color:#4ade80;font-size:16px;font-weight:bold');
+      console.log('%clocalStorage.removeItem("rentalCompanyGame_v3"); location.reload();', 'color:#fbbf24;font-size:12px');
+      console.log('%c复制上面一行到控制台执行即可重置所有游戏数据', 'color:rgba(255,255,255,0.5);font-size:11px');
     });
   </script>
 </body>

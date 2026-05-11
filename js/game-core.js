@@ -32,7 +32,9 @@ var SERVICE_PRICES = {
   gps: 15,
   refuelLiters: 20,
   rechargeKwh: 30,
-  delivery: 80
+  delivery: 80,
+  refuelMargin: 1.0,
+  rechargeMargin: 1.0
 };
 
 var SERVICE_PROBABILITIES = {
@@ -43,6 +45,11 @@ var SERVICE_PROBABILITIES = {
   refuel: 0.15,
   recharge: 0.15
 };
+
+var ENERGY_UPGRADE_COST = 5000;
+var ENERGY_UPGRADE_AMOUNT = 2000;
+var ENERGY_MAX_CAPACITY = 50000;
+var ENERGY_LOW_THRESHOLD = 500;
 
 var defaultGameState = {
   cash: 1000000,
@@ -76,6 +83,19 @@ var defaultGameState = {
   serviceStats: {
     today: { insurance:0, wifi:0, gps:0, delivery:0, refuel:0, recharge:0, totalIncome:0 },
     total: { insurance:0, wifi:0, gps:0, delivery:0, refuel:0, recharge:0, totalIncome:0 }
+  },
+  members: [],
+  servicePricing: {
+    insurance: 50,
+    wifi: 20,
+    gps: 15,
+    delivery: 80,
+    refuelMargin: 1.0,
+    rechargeMargin: 1.0
+  },
+  priceHistory: {
+    oil: [],
+    electricity: []
   }
 };
 
@@ -160,6 +180,11 @@ function loadGame() {
       if (!gameState.serviceStats) {
         gameState.serviceStats = { today:{insurance:0,wifi:0,gps:0,delivery:0,refuel:0,recharge:0,totalIncome:0}, total:{insurance:0,wifi:0,gps:0,delivery:0,refuel:0,recharge:0,totalIncome:0} };
       }
+      if (!gameState.members) gameState.members = [];
+      if (!gameState.servicePricing) {
+        gameState.servicePricing = { insurance:50, wifi:20, gps:15, delivery:80, refuelMargin:1.0, rechargeMargin:1.0 };
+      }
+      if (!gameState.priceHistory) gameState.priceHistory = { oil:[], electricity:[] };
       return true;
     }
   } catch(e) { console.error('加载失败:', e); }
@@ -185,4 +210,54 @@ function upgradeOutlet(outletId) {
   os.level = nextLevel.level;
   addMessage(OUTLET_CONFIGS.find(function(c){ return c.id === outletId; }).name + ' 升级到 Lv.' + os.level + '，容量 ' + nextLevel.capacity + ' 辆', 'good');
   updateUI(); saveGame();
+}
+
+function upgradeEnergyCapacity(type) {
+  var en = gameState.energy;
+  if (type === 'oil') {
+    if (en.maxOilCapacity >= ENERGY_MAX_CAPACITY) { showToast('油罐已达最大容量', 'error'); return; }
+    if (gameState.cash < ENERGY_UPGRADE_COST) { showToast('资金不足！', 'error'); return; }
+    gameState.cash -= ENERGY_UPGRADE_COST;
+    en.maxOilCapacity += ENERGY_UPGRADE_AMOUNT;
+    addMessage('⛽ 油罐容量升级至 ' + en.maxOilCapacity + ' 升', 'good');
+  } else {
+    if (en.maxBatteryCapacity >= ENERGY_MAX_CAPACITY) { showToast('电池已达最大容量', 'error'); return; }
+    if (gameState.cash < ENERGY_UPGRADE_COST) { showToast('资金不足！', 'error'); return; }
+    gameState.cash -= ENERGY_UPGRADE_COST;
+    en.maxBatteryCapacity += ENERGY_UPGRADE_AMOUNT;
+    addMessage('🔋 电池容量升级至 ' + en.maxBatteryCapacity + ' 度', 'good');
+  }
+  updateUI(); saveGame();
+  if (typeof renderEnergyModal === 'function') renderEnergyModal();
+  showToast('容量升级成功！', 'success');
+}
+
+function getServicePrice(serviceKey) {
+  var sp = gameState.servicePricing;
+  switch(serviceKey) {
+    case 'insurance': return sp.insurance;
+    case 'wifi': return sp.wifi;
+    case 'gps': return sp.gps;
+    case 'delivery': return sp.delivery;
+    case 'refuelMargin': return sp.refuelMargin;
+    case 'rechargeMargin': return sp.rechargeMargin;
+    default: return 0;
+  }
+}
+
+function setServicePrice(serviceKey, value) {
+  if (!gameState.servicePricing) gameState.servicePricing = { insurance:50, wifi:20, gps:15, delivery:80, refuelMargin:1.0, rechargeMargin:1.0 };
+  gameState.servicePricing[serviceKey] = value;
+  saveGame();
+}
+
+function getEffectiveServiceProbability(serviceKey) {
+  var baseProb = SERVICE_PROBABILITIES[serviceKey];
+  if (serviceKey === 'insurance' || serviceKey === 'wifi' || serviceKey === 'gps' || serviceKey === 'delivery') {
+    var defaultPrice = SERVICE_PRICES[serviceKey];
+    var currentPrice = getServicePrice(serviceKey);
+    var ratio = currentPrice / defaultPrice;
+    return Math.max(0.05, Math.min(0.6, baseProb / Math.pow(ratio, 0.5)));
+  }
+  return baseProb;
 }

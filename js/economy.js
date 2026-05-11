@@ -6,12 +6,14 @@ var RANDOM_EVENTS = [
   { id:'biz_boom', name:'商务出差高峰', desc:'轿车和豪华车需求+60%', icon:'💼', effect:{typeDemandMultiplier:{'轿车':1.6,'豪华车':1.6}}, duration:3 },
   { id:'rainy', name:'雨季来临', desc:'SUV需求+30%，跑车需求-40%', icon:'🌧️', effect:{typeDemandMultiplier:{'SUV':1.3,'跑车':0.6}}, duration:3 },
   { id:'new_comp', name:'新竞争对手', desc:'市场系数-10%', icon:'🏪', effect:{marketCoeffDelta:-0.1}, duration:3 },
-  { id:'subsidy', name:'新能源补贴', desc:'电动车需求+40%', icon:'🔋', effect:{fuelDemandMultiplier:{'纯电':1.4,'插电混动':1.3,'增程':1.2}}, duration:3 },
+  { id:'subsidy', name:'新能源补贴', desc:'电动车需求+40%', icon:'🔋', effect:{fuelDemandMultiplier:{'纯电':1.4,'插电混动':1.3,'增程':1.2,'混动':1.2}}, duration:3 },
   { id:'downturn', name:'经济下行', desc:'所有需求-20%', icon:'📉', effect:{demandMultiplier:0.8}, duration:3 },
   { id:'festival', name:'节日促销', desc:'所有需求+25%', icon:'🎉', effect:{demandMultiplier:1.25}, duration:3 },
   { id:'energy_crisis', name:'能源短缺', desc:'油价+40%，电价+30%', icon:'⚡', effect:{oilPriceDelta:0.4, electricityPriceDelta:0.3}, duration:3 },
   { id:'oil_glut', name:'原油过剩', desc:'油价-25%', icon:'🛢️', effect:{oilPriceDelta:-0.25}, duration:3 },
-  { id:'power_surplus', name:'电力充裕', desc:'电价-20%', icon:'💡', effect:{electricityPriceDelta:-0.2}, duration:3 }
+  { id:'power_surplus', name:'电力充裕', desc:'电价-20%', icon:'💡', effect:{electricityPriceDelta:-0.2}, duration:3 },
+  { id:'oil_crisis', name:'石油危机', desc:'油价暴涨30%！', icon:'🔥', effect:{oilPriceDelta:0.3, demandMultiplier:0.9}, duration:3 },
+  { id:'green_energy', name:'绿色能源革命', desc:'电价-30%，电动车需求+50%', icon:'🌱', effect:{electricityPriceDelta:-0.3, fuelDemandMultiplier:{'纯电':1.5,'插电混动':1.4,'增程':1.3,'混动':1.3}}, duration:3 }
 ];
 
 function checkRandomEvent() {
@@ -112,8 +114,14 @@ function updateEnergyPrices() {
     en.electricityPrice = Math.round(en.electricityPrice * (1 + eventEffects.electricityPriceDelta) * 100) / 100;
   }
 
-  en.oilPrice = Math.max(3, Math.min(15, en.oilPrice));
-  en.electricityPrice = Math.max(0.3, Math.min(3, en.electricityPrice));
+  en.oilPrice = Math.max(3, Math.min(20, en.oilPrice));
+  en.electricityPrice = Math.max(0.3, Math.min(5, en.electricityPrice));
+
+  if (!gameState.priceHistory) gameState.priceHistory = { oil:[], electricity:[] };
+  gameState.priceHistory.oil.push(en.oilPrice);
+  gameState.priceHistory.electricity.push(en.electricityPrice);
+  if (gameState.priceHistory.oil.length > 30) gameState.priceHistory.oil.shift();
+  if (gameState.priceHistory.electricity.length > 30) gameState.priceHistory.electricity.shift();
 
   var messages = [];
   if (en.oilPrice > en.prevOilPrice + 0.01) {
@@ -135,4 +143,8 @@ function isFuelVehicle(fuelType) {
 
 function isElectricVehicle(fuelType) {
   return fuelType === FUEL_TYPES.ELECTRIC || fuelType === FUEL_TYPES.PLUGIN_HYBRID || fuelType === FUEL_TYPES.RANGE_EXTENDER;
+}
+
+function isHybridVehicle(fuelType) {
+  return fuelType === FUEL_TYPES.HYBRID || fuelType === FUEL_TYPES.PLUGIN_HYBRID || fuelType === FUEL_TYPES.RANGE_EXTENDER;
 }

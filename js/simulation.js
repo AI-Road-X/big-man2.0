@@ -16,11 +16,19 @@ function generateCustomers() {
         if (prefs[k] !== undefined) prefs[k] *= eventEffects.typeDemandMultiplier[k];
       });
       var rentalDays = isBusiness ? Math.floor(Math.random() * 3) + 1 : Math.floor(Math.random() * 5) + 3;
+      var memberId = null;
+      if (gameState.members.length > 0 && Math.random() < 0.4) {
+        var activeMembers = gameState.members.filter(function(m){ return m.isActive; });
+        if (activeMembers.length > 0) {
+          var member = activeMembers[Math.floor(Math.random() * activeMembers.length)];
+          memberId = member.id;
+        }
+      }
       customers.push({
         id: 'C' + Date.now() + '_' + Math.random().toString(36).substr(2,5),
-        name: names[Math.floor(Math.random() * names.length)],
+        name: memberId ? gameState.members.find(function(m){ return m.id === memberId; }).name : names[Math.floor(Math.random() * names.length)],
         type: type, outletId: outlet.id, outletName: cfg.name,
-        preferences: prefs, rentalDays: rentalDays
+        preferences: prefs, rentalDays: rentalDays, memberId: memberId
       });
     }
   });
@@ -37,6 +45,13 @@ function matchVehicleForCustomer(customer) {
       pref *= eventEffects.fuelDemandMultiplier[v.fuelType];
     }
     var effectiveRate = getEffectiveDailyRate(v);
+    if (customer.memberId) {
+      var member = gameState.members.find(function(m){ return m.id === customer.memberId; });
+      if (member) {
+        var levelInfo = getMemberLevelInfo(member.level);
+        effectiveRate = Math.round(effectiveRate * levelInfo.discount);
+      }
+    }
     return { vehicle: v, score: pref * (1000 / Math.max(effectiveRate, 1)), effectiveRate: effectiveRate };
   });
   scored.sort(function(a,b){ return b.score - a.score; });
@@ -58,6 +73,8 @@ function nextDay() {
     addMessage('⛽ ' + msg, 'warn');
   });
 
+  checkEnergyLowStock();
+
   var eventResult = checkRandomEvent();
   if (eventResult) {
     addMessage(eventResult.icon + ' 随机事件：' + eventResult.name + ' — ' + eventResult.desc, 'warn');
@@ -67,6 +84,11 @@ function nextDay() {
   if (compResult) {
     var dir = compResult.newCoeff > compResult.oldCoeff ? '上涨' : '下降';
     addMessage('🏪 竞争对手调价：市场系数' + dir + '至 ' + compResult.newCoeff.toFixed(2) + '，请注意调整租金！', 'warn');
+  }
+
+  if (gameState.currentDay % 5 === 0 && gameState.members.length < 200) {
+    var newMember = addNewMember();
+    addMessage('👤 新会员注册：' + newMember.name + '（' + getMemberLevelInfo(newMember.level).name + '）', 'good');
   }
 
   var customers = generateCustomers();
@@ -86,6 +108,7 @@ function nextDay() {
       newOrders.push({
         id: 'O' + Date.now() + '_' + Math.random().toString(36).substr(2,6),
         customerId: customer.id, customerName: customer.name, customerType: customer.type,
+        memberId: customer.memberId,
         outletId: customer.outletId, outletName: customer.outletName,
         vehicleId: match.vehicle.id, vehicleName: match.vehicle.brand + ' ' + match.vehicle.model,
         vehicleType: match.vehicle.type, dailyRate: match.effectiveRate,
@@ -117,6 +140,16 @@ function nextDay() {
 
   gameState.currentDay++;
   updateUI(); saveGame();
+}
+
+function checkEnergyLowStock() {
+  var en = gameState.energy;
+  if (en.oilStorage < ENERGY_LOW_THRESHOLD) {
+    addMessage('⚠️ 油罐储量过低（' + en.oilStorage + '升），请尽快购买燃油！', 'bad');
+  }
+  if (en.batteryStorage < ENERGY_LOW_THRESHOLD) {
+    addMessage('⚠️ 电池储量过低（' + en.batteryStorage + '度），请尽快购买电力！', 'bad');
+  }
 }
 
 function processRentalCosts() {
@@ -167,12 +200,17 @@ function acceptOrder(orderId) {
   gameState.totalDaysRented += order.rentalDays;
   gameState.totalRevenue += totalIncome;
 
+  if (order.memberId) {
+    updateMemberAfterRental(order.memberId, totalIncome);
+  }
+
   if (typeof showDollarSign === 'function') showDollarSign(order.outletId);
 
   gameState.pendingOrders.splice(idx, 1);
   var typeLabel = order.customerType === 'business' ? '商务' : '旅游';
+  var memberTag = order.memberId ? '👤' : '';
   var serviceMsg = serviceResult.serviceNames.length > 0 ? '，购买 ' + serviceResult.serviceNames.join(' + ') : '';
-  addMessage(typeLabel + '客户 <span class="msg-highlight">' + order.customerName + '</span> 租用 ' + order.vehicleName + ' ' + order.rentalDays + '天' + serviceMsg + '，共支付 ' + formatCurrency(totalIncome), 'good');
+  addMessage(memberTag + typeLabel + '客户 <span class="msg-highlight">' + order.customerName + '</span> 租用 ' + order.vehicleName + ' ' + order.rentalDays + '天' + serviceMsg + '，共支付 ' + formatCurrency(totalIncome), 'good');
 
   if (gameState.tutorialStep < 7) { gameState.tutorialStep = 7; saveGame(); }
   renderOrders(); updateUI(); saveGame();
@@ -182,45 +220,46 @@ function applyValueAddedServices(vehicle, rentalDays) {
   var result = { serviceIncome: 0, serviceNames: [], energyCost: 0 };
   var en = gameState.energy;
   var stats = gameState.serviceStats;
+  var sp = gameState.servicePricing;
 
-  if (Math.random() < SERVICE_PROBABILITIES.insurance) {
-    var income = SERVICE_PRICES.insurance * rentalDays;
+  if (Math.random() < getEffectiveServiceProbability('insurance')) {
+    var income = sp.insurance * rentalDays;
     result.serviceIncome += income;
     result.serviceNames.push('保险');
     stats.today.insurance++;
     stats.total.insurance++;
   }
 
-  if (Math.random() < SERVICE_PROBABILITIES.wifi) {
-    var income = SERVICE_PRICES.wifi * rentalDays;
+  if (Math.random() < getEffectiveServiceProbability('wifi')) {
+    var income = sp.wifi * rentalDays;
     result.serviceIncome += income;
     result.serviceNames.push('WiFi');
     stats.today.wifi++;
     stats.total.wifi++;
   }
 
-  if (Math.random() < SERVICE_PROBABILITIES.gps) {
-    var income = SERVICE_PRICES.gps * rentalDays;
+  if (Math.random() < getEffectiveServiceProbability('gps')) {
+    var income = sp.gps * rentalDays;
     result.serviceIncome += income;
     result.serviceNames.push('GPS');
     stats.today.gps++;
     stats.total.gps++;
   }
 
-  if (Math.random() < SERVICE_PROBABILITIES.delivery) {
-    result.serviceIncome += SERVICE_PRICES.delivery;
+  if (Math.random() < getEffectiveServiceProbability('delivery')) {
+    result.serviceIncome += sp.delivery;
     result.serviceNames.push('送车上门');
     stats.today.delivery++;
     stats.total.delivery++;
   }
 
   if (isFuelVehicle(vehicle.fuelType) && Math.random() < SERVICE_PROBABILITIES.refuel) {
-    var liters = SERVICE_PRICES.refuelLiters;
-    var serviceCharge = Math.round(en.oilPrice * liters);
+    var liters = isHybridVehicle(vehicle.fuelType) ? 15 : SERVICE_PRICES.refuelLiters;
+    var serviceCharge = Math.round(en.oilPrice * liters * sp.refuelMargin);
     if (en.oilStorage >= liters) {
       en.oilStorage -= liters;
       result.serviceIncome += serviceCharge;
-      result.serviceNames.push('加油');
+      result.serviceNames.push(isHybridVehicle(vehicle.fuelType) ? '加油(混动)' : '加油');
     } else {
       var emergencyCost = Math.round(en.oilPrice * liters);
       gameState.cash -= emergencyCost;
@@ -232,12 +271,12 @@ function applyValueAddedServices(vehicle, rentalDays) {
   }
 
   if (isElectricVehicle(vehicle.fuelType) && Math.random() < SERVICE_PROBABILITIES.recharge) {
-    var kwh = SERVICE_PRICES.rechargeKwh;
-    var serviceCharge = Math.round(en.electricityPrice * kwh);
+    var kwh = isHybridVehicle(vehicle.fuelType) ? 20 : SERVICE_PRICES.rechargeKwh;
+    var serviceCharge = Math.round(en.electricityPrice * kwh * sp.rechargeMargin);
     if (en.batteryStorage >= kwh) {
       en.batteryStorage -= kwh;
       result.serviceIncome += serviceCharge;
-      result.serviceNames.push('充电');
+      result.serviceNames.push(isHybridVehicle(vehicle.fuelType) ? '充电(混动)' : '充电');
     } else {
       var emergencyCost = Math.round(en.electricityPrice * kwh);
       gameState.cash -= emergencyCost;

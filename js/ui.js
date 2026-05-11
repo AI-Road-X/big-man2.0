@@ -38,6 +38,18 @@ function updateUI() {
     elecEl.textContent = '🔋 ' + en.electricityPrice.toFixed(2) + elecTrend;
     elecEl.style.color = en.electricityPrice > en.prevElectricityPrice ? '#f87171' : en.electricityPrice < en.prevElectricityPrice ? '#4ade80' : 'rgba(255,255,255,0.6)';
   }
+  var oilStEl = document.getElementById('oilStorageDisplay');
+  if (oilStEl) {
+    var oilPct = Math.round(en.oilStorage / en.maxOilCapacity * 100);
+    oilStEl.textContent = '⛽库存 ' + en.oilStorage + '/' + en.maxOilCapacity;
+    oilStEl.style.color = oilPct > 50 ? '#4ade80' : oilPct > 20 ? '#fbbf24' : '#f87171';
+  }
+  var elecStEl = document.getElementById('elecStorageDisplay');
+  if (elecStEl) {
+    var batPct = Math.round(en.batteryStorage / en.maxBatteryCapacity * 100);
+    elecStEl.textContent = '🔋库存 ' + en.batteryStorage + '/' + en.maxBatteryCapacity;
+    elecStEl.style.color = batPct > 50 ? '#60a5fa' : batPct > 20 ? '#fbbf24' : '#f87171';
+  }
 }
 
 function addMessage(text, type) {
@@ -699,6 +711,17 @@ function renderEnergyModal() {
         '<div class="energy-trade"><label>购买电力（度）</label><div class="energy-input-wrap"><input type="number" id="buyElecAmount" min="1" max="' + (en.maxBatteryCapacity - en.batteryStorage) + '" value="100" class="energy-input"><button class="energy-trade-btn buy" onclick="buyElec()">购买</button></div><div class="energy-trade-info">花费: <span id="buyElecCost">' + formatCurrency(Math.round(100 * en.electricityPrice)) + '</span> · 上限可购 ' + (en.maxBatteryCapacity - en.batteryStorage) + ' 度</div></div>' +
         '<div class="energy-trade"><label>出售电力（度）</label><div class="energy-input-wrap"><input type="number" id="sellElecAmount" min="1" max="' + en.batteryStorage + '" value="100" class="energy-input"><button class="energy-trade-btn sell" onclick="sellElec()">出售</button></div><div class="energy-trade-info">回收: <span id="sellElecRevenue">' + formatCurrency(Math.round(100 * sellElecPrice)) + '</span> · 出售价 ' + sellElecPrice.toFixed(2) + ' 元/度</div></div>' +
       '</div>' +
+    '</div>' +
+    '<div class="energy-section">' +
+      '<div class="energy-header"><span class="energy-icon">⬆</span><span class="energy-title">容量升级</span></div>' +
+      '<div class="energy-trade-row">' +
+        '<div class="energy-trade"><label>油罐容量: ' + en.maxOilCapacity + ' 升</label><button class="energy-trade-btn buy" onclick="upgradeEnergyCapacity(\'oil\')"' + (en.maxOilCapacity >= ENERGY_MAX_CAPACITY ? ' disabled' : '') + '>升级 (+' + ENERGY_UPGRADE_AMOUNT + '升, ' + formatCurrency(ENERGY_UPGRADE_COST) + ')</button></div>' +
+        '<div class="energy-trade"><label>电池容量: ' + en.maxBatteryCapacity + ' 度</label><button class="energy-trade-btn buy" onclick="upgradeEnergyCapacity(\'battery\')"' + (en.maxBatteryCapacity >= ENERGY_MAX_CAPACITY ? ' disabled' : '') + '>升级 (+' + ENERGY_UPGRADE_AMOUNT + '度, ' + formatCurrency(ENERGY_UPGRADE_COST) + ')</button></div>' +
+      '</div>' +
+    '</div>' +
+    '<div class="energy-section">' +
+      '<div class="energy-header"><span class="energy-icon">📈</span><span class="energy-title">价格走势（近7期）</span></div>' +
+      '<canvas id="priceChartCanvas" width="560" height="200" style="width:100%;max-width:560px;height:200px;margin-top:8px;"></canvas>' +
     '</div>';
 
   var buyOilInput = document.getElementById('buyOilAmount');
@@ -709,6 +732,7 @@ function renderEnergyModal() {
   if (buyElecInput) buyElecInput.addEventListener('input', function(){ updateEnergyTradeCost('buyElec', en.electricityPrice); });
   var sellElecInput = document.getElementById('sellElecAmount');
   if (sellElecInput) sellElecInput.addEventListener('input', function(){ updateEnergyTradeCost('sellElec', sellElecPrice); });
+  drawPriceChart();
 }
 
 function updateEnergyTradeCost(prefix, unitPrice) {
@@ -719,6 +743,76 @@ function updateEnergyTradeCost(prefix, unitPrice) {
   var elId = prefix === 'buyOil' ? 'buyOilCost' : prefix === 'sellOil' ? 'sellOilRevenue' : prefix === 'buyElec' ? 'buyElecCost' : 'sellElecRevenue';
   var el = document.getElementById(elId);
   if (el) el.textContent = formatCurrency(cost);
+}
+
+function drawPriceChart() {
+  var canvas = document.getElementById('priceChartCanvas');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var w = canvas.width;
+  var h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  ctx.fillRect(0, 0, w, h);
+  var ph = gameState.priceHistory || { oil: [], electricity: [] };
+  var oilData = ph.oil.slice(-7);
+  var elecData = ph.electricity.slice(-7);
+  if (oilData.length === 0 && elecData.length === 0) {
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '12px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('暂无历史价格数据', w / 2, h / 2);
+    return;
+  }
+  var padL = 50, padR = 20, padT = 20, padB = 30;
+  var chartW = w - padL - padR;
+  var chartH = h - padT - padB;
+  var allVals = oilData.concat(elecData);
+  var minV = Math.floor(Math.min.apply(null, allVals) * 0.9 * 10) / 10;
+  var maxV = Math.ceil(Math.max.apply(null, allVals) * 1.1 * 10) / 10;
+  if (minV === maxV) { minV -= 1; maxV += 1; }
+  var maxLen = Math.max(oilData.length, elecData.length);
+  ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+  ctx.lineWidth = 1;
+  for (var i = 0; i <= 4; i++) {
+    var y = padT + chartH * i / 4;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + chartW, y); ctx.stroke();
+    var val = maxV - (maxV - minV) * i / 4;
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.font = '10px sans-serif';
+    ctx.textAlign = 'right';
+    ctx.fillText(val.toFixed(1), padL - 6, y + 3);
+  }
+  function drawLine(data, color) {
+    if (data.length < 2) return;
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (var j = 0; j < data.length; j++) {
+      var x = padL + (j / (maxLen - 1)) * chartW;
+      var yy = padT + (1 - (data[j] - minV) / (maxV - minV)) * chartH;
+      if (j === 0) ctx.moveTo(x, yy); else ctx.lineTo(x, yy);
+    }
+    ctx.stroke();
+    for (var j = 0; j < data.length; j++) {
+      var x = padL + (j / (maxLen - 1)) * chartW;
+      var yy = padT + (1 - (data[j] - minV) / (maxV - minV)) * chartH;
+      ctx.fillStyle = color;
+      ctx.beginPath(); ctx.arc(x, yy, 3, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  drawLine(oilData, '#f97316');
+  drawLine(elecData, '#3b82f6');
+  ctx.fillStyle = '#f97316';
+  ctx.fillRect(padL + 10, h - 16, 12, 3);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '10px sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('油价', padL + 26, h - 12);
+  ctx.fillStyle = '#3b82f6';
+  ctx.fillRect(padL + 60, h - 16, 12, 3);
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.fillText('电价', padL + 76, h - 12);
 }
 
 function buyOil() {
@@ -779,6 +873,105 @@ function sellElec() {
   showToast('成功出售 ' + amount + ' 度电力', 'success');
 }
 
+var memberSortField = 'level';
+var memberSortAsc = false;
+var memberPage = 1;
+var MEMBER_PAGE_SIZE = 20;
+
+function openMemberModal() {
+  document.getElementById('memberModal').classList.add('active');
+  memberPage = 1;
+  renderMemberModal();
+}
+
+function closeMemberModal() {
+  document.getElementById('memberModal').classList.remove('active');
+}
+
+function renderMemberModal() {
+  var members = gameState.members || [];
+  var content = document.getElementById('memberContent');
+  var total = members.length;
+  var active = members.filter(function(m){ return m.isActive; }).length;
+  var dist = getMemberLevelDistribution();
+  var distHtml = MEMBER_LEVELS.map(function(l){
+    return '<span style="color:' + l.color + ';font-weight:600;">' + l.name + ':' + (dist[l.level] || 0) + '</span>';
+  }).join(' &nbsp; ');
+
+  var sorted = members.slice();
+  sorted.sort(function(a, b){
+    var va, vb;
+    switch(memberSortField) {
+      case 'level': va = a.level; vb = b.level; break;
+      case 'trips': va = a.totalTrips; vb = b.totalTrips; break;
+      case 'spent': va = a.totalSpent; vb = b.totalSpent; break;
+      default: va = a.level; vb = b.level;
+    }
+    if (va < vb) return memberSortAsc ? -1 : 1;
+    if (va > vb) return memberSortAsc ? 1 : -1;
+    return 0;
+  });
+
+  var totalPages = Math.max(1, Math.ceil(sorted.length / MEMBER_PAGE_SIZE));
+  if (memberPage > totalPages) memberPage = totalPages;
+  var start = (memberPage - 1) * MEMBER_PAGE_SIZE;
+  var pageMembers = sorted.slice(start, start + MEMBER_PAGE_SIZE);
+
+  var sortArrow = function(field) {
+    if (memberSortField !== field) return '';
+    return memberSortAsc ? ' ↑' : ' ↓';
+  };
+
+  var html = '<div class="member-summary" style="display:flex;gap:16px;margin-bottom:12px;flex-wrap:wrap;">' +
+    '<div style="padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:8px;"><span style="color:rgba(255,255,255,0.5);">总会员</span> <span style="color:#60a5fa;font-weight:700;">' + total + '</span></div>' +
+    '<div style="padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:8px;"><span style="color:rgba(255,255,255,0.5);">活跃</span> <span style="color:#4ade80;font-weight:700;">' + active + '</span></div>' +
+    '<div style="padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:11px;line-height:1.6;">' + distHtml + '</div></div>';
+
+  html += '<table style="width:100%;border-collapse:collapse;font-size:11px;">' +
+    '<thead><tr style="border-bottom:1px solid rgba(255,255,255,0.1);">' +
+    '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);cursor:pointer;" onclick="sortMembers(\'level\')">等级' + sortArrow('level') + '</th>' +
+    '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);">姓名</th>' +
+    '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);">卡号</th>' +
+    '<th style="text-align:right;padding:6px 8px;color:rgba(255,255,255,0.5);cursor:pointer;" onclick="sortMembers(\'trips\')">总出行' + sortArrow('trips') + '</th>' +
+    '<th style="text-align:right;padding:6px 8px;color:rgba(255,255,255,0.5);cursor:pointer;" onclick="sortMembers(\'spent\')">总消费' + sortArrow('spent') + '</th>' +
+    '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);">手机</th>' +
+    '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);">注册日期</th>' +
+    '</tr></thead><tbody>';
+
+  pageMembers.forEach(function(m){
+    var lv = getMemberLevelInfo(m.level);
+    html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">' +
+      '<td style="padding:6px 8px;"><span style="display:inline-block;padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;background:' + lv.color + '22;color:' + lv.color + ';">' + lv.name + '</span></td>' +
+      '<td style="padding:6px 8px;color:rgba(255,255,255,0.8);">' + m.name + '</td>' +
+      '<td style="padding:6px 8px;color:rgba(255,255,255,0.4);font-family:JetBrains Mono,monospace;font-size:10px;">' + m.id + '</td>' +
+      '<td style="padding:6px 8px;text-align:right;color:rgba(255,255,255,0.7);">' + m.totalTrips + '</td>' +
+      '<td style="padding:6px 8px;text-align:right;color:#4ade80;">' + formatCurrency(m.totalSpent) + '</td>' +
+      '<td style="padding:6px 8px;color:rgba(255,255,255,0.4);font-size:10px;">' + m.phone + '</td>' +
+      '<td style="padding:6px 8px;color:rgba(255,255,255,0.4);font-size:10px;">D' + m.registerDay + '</td>' +
+      '</tr>';
+  });
+
+  html += '</tbody></table>';
+
+  if (totalPages > 1) {
+    html += '<div style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:12px;">';
+    html += '<button class="action-btn" style="padding:4px 12px;font-size:11px;" onclick="memberPage=1;renderMemberModal();"' + (memberPage <= 1 ? ' disabled' : '') + '>首页</button>';
+    html += '<button class="action-btn" style="padding:4px 12px;font-size:11px;" onclick="memberPage--;renderMemberModal();"' + (memberPage <= 1 ? ' disabled' : '') + '>上一页</button>';
+    html += '<span style="color:rgba(255,255,255,0.5);font-size:11px;">' + memberPage + ' / ' + totalPages + '</span>';
+    html += '<button class="action-btn" style="padding:4px 12px;font-size:11px;" onclick="memberPage++;renderMemberModal();"' + (memberPage >= totalPages ? ' disabled' : '') + '>下一页</button>';
+    html += '<button class="action-btn" style="padding:4px 12px;font-size:11px;" onclick="memberPage=' + totalPages + ';renderMemberModal();"' + (memberPage >= totalPages ? ' disabled' : '') + '>末页</button>';
+    html += '</div>';
+  }
+
+  content.innerHTML = html;
+}
+
+function sortMembers(field) {
+  if (memberSortField === field) memberSortAsc = !memberSortAsc;
+  else { memberSortField = field; memberSortAsc = false; }
+  renderMemberModal();
+}
+
 function openServiceStatsModal() {
   document.getElementById('serviceStatsModal').classList.add('active');
   renderServiceStats();
@@ -788,17 +981,105 @@ function closeServiceStatsModal() {
   document.getElementById('serviceStatsModal').classList.remove('active');
 }
 
+function openServicePricingModal() {
+  document.getElementById('servicePricingModal').classList.add('active');
+  renderServicePricingModal();
+}
+
+function closeServicePricingModal() {
+  document.getElementById('servicePricingModal').classList.remove('active');
+}
+
+function renderServicePricingModal() {
+  var sp = gameState.servicePricing || { insurance:50, wifi:20, gps:15, delivery:80, refuelMargin:1.0, rechargeMargin:1.0 };
+  var content = document.getElementById('servicePricingContent');
+  var fixedServices = [
+    { key:'insurance', name:'基础保险', icon:'🛡️', unit:'元/天', min:10, max:200 },
+    { key:'wifi', name:'WiFi热点', icon:'📶', unit:'元/天', min:5, max:100 },
+    { key:'gps', name:'GPS导航', icon:'🧭', unit:'元/天', min:5, max:100 },
+    { key:'delivery', name:'送车上门', icon:'🚗', unit:'元/次', min:20, max:300 }
+  ];
+  var marginServices = [
+    { key:'refuelMargin', name:'加油服务加价', icon:'⛽', unit:'倍', min:0.5, max:3.0, step:0.1 },
+    { key:'rechargeMargin', name:'充电服务加价', icon:'🔋', unit:'倍', min:0.5, max:3.0, step:0.1 }
+  ];
+
+  var html = '<div style="margin-bottom:16px;">' +
+    '<div style="font-size:13px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:10px;">固定价格服务</div>';
+  fixedServices.forEach(function(s){
+    var currentVal = sp[s.key];
+    var prob = getEffectiveServiceProbability(s.key);
+    html += '<div style="display:flex;align-items:center;gap:12px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
+      '<span style="font-size:16px;">' + s.icon + '</span>' +
+      '<span style="min-width:80px;color:rgba(255,255,255,0.7);font-size:12px;">' + s.name + '</span>' +
+      '<input type="number" id="sp_' + s.key + '" min="' + s.min + '" max="' + s.max + '" value="' + currentVal + '" style="width:70px;padding:4px 8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.1);border-radius:6px;color:#fff;font-size:12px;text-align:right;" oninput="updateServicePricingProb()">' +
+      '<span style="color:rgba(255,255,255,0.4);font-size:11px;">' + s.unit + '</span>' +
+      '<span style="color:rgba(255,255,255,0.3);font-size:10px;margin-left:auto;">生效概率: <span class="sp-prob" data-key="' + s.key + '" style="color:#4ade80;font-weight:600;">' + Math.round(prob * 100) + '%</span></span>' +
+      '</div>';
+  });
+  html += '</div>';
+
+  html += '<div style="margin-bottom:16px;">' +
+    '<div style="font-size:13px;font-weight:600;color:rgba(255,255,255,0.7);margin-bottom:10px;">能源加价倍率</div>';
+  marginServices.forEach(function(s){
+    var currentVal = sp[s.key];
+    html += '<div style="padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.04);">' +
+      '<div style="display:flex;align-items:center;gap:12px;margin-bottom:4px;">' +
+      '<span style="font-size:16px;">' + s.icon + '</span>' +
+      '<span style="min-width:80px;color:rgba(255,255,255,0.7);font-size:12px;">' + s.name + '</span>' +
+      '<input type="range" id="sp_' + s.key + '" min="' + s.min + '" max="' + s.max + '" step="' + s.step + '" value="' + currentVal + '" style="flex:1;" oninput="document.getElementById(\'sp_' + s.key + '_val\').textContent=parseFloat(this.value).toFixed(1)+\'x\';updateServicePricingProb()">' +
+      '<span id="sp_' + s.key + '_val" style="min-width:40px;text-align:right;color:#4ade80;font-weight:700;font-size:13px;">' + currentVal.toFixed(1) + 'x</span>' +
+      '</div></div>';
+  });
+  html += '</div>';
+
+  html += '<div style="text-align:right;"><button class="action-btn btn-buy" onclick="confirmServicePricing()">确认保存</button></div>';
+  content.innerHTML = html;
+}
+
+function updateServicePricingProb() {
+  var fixedKeys = ['insurance', 'wifi', 'gps', 'delivery'];
+  fixedKeys.forEach(function(key){
+    var el = document.querySelector('.sp-prob[data-key="' + key + '"]');
+    if (!el) return;
+    var input = document.getElementById('sp_' + key);
+    if (!input) return;
+    var tempPrice = parseFloat(input.value) || SERVICE_PRICES[key];
+    var sp = gameState.servicePricing || { insurance:50, wifi:20, gps:15, delivery:80, refuelMargin:1.0, rechargeMargin:1.0 };
+    var savedPrice = sp[key];
+    sp[key] = tempPrice;
+    var prob = getEffectiveServiceProbability(key);
+    sp[key] = savedPrice;
+    el.textContent = Math.round(prob * 100) + '%';
+    el.style.color = prob >= SERVICE_PROBABILITIES[key] ? '#4ade80' : '#f87171';
+  });
+}
+
+function confirmServicePricing() {
+  var keys = ['insurance', 'wifi', 'gps', 'delivery', 'refuelMargin', 'rechargeMargin'];
+  keys.forEach(function(key){
+    var input = document.getElementById('sp_' + key);
+    if (!input) return;
+    var val = key === 'refuelMargin' || key === 'rechargeMargin' ? parseFloat(input.value) : parseInt(input.value);
+    if (!isNaN(val)) setServicePrice(key, val);
+  });
+  showToast('服务定价已保存', 'success');
+  addMessage('📋 增值服务定价已更新', 'warn');
+  renderServicePricingModal();
+}
+
 function renderServiceStats() {
   var today = gameState.serviceStats.today;
   var total = gameState.serviceStats.total;
   var content = document.getElementById('serviceStatsContent');
+  var sp = gameState.servicePricing || { insurance:50, wifi:20, gps:15, delivery:80, refuelMargin:1.0, rechargeMargin:1.0 };
   var services = [
-    { key:'insurance', name:'基础保险', icon:'🛡️', unitPrice: SERVICE_PRICES.insurance + '元/天' },
-    { key:'wifi', name:'WiFi热点', icon:'📶', unitPrice: SERVICE_PRICES.wifi + '元/天' },
-    { key:'gps', name:'GPS导航', icon:'🧭', unitPrice: SERVICE_PRICES.gps + '元/天' },
-    { key:'delivery', name:'送车上门', icon:'🚗', unitPrice: SERVICE_PRICES.delivery + '元/次' },
-    { key:'refuel', name:'加油服务', icon:'⛽', unitPrice: '油价×' + SERVICE_PRICES.refuelLiters + '升' },
-    { key:'recharge', name:'充电服务', icon:'🔋', unitPrice: '电价×' + SERVICE_PRICES.rechargeKwh + '度' }
+    { key:'insurance', name:'基础保险', icon:'🛡️', unitPrice: sp.insurance + '元/天' },
+    { key:'wifi', name:'WiFi热点', icon:'📶', unitPrice: sp.wifi + '元/天' },
+    { key:'gps', name:'GPS导航', icon:'🧭', unitPrice: sp.gps + '元/天' },
+    { key:'delivery', name:'送车上门', icon:'🚗', unitPrice: sp.delivery + '元/次' },
+    { key:'refuel', name:'加油服务', icon:'⛽', unitPrice: '油价×' + SERVICE_PRICES.refuelLiters + '升×' + sp.refuelMargin.toFixed(1) + '倍' },
+    { key:'recharge', name:'充电服务', icon:'🔋', unitPrice: '电价×' + SERVICE_PRICES.rechargeKwh + '度×' + sp.rechargeMargin.toFixed(1) + '倍' }
   ];
 
   var html = '<div class="service-stats-section"><div class="service-stats-title">📊 今日增值服务</div>' +
@@ -823,7 +1104,7 @@ function renderServiceStats() {
 
   html += '<div class="service-prob-section"><div class="service-stats-title">🎲 服务触发概率</div><div class="service-prob-grid">';
   services.forEach(function(s){
-    var prob = Math.round(SERVICE_PROBABILITIES[s.key] * 100);
+    var prob = Math.round((typeof getEffectiveServiceProbability === 'function' ? getEffectiveServiceProbability(s.key) : SERVICE_PROBABILITIES[s.key]) * 100);
     html += '<div class="service-prob-item"><span>' + s.icon + ' ' + s.name + '</span><span style="color:#4ade80;font-weight:600;">' + prob + '%</span></div>';
   });
   html += '</div></div>';
