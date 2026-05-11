@@ -358,8 +358,8 @@
 
   <script>
     function openPricingModal() {
-      document.getElementById('pricingModal').classList.add('active');
-      renderPricingInline();
+      openFleetModal();
+      switchTab('pricing');
     }
     function closePricingModal() { document.getElementById('pricingModal').classList.remove('active'); }
 

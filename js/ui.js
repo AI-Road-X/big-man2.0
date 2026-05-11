@@ -58,9 +58,21 @@ function showToast(message, type) {
   setTimeout(function(){ toast.classList.remove('show'); }, 3000);
 }
 
-function updateTableHeader(headers) {
+function updateTableHeader(headers, sortable) {
   var thead = document.querySelector('#vehicleTable thead tr');
-  if (thead) thead.innerHTML = headers.map(function(h){ return '<th>' + h + '</th>'; }).join('');
+  if (!thead) return;
+  var tableWrapper = document.querySelector('.vehicle-table-wrapper');
+  var tableEl = document.getElementById('vehicleTable');
+  if (sortable) {
+    thead.innerHTML = headers.map(function(h){
+      var arrow = '';
+      if (myFleetSort.field === h.field) arrow = myFleetSort.asc ? ' ↑' : ' ↓';
+      return '<th onclick="sortMyFleet(\'' + h.field + '\')">' + h.label + arrow + '</th>';
+    }).join('');
+    if (tableEl) tableEl.style.display = '';
+  } else {
+    thead.innerHTML = headers.map(function(h){ return '<th>' + h + '</th>'; }).join('');
+  }
 }
 
 function openFleetModal() {
@@ -90,7 +102,10 @@ function switchTab(tab) {
   if (tab === 'myvehicles') {
     infoBar.style.display = 'none';
     if (marketSubTabs) marketSubTabs.style.display = 'none';
-    updateTableHeader(['车型','车牌','类型','网点','状态','日租金','操作']);
+    updateTableHeader([
+      {label:'车型',field:'name'},{label:'车牌',field:'name'},{label:'类型',field:'type'},
+      {label:'网点',field:'outlet'},{label:'状态',field:'status'},{label:'日租金',field:'rate'},{label:'操作',field:'name'}
+    ], true);
     renderMyFleet();
   } else if (tab === 'market') {
     infoBar.style.display = 'flex';
@@ -99,6 +114,7 @@ function switchTab(tab) {
   } else if (tab === 'status') {
     infoBar.style.display = 'none';
     if (marketSubTabs) marketSubTabs.style.display = 'none';
+    updateTableHeader(['统计项','数值','','','','','']);
     renderVehicleStatus();
   } else if (tab === 'outlets') {
     infoBar.style.display = 'none';
@@ -108,6 +124,7 @@ function switchTab(tab) {
   } else if (tab === 'pricing') {
     infoBar.style.display = 'none';
     if (marketSubTabs) marketSubTabs.style.display = 'none';
+    updateTableHeader(['车型','数量','租金倍率','范围','生效','操作','']);
     renderPricing();
   }
 }
@@ -270,6 +287,10 @@ function renderMyFleet() {
 function sortMyFleet(field) {
   if (myFleetSort.field === field) myFleetSort.asc = !myFleetSort.asc;
   else { myFleetSort.field = field; myFleetSort.asc = true; }
+  updateTableHeader([
+    {label:'车型',field:'name'},{label:'车牌',field:'name'},{label:'类型',field:'type'},
+    {label:'网点',field:'outlet'},{label:'状态',field:'status'},{label:'日租金',field:'rate'},{label:'操作',field:'name'}
+  ], true);
   renderMyFleet();
 }
 
@@ -279,30 +300,25 @@ function renderVehicleStatus() {
   var available = gameState.ownedVehicles.filter(function(v){ return (!v.rentedUntil || v.rentedUntil < gameState.currentDay) && !isInTransit(v.id); }).length;
   var rented = gameState.ownedVehicles.filter(function(v){ return v.rentedUntil && v.rentedUntil >= gameState.currentDay; }).length;
   var inTransit = gameState.ownedVehicles.filter(function(v){ return isInTransit(v.id); }).length;
-
-  var typeCounts = {};
-  gameState.ownedVehicles.forEach(function(v){ typeCounts[v.type] = (typeCounts[v.type] || 0) + 1; });
-
   var avgRate = total > 0 ? Math.round(gameState.ownedVehicles.reduce(function(s,v){ return s + getEffectiveDailyRate(v); }, 0) / total) : 0;
 
   tbody.innerHTML = '';
-  var stats = [
-    { label: '总车队', value: total + ' 辆', color: '#60a5fa' },
-    { label: '可用', value: available + ' 辆', color: '#4ade80' },
-    { label: '已租出', value: rented + ' 辆', color: '#fbbf24' },
-    { label: '调度中', value: inTransit + ' 辆', color: '#60a5fa' },
-    { label: '平均日租金', value: formatCurrency(avgRate), color: '#a78bfa' },
-    { label: '市场系数', value: gameState.marketCoefficient.toFixed(2), color: gameState.marketCoefficient >= 1.0 ? '#4ade80' : '#f87171' },
-    { label: '累计营收', value: formatCurrency(gameState.totalRevenue || 0), color: '#4ade80' },
-    { label: '累计出租天数', value: (gameState.totalDaysRented || 0) + ' 天', color: '#fbbf24' }
-  ];
 
   var statsRow = document.createElement('tr');
   statsRow.innerHTML = '<td colspan="7"><div class="status-grid">' +
-    stats.map(function(s){ return '<div class="status-card"><div class="status-label">' + s.label + '</div><div class="status-value" style="color:' + s.color + ';">' + s.value + '</div></div>'; }).join('') +
+    '<div class="status-card"><div class="status-label">总车队</div><div class="status-value" style="color:#60a5fa;">' + total + ' 辆</div></div>' +
+    '<div class="status-card"><div class="status-label">可用</div><div class="status-value" style="color:#4ade80;">' + available + ' 辆</div></div>' +
+    '<div class="status-card"><div class="status-label">已租出</div><div class="status-value" style="color:#fbbf24;">' + rented + ' 辆</div></div>' +
+    '<div class="status-card"><div class="status-label">调度中</div><div class="status-value" style="color:#60a5fa;">' + inTransit + ' 辆</div></div>' +
+    '<div class="status-card"><div class="status-label">平均日租金</div><div class="status-value" style="color:#a78bfa;">' + formatCurrency(avgRate) + '</div></div>' +
+    '<div class="status-card"><div class="status-label">市场系数</div><div class="status-value" style="color:' + (gameState.marketCoefficient >= 1.0 ? '#4ade80' : '#f87171') + ';">' + gameState.marketCoefficient.toFixed(2) + '</div></div>' +
+    '<div class="status-card"><div class="status-label">累计营收</div><div class="status-value" style="color:#4ade80;">' + formatCurrency(gameState.totalRevenue || 0) + '</div></div>' +
+    '<div class="status-card"><div class="status-label">累计出租天数</div><div class="status-value" style="color:#fbbf24;">' + (gameState.totalDaysRented || 0) + ' 天</div></div>' +
     '</div></td>';
   tbody.appendChild(statsRow);
 
+  var typeCounts = {};
+  gameState.ownedVehicles.forEach(function(v){ typeCounts[v.type] = (typeCounts[v.type] || 0) + 1; });
   Object.keys(typeCounts).forEach(function(type){
     var count = typeCounts[type];
     var typeVehicles = gameState.ownedVehicles.filter(function(v){ return v.type === type; });
@@ -316,16 +332,16 @@ function renderVehicleStatus() {
       '<td>可用 ' + typeAvailable + ' / 已租 ' + typeRented + '</td>' +
       '<td>—</td><td>—</td>' +
       '<td>均价 ' + formatCurrency(typeAvgRate) + '/天</td>' +
-      '<td><span style="font-size:11px;color:rgba(255,255,255,0.4);">倍率 ' + getRateMultiplier(type).toFixed(1) + 'x</span></td>';
+      '<td><span style="font-size:10px;color:rgba(255,255,255,0.4);">倍率 ' + getRateMultiplier(type).toFixed(1) + 'x</span></td>';
     tbody.appendChild(row);
   });
 
   if (gameState.activeEvents.length > 0) {
     var eventRow = document.createElement('tr');
-    eventRow.innerHTML = '<td colspan="7" style="padding:12px;"><div style="font-size:12px;color:#fbbf24;font-weight:600;margin-bottom:8px;">⚡ 当前活跃事件</div>' +
+    eventRow.innerHTML = '<td colspan="7" style="padding:12px;"><div style="font-size:11px;color:#fbbf24;font-weight:600;margin-bottom:6px;">⚡ 当前活跃事件</div>' +
       gameState.activeEvents.map(function(e){
         var remain = e.endDay - gameState.currentDay;
-        return '<div style="font-size:11px;color:rgba(255,255,255,0.6);padding:4px 0;">' + e.icon + ' ' + e.name + ' — ' + e.desc + '（剩余' + remain + '天）</div>';
+        return '<div style="font-size:10px;color:rgba(255,255,255,0.6);padding:3px 0;">' + e.icon + ' ' + e.name + ' — ' + e.desc + '（剩余' + remain + '天）</div>';
       }).join('') + '</td>';
     tbody.appendChild(eventRow);
   }
@@ -360,23 +376,29 @@ function renderPricing() {
   var tbody = document.getElementById('vehicleTableBody');
   tbody.innerHTML = '';
   var types = Object.values(VEHICLE_TYPES);
+  var hasAny = false;
   types.forEach(function(type){
     var mult = getRateMultiplier(type);
     var count = gameState.ownedVehicles.filter(function(v){ return v.type === type; }).length;
     if (count === 0 && mult === 1.0) return;
+    hasAny = true;
     var row = document.createElement('tr');
     row.innerHTML =
       '<td><span class="tag tag-type">' + type + '</span></td>' +
       '<td>' + count + ' 辆</td>' +
-      '<td colspan="2"><div style="display:flex;align-items:center;gap:8px;"><input type="range" min="50" max="200" value="' + Math.round(mult * 100) + '" class="rate-slider" id="rateSlider_' + type + '" oninput="updateRateDisplay(\'' + type + '\',this.value)"><span id="rateDisplay_' + type + '" style="font-family:JetBrains Mono,monospace;font-size:14px;font-weight:700;color:#4ade80;min-width:40px;">' + mult.toFixed(1) + 'x</span></div></td>' +
-      '<td><span style="font-size:11px;color:rgba(255,255,255,0.4);">0.5x ~ 2.0x</span></td>' +
-      '<td><span style="font-size:11px;color:rgba(255,255,255,0.4);">次日生效</span></td>' +
-      '<td><button class="action-btn btn-buy" onclick="confirmRateChange(\'' + type + '\')">确认调价</button></td>';
+      '<td><div style="display:flex;align-items:center;gap:8px;"><input type="range" min="50" max="200" value="' + Math.round(mult * 100) + '" class="rate-slider" id="rateSlider_' + type + '" oninput="updateRateDisplay(\'' + type + '\',this.value)"><span id="rateDisplay_' + type + '" style="font-family:JetBrains Mono,monospace;font-size:14px;font-weight:700;color:#4ade80;min-width:40px;">' + mult.toFixed(1) + 'x</span></div></td>' +
+      '<td><span style="font-size:10px;color:rgba(255,255,255,0.4);">0.5x ~ 2.0x</span></td>' +
+      '<td><span style="font-size:10px;color:rgba(255,255,255,0.4);">次日生效</span></td>' +
+      '<td><button class="action-btn btn-buy" onclick="confirmRateChange(\'' + type + '\')">确认调价</button></td>' +
+      '<td></td>';
     tbody.appendChild(row);
   });
-  if (tbody.children.length === 0) {
+  if (!hasAny) {
     tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">💰</div><div class="text">购买车辆后可调整租金倍率</div></div></td></tr>';
   }
+  var tipRow = document.createElement('tr');
+  tipRow.innerHTML = '<td colspan="7" style="padding:12px;"><div style="padding:10px;background:rgba(255,255,255,0.04);border-radius:8px;font-size:10px;color:rgba(255,255,255,0.4);line-height:1.6;">💡 竞争对手每周调整市场系数（0.8~1.2），当前: <span style="color:' + (gameState.marketCoefficient >= 1.0 ? '#4ade80' : '#f87171') + ';">' + gameState.marketCoefficient.toFixed(2) + '</span>。合理定价可提高客户下单率。</div></td>';
+  tbody.appendChild(tipRow);
 }
 
 function updateRateDisplay(type, value) {
