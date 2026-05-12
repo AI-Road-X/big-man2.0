@@ -1,6 +1,18 @@
 var currentTab = 'myvehicles';
 var myFleetSort = { field: 'name', asc: true };
 
+function togglePanelSection(header) {
+  var body = header.nextElementSibling;
+  var arrow = header.querySelector('.section-arrow');
+  if (body.style.display === 'none') {
+    body.style.display = 'flex';
+    arrow.style.transform = 'rotate(0deg)';
+  } else {
+    body.style.display = 'none';
+    arrow.style.transform = 'rotate(-90deg)';
+  }
+}
+
 function updateUI() {
   var date = getGameDate();
   document.getElementById('dayDisplay').textContent = formatDate(date) + ' ' + getWeekDay(date);

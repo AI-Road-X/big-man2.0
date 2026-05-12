@@ -346,16 +346,48 @@
       <button class="panel-btn" style="flex:1;padding:6px;font-size:10px;min-height:32px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);" onclick="setGameSpeed(30)" id="speedBtn30">30x</button>
     </div>
     <button class="panel-btn orders" onclick="openOrdersModal()">📋 待处理订单<span class="order-badge" id="orderBadge"></span></button>
-    <button class="panel-btn fleet" onclick="openFleetModal()">🚗 车队管理</button>
-    <button class="panel-btn pricing" onclick="openPricingModal()">💰 调价</button>
-    <button class="panel-btn energy" onclick="openEnergyModal()">⛽ 能源</button>
-    <button class="panel-btn members" onclick="openMemberModal()">👤 会员</button>
-    <button class="panel-btn employees" onclick="openEmployeeModal()">👔 员工</button>
-    <button class="panel-btn finance" onclick="openFinanceModal()">🏦 财务</button>
-    <button class="panel-btn order-history" onclick="openOrderHistoryModal()">📋 订单</button>
-    <button class="panel-btn" style="background:linear-gradient(135deg,#f1c40f,#f39c12);" onclick="openMilestoneModal()">🏆 里程碑</button>
-    <button class="panel-btn service-stats" onclick="openServiceStatsModal()">📊 增值服务</button>
-    <button class="panel-btn service-pricing" onclick="openServicePricingModal()">🏷️ 服务定价</button>
+    <div class="panel-section" style="margin-top:6px;">
+      <div class="panel-section-header" onclick="togglePanelSection(this)" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(255,107,53,0.15);border:1px solid rgba(255,107,53,0.3);border-radius:8px;margin-bottom:4px;">
+        <span style="font-size:11px;font-weight:700;color:#ff6b35;">🚗 车辆运营</span>
+        <span class="section-arrow" style="font-size:10px;color:rgba(255,255,255,0.4);transition:transform .2s;">▼</span>
+      </div>
+      <div class="panel-section-body" style="display:flex;flex-direction:column;gap:4px;">
+        <button class="panel-btn fleet" onclick="openFleetModal()">🚗 车队管理</button>
+        <button class="panel-btn pricing" onclick="openPricingModal()">💰 调价</button>
+        <button class="panel-btn energy" onclick="openEnergyModal()">⛽ 能源</button>
+      </div>
+    </div>
+    <div class="panel-section" style="margin-top:4px;">
+      <div class="panel-section-header" onclick="togglePanelSection(this)" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(142,68,173,0.15);border:1px solid rgba(142,68,173,0.3);border-radius:8px;margin-bottom:4px;">
+        <span style="font-size:11px;font-weight:700;color:#9b59b6;">👥 人员客户</span>
+        <span class="section-arrow" style="font-size:10px;color:rgba(255,255,255,0.4);transition:transform .2s;">▼</span>
+      </div>
+      <div class="panel-section-body" style="display:flex;flex-direction:column;gap:4px;">
+        <button class="panel-btn members" onclick="openMemberModal()">👤 会员</button>
+        <button class="panel-btn employees" onclick="openEmployeeModal()">👔 员工</button>
+      </div>
+    </div>
+    <div class="panel-section" style="margin-top:4px;">
+      <div class="panel-section-header" onclick="togglePanelSection(this)" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(44,62,80,0.3);border:1px solid rgba(44,62,80,0.5);border-radius:8px;margin-bottom:4px;">
+        <span style="font-size:11px;font-weight:700;color:#95a5a6;">🏦 财务报表</span>
+        <span class="section-arrow" style="font-size:10px;color:rgba(255,255,255,0.4);transition:transform .2s;">▼</span>
+      </div>
+      <div class="panel-section-body" style="display:flex;flex-direction:column;gap:4px;">
+        <button class="panel-btn finance" onclick="openFinanceModal()">🏦 财务</button>
+        <button class="panel-btn order-history" onclick="openOrderHistoryModal()">📋 订单</button>
+      </div>
+    </div>
+    <div class="panel-section" style="margin-top:4px;">
+      <div class="panel-section-header" onclick="togglePanelSection(this)" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.3);border-radius:8px;margin-bottom:4px;">
+        <span style="font-size:11px;font-weight:700;color:#f1c40f;">📊 增值服务</span>
+        <span class="section-arrow" style="font-size:10px;color:rgba(255,255,255,0.4);transition:transform .2s;">▼</span>
+      </div>
+      <div class="panel-section-body" style="display:flex;flex-direction:column;gap:4px;">
+        <button class="panel-btn service-stats" onclick="openServiceStatsModal()">📊 增值服务</button>
+        <button class="panel-btn service-pricing" onclick="openServicePricingModal()">🏷️ 服务定价</button>
+      </div>
+    </div>
+    <button class="panel-btn" style="background:linear-gradient(135deg,#f1c40f,#f39c12);margin-top:4px;" onclick="openMilestoneModal()">🏆 里程碑</button>
   </div>
 
   <div id="outlet-popup">
