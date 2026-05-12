@@ -12,14 +12,19 @@ var MILESTONE_CONFIGS = [
   { id:3, name:'连锁经营', desc:'现金>200万 且 拥有>=3个网点', icon:'🏢',
     conditions:{ cash:2000000, outletCount:3 },
     rewards:{ reputation:15, message:'品牌影响力扩大→声誉+15' },
-    unlocks:['brand_management']
+    unlocks:['brand_management', 'parking_upgrade']
   },
   { id:4, name:'跨地区', desc:'现金>1000万 且 声誉>80', icon:'🌍',
     conditions:{ cash:10000000, reputation:80 },
     rewards:{ reputation:20, message:'全国布局→声誉+20' },
     unlocks:['new_city']
   },
-  { id:5, name:'上市', desc:'满足IPO条件', icon:'📈',
+  { id:5, name:'旗舰店铺', desc:'拥有Lv.5网点', icon:'⭐',
+    conditions:{ flagshipOutlet:true },
+    rewards:{ reputation:15, message:'旗舰店铺开业→声誉+15' },
+    unlocks:['interior_decoration']
+  },
+  { id:6, name:'上市', desc:'满足IPO条件', icon:'📈',
     conditions:{ ipoEligible:true },
     rewards:{ reputation:25, message:'上市成功→声誉+25' },
     unlocks:['stock_system','investor_relations']
@@ -44,6 +49,7 @@ function checkMilestones() {
   var consecutiveProfitDays = getConsecutiveProfitDays();
   var ownedOutletCount = gameState.outlets.filter(function(o){ return o.owned; }).length;
   var ipoEligible = typeof checkIPOEligibility === 'function' ? checkIPOEligibility() : false;
+  var hasFlagship = gameState.outlets.some(function(o){ return o.owned && o.level >= 5; });
 
   for (var i = 0; i < MILESTONE_CONFIGS.length; i++) {
     var m = MILESTONE_CONFIGS[i];
@@ -56,6 +62,7 @@ function checkMilestones() {
     if (conds.outletCount !== undefined && ownedOutletCount < conds.outletCount) met = false;
     if (conds.reputation !== undefined && gameState.reputation < conds.reputation) met = false;
     if (conds.ipoEligible !== undefined && conds.ipoEligible && !ipoEligible) met = false;
+    if (conds.flagshipOutlet !== undefined && conds.flagshipOutlet && !hasFlagship) met = false;
 
     if (met) {
       gameState.achievedMilestones.push(m.id);
@@ -63,6 +70,14 @@ function checkMilestones() {
 
       if (m.rewards.reputation) {
         addReputation(m.rewards.reputation);
+      }
+
+      if (m.unlocks) {
+        m.unlocks.forEach(function(unlock) {
+          if (unlock === 'interior_decoration') {
+            gameState.interiorDecorUnlocked = true;
+          }
+        });
       }
 
       var celebrationMsg = m.icon + ' 里程碑达成：' + m.name + ' — ' + m.desc;

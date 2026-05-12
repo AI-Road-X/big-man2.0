@@ -16,6 +16,15 @@ var OUTLET_LEVELS = [
   { level:5, capacity:100, upgradeCost:2500000 }
 ];
 
+var PARKING_CONFIG = {
+  customer: { base: 5, perUpgrade: 2, max: 20, upgradeCost: 10000, dailyRent: 5 },
+  internal: { base: 10, perUpgrade: 5, max: 30, upgradeCost: 20000, dailyRent: 5 }
+};
+
+var PARKING_PRESSURE_THRESHOLD = 0.9;
+var PARKING_EMERGENCY_FEE = 5000;
+var PARKING_RESERVATION_FEE = 50;
+
 var CITY_SIZE_MULTIPLIERS = { small:0.6, medium:1.0, large:1.5 };
 
 var CUSTOMER_TYPE_PREFS = {
@@ -51,10 +60,25 @@ var ENERGY_UPGRADE_AMOUNT = 2000;
 var ENERGY_MAX_CAPACITY = 50000;
 var ENERGY_LOW_THRESHOLD = 500;
 
+var defaultOutletState = {
+  id: 0, level: 1, owned: true, facilities: [], disabledFacilities: [], brokenFacilities: {},
+  upgradeProgress: { profitableDays: 0, maxProfit: 0 },
+  parkingSpots: { customer: 5, internal: 10 },
+  parkingUpgradeLevel: { customer: 0, internal: 0 },
+  facilityZones: {},
+  occupiedCustomerSpots: 0,
+  reservedSpots: 0,
+  parkingPressureDays: 0,
+  lastReservationRec: false
+};
+
 var defaultGameState = {
   cash: 1000000,
   currentDay: 1,
-  outlets: [{ id:0, level:1, owned:true, facilities:[], disabledFacilities:[], brokenFacilities:{}, upgradeProgress:{profitableDays:0,maxProfit:0} }],
+  outlets: [Object.assign({}, defaultOutletState)],
+  autoRecommendReservation: false,
+  interiorDecorUnlocked: false,
+  decorations: [],
   ownedVehicles: [],
   pendingOrders: [],
   todayIncome: 0,
@@ -241,7 +265,17 @@ function loadGame() {
         if (!o.disabledFacilities) o.disabledFacilities = [];
         if (!o.brokenFacilities) o.brokenFacilities = {};
         if (!o.upgradeProgress) o.upgradeProgress = {profitableDays:0,maxProfit:0};
+        if (!o.parkingSpots) o.parkingSpots = { customer: PARKING_CONFIG.customer.base, internal: PARKING_CONFIG.internal.base };
+        if (!o.parkingUpgradeLevel) o.parkingUpgradeLevel = { customer: 0, internal: 0 };
+        if (!o.facilityZones) o.facilityZones = {};
+        if (o.occupiedCustomerSpots === undefined) o.occupiedCustomerSpots = 0;
+        if (o.reservedSpots === undefined) o.reservedSpots = 0;
+        if (o.parkingPressureDays === undefined) o.parkingPressureDays = 0;
+        if (o.lastReservationRec === undefined) o.lastReservationRec = false;
       });
+      if (gameState.autoRecommendReservation === undefined) gameState.autoRecommendReservation = false;
+      if (gameState.interiorDecorUnlocked === undefined) gameState.interiorDecorUnlocked = false;
+      if (!gameState.decorations) gameState.decorations = [];
       return true;
     }
   } catch(e) { console.error('加载失败:', e); }
@@ -317,4 +351,111 @@ function getEffectiveServiceProbability(serviceKey) {
     return Math.max(0.05, Math.min(0.6, baseProb / Math.pow(ratio, 0.5)));
   }
   return baseProb;
+}
+
+function upgradeParkingSpot(outletId, spotType) {
+  var os = getOutletState(outletId);
+  if (!os) return { ok: false, reason: '网点不存在' };
+  var cfg = PARKING_CONFIG[spotType];
+  if (!cfg) return { ok: false, reason: '无效的停车位类型' };
+  var currentLevel = os.parkingUpgradeLevel[spotType] || 0;
+  var currentSpots = os.parkingSpots[spotType];
+  if (currentSpots >= cfg.max) return { ok: false, reason: spotType === 'customer' ? '顾客停车位已达上限' : '内部车库已达上限' };
+  if (gameState.cash < cfg.upgradeCost) return { ok: false, reason: '资金不足' };
+  gameState.cash -= cfg.upgradeCost;
+  os.parkingSpots[spotType] += cfg.perUpgrade;
+  os.parkingUpgradeLevel[spotType] = currentLevel + 1;
+  var spotLabel = spotType === 'customer' ? '顾客停车位' : '内部车库';
+  addMessage('🅿️ ' + OUTLET_CONFIGS.find(function(c){ return c.id === outletId; }).name + ' 扩建' + spotLabel + '至 ' + os.parkingSpots[spotType] + ' 个，花费 ' + formatCurrency(cfg.upgradeCost), 'good');
+  updateUI(); saveGame();
+  return { ok: true };
+}
+
+function getParkingOccupancy(outletId) {
+  var os = getOutletState(outletId);
+  if (!os) return { customer: { used: 0, total: 5 }, internal: { used: 0, total: 10 } };
+  var vehicles = getVehiclesAtOutlet(outletId);
+  var rented = vehicles.filter(function(v){ return v.rentedUntil && v.rentedUntil >= gameState.currentDay; }).length;
+  return {
+    customer: { used: os.occupiedCustomerSpots || 0, total: os.parkingSpots.customer, reserved: os.reservedSpots || 0 },
+    internal: { used: rented, total: os.parkingSpots.internal, available: os.parkingSpots.internal - rented }
+  };
+}
+
+function getParkingPressureLevel(outletId) {
+  var os = getOutletState(outletId);
+  if (!os || !os.parkingSpots) return 0;
+  var occ = getParkingOccupancy(outletId);
+  if (occ.customer.total === 0) return 0;
+  return occ.customer.used / occ.customer.total;
+}
+
+function getDailyParkingRent(outletId) {
+  var os = getOutletState(outletId);
+  if (!os || !os.parkingSpots) return 0;
+  var rent = 0;
+  rent += os.parkingSpots.customer * PARKING_CONFIG.customer.dailyRent;
+  rent += os.parkingSpots.internal * PARKING_CONFIG.internal.dailyRent;
+  return rent;
+}
+
+function setAutoRecommendReservation(value) {
+  gameState.autoRecommendReservation = value;
+  saveGame();
+}
+
+function setFacilityZone(outletId, facilityId, zone) {
+  var os = getOutletState(outletId);
+  if (!os) return;
+  if (!os.facilityZones) os.facilityZones = {};
+  os.facilityZones[facilityId] = zone;
+  saveGame();
+  addMessage('📍 ' + getFacilityConfig(facilityId).name + ' 已移至 ' + getZoneName(zone), 'good');
+}
+
+function getFacilityZone(outletId, facilityId) {
+  var os = getOutletState(outletId);
+  if (!os || !os.facilityZones) return 'parking';
+  return os.facilityZones[facilityId] || 'parking';
+}
+
+function getZoneName(zone) {
+  var names = { reception: '接待区', parking: '停车区', logistics: '后勤区' };
+  return names[zone] || zone;
+}
+
+function getZoneEfficiencyBonus(outletId) {
+  var os = getOutletState(outletId);
+  if (!os || !os.facilityZones) return 0;
+  var bonus = 0;
+  var activeFacilities = getActiveFacilities(outletId);
+  activeFacilities.forEach(function(f) {
+    var zone = os.facilityZones[f.id] || 'parking';
+    if (f.id === 'car_wash' && zone === 'parking') bonus += 0.05;
+    if (f.id === 'express_repair' && zone === 'logistics') bonus += 0.05;
+    if (f.id === 'slow_charger' && zone === 'logistics') bonus += 0.03;
+    if (f.id === 'fast_charger' && zone === 'logistics') bonus += 0.03;
+  });
+  return bonus;
+}
+
+function purchaseDecoration(outletId, decoId) {
+  var DECORATIONS = [
+    { id: 'plant', name: '绿植', cost: 5000, satisfactionBonus: 2, icon: '🪴' },
+    { id: 'aquarium', name: '鱼缸', cost: 8000, satisfactionBonus: 3, icon: '🐠' },
+    { id: 'fountain', name: '室内喷泉', cost: 15000, satisfactionBonus: 5, icon: '⛲' }
+  ];
+  var deco = DECORATIONS.find(function(d){ return d.id === decoId; });
+  if (!deco) return { ok: false, reason: '装饰不存在' };
+  if (!gameState.interiorDecorUnlocked) return { ok: false, reason: '需要旗舰店铺解锁' };
+  if (gameState.cash < deco.cost) return { ok: false, reason: '资金不足' };
+  if (!gameState.decorations) gameState.decorations = [];
+  if (gameState.decorations.some(function(d){ return d.outletId === outletId && d.id === decoId; })) {
+    return { ok: false, reason: '该装饰已购买' };
+  }
+  gameState.cash -= deco.cost;
+  gameState.decorations.push({ outletId: outletId, id: decoId, name: deco.name, icon: deco.icon, satisfactionBonus: deco.satisfactionBonus });
+  addMessage('🏠 ' + OUTLET_CONFIGS.find(function(c){ return c.id === outletId; }).name + ' 购买 ' + deco.icon + ' ' + deco.name + '，满意度 +' + deco.satisfactionBonus, 'good');
+  updateUI(); saveGame();
+  return { ok: true };
 }

@@ -1,12 +1,18 @@
 var facilitiesConfig = [
-  { id:'waiting_room', name:'顾客休息室', baseLevel:2, cost:20000, dailyMaintenance:15, satisfactionBonus:5, incomeBonusPercent:8, icon:'🛋️' },
-  { id:'premium_lounge', name:'高级休息室', baseLevel:3, cost:50000, dailyMaintenance:35, satisfactionBonus:10, incomeBonusPercent:12, icon:'🪑' },
-  { id:'shower', name:'冲凉房', baseLevel:4, cost:80000, dailyMaintenance:60, satisfactionBonus:15, incomeBonusPercent:15, icon:'🚿' },
-  { id:'spa', name:'SPA间', baseLevel:4, cost:120000, dailyMaintenance:80, satisfactionBonus:20, incomeBonusPercent:20, icon:'💆' },
-  { id:'kids_zone', name:'儿童玩乐中心', baseLevel:5, cost:150000, dailyMaintenance:70, satisfactionBonus:18, incomeBonusPercent:18, icon:'🎠' },
-  { id:'business_center', name:'商务中心', baseLevel:4, cost:60000, dailyMaintenance:50, satisfactionBonus:12, incomeBonusPercent:12, icon:'💻' },
-  { id:'coffee_bar', name:'咖啡吧', baseLevel:3, cost:30000, dailyMaintenance:25, satisfactionBonus:8, incomeBonusPercent:10, icon:'☕' },
-  { id:'vip_lounge', name:'VIP休息室', baseLevel:5, cost:200000, dailyMaintenance:100, satisfactionBonus:25, incomeBonusPercent:25, icon:'👑' }
+  { id:'waiting_room', name:'顾客休息室', baseLevel:2, cost:20000, dailyMaintenance:15, satisfactionBonus:5, incomeBonusPercent:8, icon:'🛋️', category:'amenity', requiredStaff:null },
+  { id:'premium_lounge', name:'高级休息室', baseLevel:3, cost:50000, dailyMaintenance:35, satisfactionBonus:10, incomeBonusPercent:12, icon:'🪑', category:'amenity', requiredStaff:null },
+  { id:'shower', name:'冲凉房', baseLevel:4, cost:80000, dailyMaintenance:60, satisfactionBonus:15, incomeBonusPercent:15, icon:'🚿', category:'amenity', requiredStaff:null },
+  { id:'spa', name:'SPA间', baseLevel:4, cost:120000, dailyMaintenance:80, satisfactionBonus:20, incomeBonusPercent:20, icon:'💆', category:'amenity', requiredStaff:null },
+  { id:'kids_zone', name:'儿童玩乐中心', baseLevel:5, cost:150000, dailyMaintenance:70, satisfactionBonus:18, incomeBonusPercent:18, icon:'🎠', category:'amenity', requiredStaff:null },
+  { id:'business_center', name:'商务中心', baseLevel:4, cost:60000, dailyMaintenance:50, satisfactionBonus:12, incomeBonusPercent:12, icon:'💻', category:'amenity', requiredStaff:null },
+  { id:'coffee_bar', name:'咖啡吧', baseLevel:3, cost:30000, dailyMaintenance:25, satisfactionBonus:8, incomeBonusPercent:10, icon:'☕', category:'amenity', requiredStaff:null },
+  { id:'vip_lounge', name:'VIP休息室', baseLevel:5, cost:200000, dailyMaintenance:100, satisfactionBonus:25, incomeBonusPercent:25, icon:'👑', category:'amenity', requiredStaff:null },
+  { id:'car_wash', name:'洗车房', baseLevel:2, cost:25000, dailyMaintenance:20, satisfactionBonus:3, incomeBonusPercent:5, icon:'🚗', category:'operational', requiredStaff:'car_washer', effect:'cleanliness' },
+  { id:'express_repair', name:'快修车间', baseLevel:3, cost:40000, dailyMaintenance:30, satisfactionBonus:2, incomeBonusPercent:8, icon:'🔧', category:'operational', requiredStaff:'mechanic', effect:'repair' },
+  { id:'staff_lounge', name:'员工休息室', baseLevel:2, cost:15000, dailyMaintenance:10, satisfactionBonus:0, incomeBonusPercent:0, icon:'🍵', category:'operational', requiredStaff:null, effect:'morale' },
+  { id:'self_return', name:'自助还车机', baseLevel:3, cost:20000, dailyMaintenance:15, satisfactionBonus:2, incomeBonusPercent:3, icon:'📱', category:'operational', requiredStaff:null, effect:'order_capacity' },
+  { id:'slow_charger', name:'慢充电桩', baseLevel:2, cost:18000, dailyMaintenance:12, satisfactionBonus:2, incomeBonusPercent:5, icon:'🔌', category:'operational', requiredStaff:null, effect:'ev_charge' },
+  { id:'fast_charger', name:'快充电桩', baseLevel:4, cost:50000, dailyMaintenance:40, satisfactionBonus:5, incomeBonusPercent:12, icon:'⚡', category:'operational', requiredStaff:null, effect:'ev_charge' }
 ];
 
 var CUSTOMER_FACILITY_PREFS = {
@@ -178,4 +184,94 @@ function getFacilityIncomeReport() {
     });
   });
   return report;
+}
+
+function hasOperationalFacility(outletId, effectType) {
+  var active = getActiveFacilities(outletId);
+  return active.some(function(f){ return f.config.effect === effectType; });
+}
+
+function getOperationalFacilityEffectiveness(outletId, facilityId) {
+  var active = getActiveFacilities(outletId);
+  var facility = active.find(function(f){ return f.id === facilityId; });
+  if (!facility) return 0;
+  if (!facility.config.requiredStaff) return 1.0;
+  var employees = getEmployeesAtOutlet(outletId);
+  var hasRequiredStaff = employees.some(function(e){ return e.type === facility.config.requiredStaff; });
+  return hasRequiredStaff ? 1.0 : 0.5;
+}
+
+function getOutletOrderCapacityBonus(outletId) {
+  var active = getActiveFacilities(outletId);
+  var baseBonus = active.reduce(function(s, f){ return s + f.config.incomeBonusPercent; }, 0);
+  var selfReturnActive = active.some(function(f){ return f.id === 'self_return' && !f.disabled && !f.broken; });
+  if (selfReturnActive) {
+    var eff = getOperationalFacilityEffectiveness(outletId, 'self_return');
+    baseBonus += 20 * eff;
+  }
+  return baseBonus;
+}
+
+function getOutletMoraleDecayReduction(outletId) {
+  var active = getActiveFacilities(outletId);
+  var hasStaffLounge = active.some(function(f){ return f.id === 'staff_lounge' && !f.disabled && !f.broken; });
+  return hasStaffLounge ? 3 : 5;
+}
+
+function getOutletEVChargeBonus(outletId) {
+  var active = getActiveFacilities(outletId);
+  var bonus = 0;
+  var slowCharger = active.find(function(f){ return f.id === 'slow_charger' && !f.disabled && !f.broken; });
+  var fastCharger = active.find(function(f){ return f.id === 'fast_charger' && !f.disabled && !f.broken; });
+  if (slowCharger) bonus += 5 * getOperationalFacilityEffectiveness(outletId, 'slow_charger');
+  if (fastCharger) bonus += 15 * getOperationalFacilityEffectiveness(outletId, 'fast_charger');
+  return bonus;
+}
+
+function processCarWashReturn(outletId) {
+  var active = getActiveFacilities(outletId);
+  var carWash = active.find(function(f){ return f.id === 'car_wash' && !f.disabled && !f.broken; });
+  if (!carWash) return 0;
+  var vehicles = getVehiclesAtOutlet(outletId);
+  var returningVehicles = vehicles.filter(function(v){ return v.rentedUntil && v.rentedUntil < gameState.currentDay && !isInTransit(v.id); });
+  var maxCarsPerDay = 20;
+  var washed = 0;
+  var effectiveness = getOperationalFacilityEffectiveness(outletId, 'car_wash');
+  returningVehicles.slice(0, maxCarsPerDay).forEach(function(v) {
+    if (!v.cleanliness) v.cleanliness = 80;
+    v.cleanliness = Math.min(100, v.cleanliness + 20 * effectiveness);
+    washed++;
+  });
+  return washed;
+}
+
+function getRepairCostReduction(outletId) {
+  var active = getActiveFacilities(outletId);
+  var expressRepair = active.find(function(f){ return f.id === 'express_repair' && !f.disabled && !f.broken; });
+  if (!expressRepair) return 0;
+  var effectiveness = getOperationalFacilityEffectiveness(outletId, 'express_repair');
+  return 0.3 * effectiveness;
+}
+
+function getRepairTimeReduction(outletId) {
+  var active = getActiveFacilities(outletId);
+  var expressRepair = active.find(function(f){ return f.id === 'express_repair' && !f.disabled && !f.broken; });
+  if (!expressRepair) return 0;
+  var effectiveness = getOperationalFacilityEffectiveness(outletId, 'express_repair');
+  return 0.5 * effectiveness;
+}
+
+function getDecorationSatisfactionBonus(outletId) {
+  if (!gameState.decorations) return 0;
+  return gameState.decorations.filter(function(d){ return d.outletId === outletId; }).reduce(function(s, d){ return s + d.satisfactionBonus; }, 0);
+}
+
+function addOperationalFacility(outletId, facilityId) {
+  var os = getOutletState(outletId);
+  if (!os) return;
+  if (!os.facilities) os.facilities = [];
+  if (os.facilities.indexOf(facilityId) === -1) {
+    os.facilities.push(facilityId);
+    saveGame();
+  }
 }

@@ -72,6 +72,10 @@ function nextDay() {
   processRentalCosts();
   processTransfers();
   processEventExpiry();
+  processParkingReturns();
+  processParkingPressure();
+  processParkingRent();
+  processCarWashAllOutlets();
 
   var totalWages = processDailyEmployeeEffects();
   if (totalWages > 0) {
@@ -235,6 +239,8 @@ function acceptOrder(orderId) {
   if (vehicle.rentedUntil && vehicle.rentedUntil >= gameState.currentDay) { addMessage('订单取消：' + order.vehicleName + ' 已被租出', 'bad'); gameState.pendingOrders.splice(idx,1); renderOrders(); saveGame(); return; }
   if (isInTransit(vehicle.id)) { addMessage('订单取消：' + order.vehicleName + ' 正在调度中', 'bad'); gameState.pendingOrders.splice(idx,1); renderOrders(); saveGame(); return; }
 
+  releaseParkingSpot(order.outletId);
+
   var serviceResult = applyValueAddedServices(vehicle, order.rentalDays);
   var facilityFee = 0;
   if (typeof getFacilityServiceFee === 'function') {
@@ -244,6 +250,12 @@ function acceptOrder(orderId) {
   if (typeof getOutletIncomeBonusPercent === 'function') {
     incomeBonusPct = getOutletIncomeBonusPercent(order.outletId);
   }
+  var zoneBonus = 0;
+  if (typeof getZoneEfficiencyBonus === 'function') {
+    zoneBonus = getZoneEfficiencyBonus(order.outletId);
+  }
+  incomeBonusPct += zoneBonus * 100;
+
   var baseIncome = order.totalIncome;
   var bonusIncome = Math.round(baseIncome * incomeBonusPct / 100);
   var totalIncome = baseIncome + serviceResult.serviceIncome + facilityFee + bonusIncome;
@@ -368,4 +380,123 @@ function rejectOrder(orderId) {
   gameState.pendingOrders.splice(idx, 1);
   addMessage('已拒绝 ' + order.customerName + ' 的租车订单', 'bad');
   renderOrders(); updateUI(); saveGame();
+}
+
+function processParkingReturns() {
+  gameState.outlets.filter(function(o){ return o.owned; }).forEach(function(outlet) {
+    var returningVehicles = gameState.ownedVehicles.filter(function(v) {
+      return v.outletId === outlet.id && v.rentedUntil && v.rentedUntil < gameState.currentDay && !isInTransit(v.id);
+    });
+    var occ = outlet.occupiedCustomerSpots || 0;
+    var total = outlet.parkingSpots ? outlet.parkingSpots.customer : PARKING_CONFIG.customer.base;
+    var reserved = outlet.reservedSpots || 0;
+    var available = total - occ;
+    var unsatisfiedCount = 0;
+    returningVehicles.forEach(function(v) {
+      if (available > reserved) {
+        occ++;
+        available--;
+      } else {
+        unsatisfiedCount++;
+        if (v.cleanliness !== undefined && v.cleanliness < 30) {
+          unsatisfiedCount++;
+        }
+      }
+    });
+    outlet.occupiedCustomerSpots = Math.min(occ, total);
+    if (unsatisfiedCount > 0) {
+      addMessage('⚠️ ' + OUTLET_CONFIGS.find(function(c){ return c.id === outlet.id; }).name + '：' + unsatisfiedCount + '辆车位不足，满意度下降', 'warn');
+    }
+  });
+}
+
+function processParkingPressure() {
+  gameState.outlets.filter(function(o){ return o.owned; }).forEach(function(outlet) {
+    if (!outlet.parkingSpots) return;
+    var occ = outlet.occupiedCustomerSpots || 0;
+    var total = outlet.parkingSpots.customer;
+    if (total === 0) return;
+    var pressure = occ / total;
+    if (pressure >= PARKING_PRESSURE_THRESHOLD) {
+      outlet.parkingPressureDays = (outlet.parkingPressureDays || 0) + 1;
+      if (outlet.parkingPressureDays >= 3) {
+        addMessage('⚠️ ' + OUTLET_CONFIGS.find(function(c){ return c.id === outlet.id; }).name + '：车位紧张持续' + outlet.parkingPressureDays + '天，满意度临时-10', 'bad');
+      }
+      if (outlet.parkingPressureDays >= 5) {
+        gameState.cash -= PARKING_EMERGENCY_FEE;
+        gameState.todayExpense += PARKING_EMERGENCY_FEE;
+        addMessage('🚨 ' + OUTLET_CONFIGS.find(function(c){ return c.id === outlet.id; }).name + '：被迫租用额外停车位，花费 ' + formatCurrency(PARKING_EMERGENCY_FEE), 'bad');
+        outlet.parkingPressureDays = 0;
+      }
+    } else {
+      outlet.parkingPressureDays = 0;
+    }
+  });
+}
+
+function processParkingRent() {
+  gameState.outlets.filter(function(o){ return o.owned; }).forEach(function(outlet) {
+    var rent = getDailyParkingRent(outlet.id);
+    if (rent > 0) {
+      gameState.cash -= rent;
+      gameState.todayExpense += rent;
+    }
+  });
+}
+
+function processCarWashAllOutlets() {
+  gameState.outlets.filter(function(o){ return o.owned; }).forEach(function(outlet) {
+    if (typeof processCarWashReturn === 'function') {
+      var washed = processCarWashReturn(outlet.id);
+      if (washed > 0) {
+        console.log('洗车房清洗了 ' + washed + ' 辆车');
+      }
+    }
+  });
+}
+
+function releaseParkingSpot(outletId) {
+  var os = getOutletState(outletId);
+  if (!os || !os.parkingSpots) return;
+  os.occupiedCustomerSpots = Math.max(0, (os.occupiedCustomerSpots || 0) - 1);
+}
+
+function occupyParkingSpot(outletId) {
+  var os = getOutletState(outletId);
+  if (!os || !os.parkingSpots) return false;
+  var occ = os.occupiedCustomerSpots || 0;
+  var total = os.parkingSpots.customer;
+  if (occ >= total) return false;
+  os.occupiedCustomerSpots = occ + 1;
+  return true;
+}
+
+function hasAvailableParkingSpot(outletId) {
+  var os = getOutletState(outletId);
+  if (!os || !os.parkingSpots) return false;
+  var occ = os.occupiedCustomerSpots || 0;
+  var total = os.parkingSpots.customer;
+  return occ < total;
+}
+
+function checkCleanlinessPenalty(outletId) {
+  var penalty = 0;
+  var vehicles = getVehiclesAtOutlet(outletId);
+  vehicles.forEach(function(v) {
+    if (v.cleanliness !== undefined && v.cleanliness < 30) {
+      penalty += 10;
+    }
+  });
+  return Math.min(penalty, 30);
+}
+
+function processReservationForOrder(order) {
+  var outletId = order.outletId;
+  var os = getOutletState(outletId);
+  if (!os) return 0;
+  if (gameState.autoRecommendReservation || Math.random() < 0.2) {
+    os.reservedSpots = (os.reservedSpots || 0) + 1;
+    return PARKING_RESERVATION_FEE;
+  }
+  return 0;
 }
