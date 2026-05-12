@@ -25,7 +25,7 @@ var PARKING_PRESSURE_THRESHOLD = 0.9;
 var PARKING_EMERGENCY_FEE = 5000;
 var PARKING_RESERVATION_FEE = 50;
 
-var CITY_SIZE_MULTIPLIERS = { small:0.6, medium:1.0, large:1.5 };
+var CITY_SIZE_MULTIPLIERS = { small:0.8, medium:1.2, large:1.8 };
 
 var CUSTOMER_TYPE_PREFS = {
   business: { '轿车':3,'SUV':1.5,'MPV':2,'豪华车':2.5,'跑车':1,'超跑':0.5,'紧凑型':1 },
