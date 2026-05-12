@@ -211,19 +211,26 @@ function saveGame() {
 }
 
 var CHEAT_CODES = {
-  'showmethemoney': { desc: '获得100万现金', fn: function(){ gameState.cash += 1000000; addMessage('💰 作弊码：获得100万现金','good'); } },
-  'greedisgood': { desc: '获得50万现金+全部设施', fn: function(){ gameState.cash += 500000; facilitiesConfig.forEach(function(fc){ if(gameState.outlets[0].facilities.indexOf(fc.id)===-1) gameState.outlets[0].facilities.push(fc.id); }); addMessage('💰 作弊码：50万+全部设施','good'); } },
-  'levelup': { desc: '网点升1级', fn: function(){ var os=getOutletState(0); if(os.level<5){os.level++;addMessage('⬆️ 作弊码：网点升至Lv.'+os.level,'good');} } },
-  'maxlevel': { desc: '网点满级', fn: function(){ var os=getOutletState(0); os.level=5; addMessage('⭐ 作弊码：网点满级','good'); } },
-  'parkingfull': { desc: '停车位扩建满', fn: function(){ var os=getOutletState(0); os.parkingSpots={customer:20,internal:30}; os.parkingUpgradeLevel={customer:8,internal:4}; addMessage('🅿️ 作弊码：停车位扩建满','good'); } },
-  'alldecor': { desc: '解锁全部装饰', fn: function(){ gameState.interiorDecorUnlocked=true; gameState.decorations=[{outletId:0,id:'plant',name:'绿植',icon:'🪴',satisfactionBonus:2},{outletId:0,id:'aquarium',name:'鱼缸',icon:'🐠',satisfactionBonus:3},{outletId:0,id:'fountain',name:'室内喷泉',icon:'⛲',satisfactionBonus:5}]; addMessage('🌿 作弊码：全部装饰','good'); } },
-  'reputation': { desc: '声誉+50', fn: function(){ addReputation(50); addMessage('⭐ 作弊码：声誉+50','good'); } },
-  'freefuel': { desc: '免费加油充电', fn: function(){ gameState.oilStorage=10000; gameState.elecStorage=10000; addMessage('⛽ 作弊码：能源满','good'); } },
-  'addvehicle': { desc: '免费获得1辆随机车', fn: function(){ var types=Object.keys(VEHICLE_CATALOG); var type=types[Math.floor(Math.random()*types.length)]; var model=VEHICLE_CATALOG[type]; if(model&&model.models){ var m=model.models[Math.floor(Math.random()*model.models.length)]; if(m){ purchaseVehicle(type,m.name,0); addMessage('🚗 作弊码：免费获得 '+m.name,'good'); } } } },
-  'researchall': { desc: '研究全部科技', fn: function(){ if(typeof TECH_TREE!=='undefined'){Object.keys(TECH_TREE.branches).forEach(function(bk){TECH_TREE.branches[bk].techs.forEach(function(t){gameState.techResearched[t.id]=true;});});addMessage('🔬 作弊码：全部科技','good');} } },
-  'prestige5': { desc: '获得5声望点数', fn: function(){ gameState.prestigePoints=(gameState.prestigePoints||0)+5; addMessage('✨ 作弊码：+5声望点数','good'); } },
-  'rivalboost': { desc: '竞争对手强化', fn: function(){ if(gameState.rivals){gameState.rivals.forEach(function(r){r.strength=Math.min(1,r.strength+0.2);});addMessage('⚔️ 作弊码：竞争对手强化','good');} } },
-  'resetgame': { desc: '重置游戏', fn: function(){ localStorage.removeItem(SAVE_KEY); location.reload(); } }
+  'money': { desc: '+100万', fn: function(){ gameState.cash += 1000000; addMessage('💰 +100万','good'); } },
+  'cash': { desc: '+50万', fn: function(){ gameState.cash += 500000; addMessage('💰 +50万','good'); } },
+  'rich': { desc: '+1000万', fn: function(){ gameState.cash += 10000000; addMessage('💰 +1000万','good'); } },
+  'car': { desc: '免费1辆随机车', fn: function(){ var types=Object.keys(VEHICLE_CATALOG); var type=types[Math.floor(Math.random()*types.length)]; var model=VEHICLE_CATALOG[type]; if(model&&model.models){ var m=model.models[Math.floor(Math.random()*model.models.length)]; if(m) purchaseVehicle(type,m.name,0); } addMessage('🚗 免费获得1辆车','good'); } },
+  'cars': { desc: '免费5辆随机车', fn: function(){ for(var i=0;i<5;i++){var types=Object.keys(VEHICLE_CATALOG);var type=types[Math.floor(Math.random()*types.length)];var model=VEHICLE_CATALOG[type];if(model&&model.models){var m=model.models[Math.floor(Math.random()*model.models.length)];if(m)purchaseVehicle(type,m.name,0);}} addMessage('🚗 免费获得5辆车','good'); } },
+  'level': { desc: '网点+1级', fn: function(){ var os=getOutletState(0); if(os.level<5){os.level++;addMessage('⬆️ 网点Lv.'+os.level,'good');} } },
+  'max': { desc: '网点满级', fn: function(){ getOutletState(0).level=5; addMessage('⭐ 网点满级','good'); } },
+  'parking': { desc: '停车位满', fn: function(){ var os=getOutletState(0); os.parkingSpots={customer:20,internal:30}; os.parkingUpgradeLevel={customer:8,internal:4}; addMessage('🅿️ 停车位满','good'); } },
+  'fuel': { desc: '能源满', fn: function(){ gameState.oilStorage=10000; gameState.elecStorage=10000; if(gameState.energy){gameState.energy.oilStorage=10000;gameState.energy.batteryStorage=10000;} addMessage('⛽ 能源满','good'); } },
+  'rep': { desc: '声誉+50', fn: function(){ addReputation(50); addMessage('⭐ 声誉+50','good'); } },
+  'fac': { desc: '全部设施', fn: function(){ facilitiesConfig.forEach(function(fc){ if(gameState.outlets[0].facilities.indexOf(fc.id)===-1) gameState.outlets[0].facilities.push(fc.id); }); addMessage('🏗️ 全部设施','good'); } },
+  'decor': { desc: '全部装饰', fn: function(){ gameState.interiorDecorUnlocked=true; gameState.decorations=[{outletId:0,id:'plant',name:'绿植',icon:'🪴',satisfactionBonus:2},{outletId:0,id:'aquarium',name:'鱼缸',icon:'🐠',satisfactionBonus:3},{outletId:0,id:'fountain',name:'室内喷泉',icon:'⛲',satisfactionBonus:5}]; addMessage('🌿 全部装饰','good'); } },
+  'tech': { desc: '全部科技', fn: function(){ if(typeof TECH_TREE!=='undefined'){Object.keys(TECH_TREE.branches).forEach(function(bk){TECH_TREE.branches[bk].techs.forEach(function(t){gameState.techResearched[t.id]=true;});});addMessage('🔬 全部科技','good');} } },
+  'pp': { desc: '+5声望点', fn: function(){ gameState.prestigePoints=(gameState.prestigePoints||0)+5; addMessage('✨ +5声望点','good'); } },
+  'rival': { desc: '对手强化', fn: function(){ if(gameState.rivals){gameState.rivals.forEach(function(r){r.strength=Math.min(1,r.strength+0.2);});addMessage('⚔️ 对手强化','good');} } },
+  'member': { desc: '+10会员', fn: function(){ if(typeof generateRandomMember==='function'){for(var i=0;i<10;i++){var m=generateRandomMember();if(m)gameState.members.push(m);}} addMessage('👤 +10会员','good'); } },
+  'staff': { desc: '+5员工', fn: function(){ var types=['店长','销售员','维修工','司机','洗车工']; for(var i=0;i<5;i++){gameState.employees.push({type:types[Math.floor(Math.random()*types.length)],name:'员工'+Math.floor(Math.random()*1000),morale:70+Math.floor(Math.random()*30),salary:40,outletId:0});} addMessage('👔 +5员工','good'); } },
+  'day': { desc: '快进30天', fn: function(){ for(var i=0;i<30;i++){if(typeof nextDay==='function')nextDay();} addMessage('📅 快进30天','good'); } },
+  'win': { desc: '直接胜利', fn: function(){ gameState.cash=50000000; gameState.totalRevenue=50000000; gameState.reputation=100; addMessage('🏆 直接胜利','good'); } },
+  'reset': { desc: '重置游戏', fn: function(){ localStorage.removeItem(SAVE_KEY); location.reload(); } }
 };
 
 function enterCheatCode(code) {
