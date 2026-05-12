@@ -6,7 +6,7 @@ function generateCustomers() {
   var companyStage = gameState.companyStage || 1;
 
   ownedOutlets.forEach(function(outlet){
-    var cfg = OUTLET_CONFIGS[outlet.id];
+    var cfg = OUTLET_CONFIGS.find(function(c){ return c.id === outlet.id; }) || OUTLET_CONFIGS[0];
 
     var baseCount = Math.floor((CITY_SIZE_MULTIPLIERS[cfg.citySize] || 1) * 25);
 
@@ -87,7 +87,7 @@ function generateEasterEggOrder() {
   });
   if (available.length === 0) return null;
   var vehicle = available[Math.floor(Math.random() * available.length)];
-  var outlet = OUTLET_CONFIGS[vehicle.outletId];
+  var outlet = OUTLET_CONFIGS.find(function(c){ return c.id === (vehicle.outletId || 0); }) || OUTLET_CONFIGS[0];
   var EGG_SCENARIOS = [
     { name: '🎬 电影剧组', desc: '某电影需要拍摄用车', bonus: 2.5, days: [3,7], customer: '张导演' },
     { name: '👑 明星出行', desc: '知名艺人低调租车', bonus: 3.0, days: [1,3], customer: '神秘明星' },

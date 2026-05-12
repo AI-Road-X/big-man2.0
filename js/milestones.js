@@ -64,7 +64,7 @@ function checkMilestones() {
     if (conds.ipoEligible !== undefined && conds.ipoEligible && !ipoEligible) met = false;
     if (conds.flagshipOutlet !== undefined && conds.flagshipOutlet && !hasFlagship) met = false;
 
-    if (met) {
+    if (met && gameState.achievedMilestones.indexOf(m.id) === -1) {
       gameState.achievedMilestones.push(m.id);
       gameState.companyStage = m.name;
 

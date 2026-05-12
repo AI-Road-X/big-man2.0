@@ -349,7 +349,7 @@ function renderBuyButton(vehicleId, price, marketType, canAfford, hasCapacity) {
     return '<button class="action-btn btn-buy" disabled>' + (!canAfford ? '资金不足' : !hasCapacity ? '车位已满' : '无法购买') + '</button>';
   }
   var outletOptions = ownedOutlets.map(function(o){
-    var cfg = OUTLET_CONFIGS[o.id];
+    var cfg = OUTLET_CONFIGS.find(function(c){ return c.id === o.id; }) || OUTLET_CONFIGS[0];
     var count = getVehiclesAtOutlet(o.id).length;
     var cap = getOutletCapacity(o.id);
     return '<option value="' + o.id + '">' + cfg.name + ' (' + count + '/' + cap + ')</option>';
@@ -578,7 +578,8 @@ function renderMyFleet() {
     var typeInfo = getVehicleTypeInfo(v.type);
     var currentValue = calculateVehicleValue(v);
     var sellPrice = Math.round(currentValue * 0.85);
-    var outletCfg = OUTLET_CONFIGS.find(function(c){ return c.id === v.outletId; });
+    var voutletId = typeof v.outletId !== 'undefined' && v.outletId !== null ? v.outletId : 0;
+    var outletCfg = OUTLET_CONFIGS.find(function(c){ return c.id === voutletId; }) || OUTLET_CONFIGS[0];
     var inTransit = isInTransit(v.id);
     var transfer = gameState.transfers.find(function(t){ return t.vehicleId === v.id; });
 
@@ -595,7 +596,7 @@ function renderMyFleet() {
       outletLabel = outletCfg ? outletCfg.name : '未知';
     }
 
-    var canDispatch = !inTransit && !(v.rentedUntil && v.rentedUntil >= gameState.currentDay) && ownedOutlets.some(function(o){ return o.id !== v.outletId; });
+    var canDispatch = !inTransit && !(v.rentedUntil && v.rentedUntil >= gameState.currentDay);
 
     var totalProfit = getVehicleTotalProfit(v.id);
     var profitMargin = getVehicleProfitMargin(v.id);
@@ -871,8 +872,11 @@ function openDispatchModal(vehicleId) {
   });
   if (otherOutlets.length === 0) {
     var ownedCount = gameState.outlets.filter(function(o){ return o.owned; }).length;
+    var allOutlets = OUTLET_CONFIGS.filter(function(c){ return c.id !== vid; });
+    var lockedOutlets = allOutlets.filter(function(c){ return !gameState.outlets.some(function(o){ return o.id === c.id && o.owned; }); });
     if (ownedCount <= 1) {
-      showToast('当前只有1个网点，请先解锁更多网点后再调度', 'warn');
+      var hint = lockedOutlets.length > 0 ? '可解锁：' + lockedOutlets.map(function(c){ return c.name + '(' + formatCurrency(c.unlockCost) + ')'; }).join('、') : '无更多网点';
+      showToast('当前只有1个网点，无法调度。' + hint, 'warn');
     } else {
       showToast('没有其他可用网点', 'error');
     }
@@ -921,13 +925,14 @@ function confirmDispatch(vehicleId) {
   var targetOutletId = parseInt(select.value);
   var cost = parseInt(option.dataset.cost);
   var days = parseInt(option.dataset.days);
-  if (gameState.cash < cost) { showToast('资金不足！', 'error'); return; }
+  if (gameState.cash < cost) { showToast('资金不足！需要 ' + formatCurrency(cost), 'error'); return; }
   var targetCap = getOutletCapacity(targetOutletId);
   var targetCount = getVehiclesAtOutlet(targetOutletId).length;
   if (targetCount >= targetCap) { showToast('目标网点车位已满！', 'error'); return; }
+  var fromOutletId = typeof vehicle.outletId !== 'undefined' && vehicle.outletId !== null ? vehicle.outletId : 0;
   gameState.cash -= cost;
   gameState.todayExpense += cost;
-  gameState.transfers.push({ vehicleId: vehicleId, fromOutletId: vehicle.outletId, toOutletId: targetOutletId, daysRemaining: days, cost: cost });
+  gameState.transfers.push({ vehicleId: vehicleId, fromOutletId: fromOutletId, toOutletId: targetOutletId, daysRemaining: days, cost: cost });
   var targetName = OUTLET_CONFIGS.find(function(c){ return c.id === targetOutletId; }).name;
   addMessage('🚚 调度 ' + vehicle.brand + ' ' + vehicle.model + ' → ' + targetName + '，费用 ' + formatCurrency(cost) + '，预计 ' + days + ' 天到达', 'warn');
   closeDispatchModal();
@@ -1622,7 +1627,7 @@ function renderTalentMarket() {
   candidates.forEach(function(c,i){
     var moraleColor = c.morale > 80 ? '#4ade80' : c.morale > 30 ? '#fbbf24' : '#f87171';
     var ownedOutlets = gameState.outlets.filter(function(o){ return o.owned; });
-    var opts = ownedOutlets.map(function(o){ return '<option value="'+o.id+'">'+OUTLET_CONFIGS.find(function(c){return c.id===o.id;}).name+'</option>'; }).join('');
+    var opts = ownedOutlets.map(function(o){ var oc = OUTLET_CONFIGS.find(function(c){return c.id===o.id;}); return '<option value="'+o.id+'">'+(oc?oc.name:'网点')+'</option>'; }).join('');
     html += '<tr style="border-bottom:1px solid rgba(226,232,240,0.6);">';
     html += '<td style="padding:6px 8px;color:#94a3b8;">'+c.name+'</td>';
     html += '<td style="padding:6px 8px;"><span style="padding:2px 6px;border-radius:4px;font-size:10px;background:rgba(52,152,219,0.15);color:#3498db;">'+c.type+'</span></td>';

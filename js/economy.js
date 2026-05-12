@@ -89,9 +89,9 @@ function getRateMultiplier(type) {
 }
 
 function getEffectiveDailyRate(vehicle) {
-  var base = vehicle.dailyRate;
-  var typeMultiplier = getRateMultiplier(vehicle.type);
-  var marketCoeff = gameState.marketCoefficient;
+  var base = vehicle.dailyRate || 200;
+  var typeMultiplier = getRateMultiplier(vehicle.type) || 1.0;
+  var marketCoeff = gameState.marketCoefficient || 1.0;
   return Math.round(base * typeMultiplier * marketCoeff);
 }
 

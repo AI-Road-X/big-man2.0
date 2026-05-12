@@ -36,7 +36,8 @@ function generateReviewForOrder(order, vehicle) {
       score += (avgMorale - 50) / 50;
     }
   }
-  var rateMultiplier = order.totalIncome / (vehicle.dailyRate * order.rentalDays);
+  var dailyRateBase = (vehicle && vehicle.dailyRate) ? vehicle.dailyRate : 1;
+  var rateMultiplier = order.totalIncome / (dailyRateBase * order.rentalDays);
   if (rateMultiplier > 1.5) score -= 0.8;
   else if (rateMultiplier > 1.3) score -= 0.3;
   else if (rateMultiplier < 1.0) score += 0.3;
