@@ -1,5 +1,7 @@
 var currentTab = 'myvehicles';
 var myFleetSort = { field: 'name', asc: true };
+var marketSort = { field: 'price', asc: true };
+var selectedVehicles = new Set();
 
 function togglePanelSection(header) {
   var body = header.nextElementSibling;
@@ -114,6 +116,62 @@ function updateTableHeader(headers, sortable) {
   }
 }
 
+function updateMarketTableHeader() {
+  var thead = document.querySelector('#vehicleTable thead tr');
+  if (!thead) return;
+  var headers = [
+    {label:'<input type="checkbox" class="veh-checkbox" id="selectAllCheckbox" onchange="toggleSelectAll(this.checked)">',field:'_check',sortable:false},
+    {label:'车型信息',field:'name',sortable:false},
+    {label:'车牌/来源',field:'source',sortable:false},
+    {label:'类型',field:'type',sortable:true},
+    {label:'保值率',field:'residual',sortable:true},
+    {label:'采购价格',field:'price',sortable:true},
+    {label:'日租金',field:'rate',sortable:true},
+    {label:'操作',field:'action',sortable:false}
+  ];
+  thead.innerHTML = headers.map(function(h){
+    if (!h.sortable && h.field !== '_check') return '<th>' + h.label + '</th>';
+    if (h.field === '_check') return '<th class="select-all-cell">' + h.label + '</th>';
+    var arrow = '';
+    if (marketSort.field === h.field) arrow = marketSort.asc ? ' ↑' : ' ↓';
+    return '<th onclick="sortMarketVehicles(\'' + h.field + '\')" style="cursor:pointer;user-select:none;">' + h.label + arrow + '</th>';
+  }).join('');
+}
+
+function sortMarketVehicles(field) {
+  if(marketSort.field === field) marketSort.asc = !marketSort.asc;
+  else { marketSort.field = field; marketSort.asc = true; }
+  updateMarketTableHeader();
+  if(currentMarketSub === 'used') {
+    var catId = currentSubCategory || 'all';
+    switchSubCategory(catId);
+  } else {
+    renderFilteredMarketVehicles(
+      currentMarketSub === 'local' ? MARKET_TYPES.LOCAL_DEALER : MARKET_TYPES.OVERSEAS,
+      currentMarketSub
+    );
+  }
+}
+
+function applyMarketSort(vehicles, priceField) {
+  var arr = vehicles.slice();
+  arr.sort(function(a, b){
+    var va, vb;
+    switch(marketSort.field) {
+      case 'price': va = a[priceField] || 0; vb = b[priceField] || 0; break;
+      case 'rate': va = getEffectiveDailyRate(a); vb = getEffectiveDailyRate(b); break;
+      case 'name': va = (a.brand || '') + ' ' + (a.model || ''); vb = (b.brand || '') + ' ' + (b.model || ''); break;
+      case 'type': va = a.type || ''; vb = b.type || ''; break;
+      case 'residual': va = a.residualValue || 0; vb = b.residualValue || 0; break;
+      default: va = a[priceField] || 0; vb = b[priceField] || 0;
+    }
+    if(va < vb) return marketSort.asc ? -1 : 1;
+    if(va > vb) return marketSort.asc ? 1 : -1;
+    return 0;
+  });
+  return arr;
+}
+
 function openFleetModal() {
   document.getElementById('fleetModal').classList.add('active');
   updateVehicleCounts();
@@ -139,6 +197,7 @@ function switchTab(tab) {
   var marketSubTabs = document.getElementById('marketSubTabs');
 
   if (tab === 'myvehicles') {
+    clearBatchSelection();
     infoBar.style.display = 'none';
     if (marketSubTabs) marketSubTabs.style.display = 'none';
     updateTableHeader([
@@ -174,6 +233,8 @@ var currentSubCategory = 'all';
 function switchMarketSubTab(sub) {
   currentMarketSub = sub;
   currentSubCategory = 'all';
+  marketSort = { field: 'price', asc: true };
+  clearBatchSelection();
   document.querySelectorAll('.market-sub-tab').forEach(function(t){ t.classList.toggle('active', t.dataset.sub === sub); });
   var refreshBtn = document.getElementById('refreshUsedBtn');
   refreshBtn.style.display = sub === 'used' ? 'flex' : 'none';
@@ -183,7 +244,7 @@ function switchMarketSubTab(sub) {
     document.getElementById('deliveryTime').textContent = '⏱️ ' + market.deliveryTime;
   }
   renderSubCategoryBar(sub);
-  updateTableHeader(['车型信息','车牌','类型','保值率','采购价格','日租金','操作']);
+  updateMarketTableHeader();
   if (sub === 'local') renderFilteredMarketVehicles(MARKET_TYPES.LOCAL_DEALER, 'local');
   else if (sub === 'used') renderUsedCarMarket();
   else if (sub === 'overseas') renderFilteredMarketVehicles(MARKET_TYPES.OVERSEAS, 'overseas');
@@ -250,20 +311,24 @@ function renderFilteredMarketVehicles(marketType, marketKey) {
       }
     }
   }
+  vehicles = applyMarketSort(vehicles, 'purchasePrice');
   renderMarketVehicles(vehicles, marketKey);
 }
 
 function renderMarketVehicles(vehicles, marketType) {
   var tbody = document.getElementById('vehicleTableBody');
-  tbody.innerHTML = '';
+  var ownedOutlets = gameState.outlets.filter(function(o){ return o.owned; });
+  var hasCapacity = ownedOutlets.some(function(o){ return getVehiclesAtOutlet(o.id).length < getOutletCapacity(o.id); });
+  var fragment = document.createDocumentFragment();
   vehicles.forEach(function(v){
     var fuelInfo = getFuelTypeInfo(v.fuelType);
     var typeInfo = getVehicleTypeInfo(v.type);
     var residualInfo = getResidualValueInfo(v.residualValue);
     var canAfford = gameState.cash >= v.purchasePrice;
-    var hasCapacity = gameState.outlets.filter(function(o){ return o.owned; }).some(function(o){ return getVehiclesAtOutlet(o.id).length < getOutletCapacity(o.id); });
+    var isChecked = selectedVehicles.has(v.id);
     var row = document.createElement('tr');
     row.innerHTML =
+      '<td class="select-all-cell"><input type="checkbox" class="veh-checkbox" data-vid="' + v.id + '" data-price="' + v.purchasePrice + '" data-mtype="' + marketType + '"' + (isChecked ? ' checked' : '') + ' onchange="toggleVehicleSelection(\'' + v.id + '\',' + v.purchasePrice + ',\'' + marketType + '\',this.checked)"></td>' +
       '<td><div class="vehicle-info"><span class="vehicle-name">' + v.brand + ' ' + v.model + '</span><span class="vehicle-brand">' + v.year + '款 · ' + v.fuelConsumption + (v.fuelType === FUEL_TYPES.ELECTRIC ? 'kWh' : 'L') + '/100km</span></div></td>' +
       '<td><span style="color:#94a3b8;font-size:11px;">购买后生成</span></td>' +
       '<td><span class="tag tag-type">' + typeInfo.text + '</span> <span class="tag tag-fuel">' + fuelInfo.icon + ' ' + fuelInfo.text + '</span>' + (v.isExclusive ? ' <span class="tag tag-exclusive">⭐ 独家</span>' : '') + '</td>' +
@@ -271,8 +336,10 @@ function renderMarketVehicles(vehicles, marketType) {
       '<td><span class="price">' + formatCurrency(v.purchasePrice) + '</span></td>' +
       '<td><span class="daily-rate">' + formatCurrency(getEffectiveDailyRate(v)) + '/天</span></td>' +
       '<td>' + renderBuyButton(v.id, v.purchasePrice, marketType, canAfford, hasCapacity) + '</td>';
-    tbody.appendChild(row);
+    fragment.appendChild(row);
   });
+  tbody.innerHTML = '';
+  tbody.appendChild(fragment);
 }
 
 function renderBuyButton(vehicleId, price, marketType, canAfford, hasCapacity) {
@@ -293,22 +360,26 @@ function renderUsedCarMarket(filteredList) {
   var tbody = document.getElementById('vehicleTableBody');
   var vehicles = filteredList || gameState.usedCarMarketList;
   if (vehicles.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">🚗</div><div class="text">' + (filteredList ? '该分类下暂无二手车' : '点击「刷新市场」浏览二手车') + '</div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="8"><div class="empty-state"><div class="icon">🚗</div><div class="text">' + (filteredList ? '该分类下暂无二手车' : '点击「刷新市场」浏览二手车') + '</div></div></td></tr>';
     return;
   }
-  tbody.innerHTML = '';
+  vehicles = applyMarketSort(vehicles.slice(), 'estimatedValue');
+  var ownedOutlets = gameState.outlets.filter(function(o){ return o.owned; });
+  var hasCapacity = ownedOutlets.some(function(o){ return getVehiclesAtOutlet(o.id).length < getOutletCapacity(o.id); });
+  var fragment = document.createDocumentFragment();
   vehicles.forEach(function(v){
     var fuelInfo = getFuelTypeInfo(v.fuelType);
     var typeInfo = getVehicleTypeInfo(v.type);
     var residualInfo = getResidualValueInfo(v.residualValue);
     var canAfford = gameState.cash >= v.estimatedValue;
-    var hasCapacity = gameState.outlets.filter(function(o){ return o.owned; }).some(function(o){ return getVehiclesAtOutlet(o.id).length < getOutletCapacity(o.id); });
     var cc = 'condition-good';
     if (v.condition === CONDITION_LEVELS.EXCELLENT) cc = 'condition-excellent';
     else if (v.condition === CONDITION_LEVELS.AVERAGE) cc = 'condition-average';
     else if (v.condition === CONDITION_LEVELS.POOR) cc = 'condition-poor';
+    var isChecked = selectedVehicles.has(v.id);
     var row = document.createElement('tr');
     row.innerHTML =
+      '<td class="select-all-cell"><input type="checkbox" class="veh-checkbox" data-vid="' + v.id + '" data-price="' + v.estimatedValue + '" data-mtype="used"' + (isChecked ? ' checked' : '') + ' onchange="toggleVehicleSelection(\'' + v.id + '\',' + v.estimatedValue + ',\'used\',this.checked)"></td>' +
       '<td><div class="vehicle-info"><span class="vehicle-name">' + v.brand + ' ' + v.model + '</span><span class="vehicle-brand">' + v.year + '款 · ' + v.mileage.toLocaleString() + 'km · ' + v.age + '年车龄</span></div></td>' +
       '<td><span class="license-plate">' + v.licensePlate + '</span></td>' +
       '<td><span class="tag tag-type">' + typeInfo.text + '</span> <span class="tag tag-fuel">' + fuelInfo.icon + ' ' + fuelInfo.text + '</span> <span class="tag tag-used">二手</span> <span class="condition-tag ' + cc + '">' + v.condition + '</span></td>' +
@@ -316,8 +387,10 @@ function renderUsedCarMarket(filteredList) {
       '<td><span class="price">' + formatCurrency(v.estimatedValue) + '</span></td>' +
       '<td><span class="daily-rate">' + formatCurrency(getEffectiveDailyRate(v)) + '/天</span></td>' +
       '<td>' + renderBuyButton(v.id, v.estimatedValue, 'used', canAfford, hasCapacity) + '</td>';
-    tbody.appendChild(row);
+    fragment.appendChild(row);
   });
+  tbody.innerHTML = '';
+  tbody.appendChild(fragment);
 }
 
 function refreshUsedCarMarket() {
@@ -328,6 +401,114 @@ function refreshUsedCarMarket() {
   saveGame();
 }
 
+function toggleVehicleSelection(vid, price, marketType, checked) {
+  if (checked) selectedVehicles.add(vid);
+  else selectedVehicles.delete(vid);
+  updateBatchBar();
+}
+function toggleSelectAll(checked) {
+  var checkboxes = document.querySelectorAll('#vehicleTableBody .veh-checkbox');
+  checkboxes.forEach(function(cb){
+    var vid = cb.dataset.vid;
+    if (checked) selectedVehicles.add(vid);
+    else selectedVehicles.delete(vid);
+    cb.checked = checked;
+  });
+  updateBatchBar();
+}
+function updateBatchBar() {
+  var bar = document.getElementById('batchBar');
+  if (!bar) return;
+  if (selectedVehicles.size === 0 || currentTab !== 'market') {
+    bar.classList.remove('show');
+    return;
+  }
+  bar.classList.add('show');
+  document.getElementById('batchCount').textContent = selectedVehicles.size;
+  var total = 0;
+  document.querySelectorAll('#vehicleTableBody .veh-checkbox:checked').forEach(function(cb){
+    total += parseInt(cb.dataset.price) || 0;
+  });
+  document.getElementById('batchTotal').textContent = formatCurrency(total);
+  var selectEl = document.getElementById('batchOutletSelect');
+  var ownedOutlets = gameState.outlets.filter(function(o){ return o.owned; });
+  if (selectEl.children.length === 0 || parseInt(selectEl.dataset.outletCount || 0) !== ownedOutlets.length) {
+    selectEl.innerHTML = '';
+    ownedOutlets.forEach(function(o){
+      var cfg = OUTLET_CONFIGS[o.id];
+      var count = getVehiclesAtOutlet(o.id).length;
+      var cap = getOutletCapacity(o.id);
+      var opt = document.createElement('option');
+      opt.value = o.id;
+      opt.textContent = cfg.name + ' (' + count + '/' + cap + ')';
+      selectEl.appendChild(opt);
+    });
+    selectEl.dataset.outletCount = ownedOutlets.length;
+  }
+  var buyBtn = document.getElementById('batchBuyBtn');
+  buyBtn.disabled = (ownedOutlets.length === 0 || gameState.cash < total);
+  var saEl = document.getElementById('selectAllCheckbox');
+  if (saEl) {
+    var allCb = document.querySelectorAll('#vehicleTableBody .veh-checkbox');
+    var checkedCb = document.querySelectorAll('#vehicleTableBody .veh-checkbox:checked');
+    saEl.checked = allCb.length > 0 && allCb.length === checkedCb.length;
+    saEl.indeterminate = checkedCb.length > 0 && checkedCb.length < allCb.length;
+  }
+}
+function executeBatchBuy() {
+  if (selectedVehicles.size === 0) return;
+  var outletId = parseInt(document.getElementById('batchOutletSelect').value);
+  var outletState = getOutletState(outletId);
+  if (!outletState || !outletState.owned) { showToast('请选择有效的交付网点', 'error'); return; }
+  var capacity = getOutletCapacity(outletId);
+  var currentAtOutlet = getVehiclesAtOutlet(outletId).length;
+  var toBuy = [];
+  var totalPrice = 0;
+  selectedVehicles.forEach(function(vid){
+    var cb = document.querySelector('.veh-checkbox[data-vid="' + vid + '"]');
+    if (!cb) return;
+    var price = parseInt(cb.dataset.price) || 0;
+    var mtype = cb.dataset.mtype || 'local';
+    var vehicle = null;
+    if (mtype === 'used') vehicle = gameState.usedCarMarketList.find(function(v){ return v.id === vid; });
+    else vehicle = getVehicleById(vid);
+    if (!vehicle) return;
+    toBuy.push({vehicle:vehicle, price:price, marketType:mtype});
+    totalPrice += price;
+  });
+  if (toBuy.length === 0) { showToast('没有可购买的车辆', 'error'); return; }
+  if (gameState.cash < totalPrice) { showToast('资金不足！需要 ' + formatCurrency(totalPrice), 'error'); return; }
+  var availableSlots = capacity - currentAtOutlet;
+  if (toBuy.length > availableSlots) { showToast(OUTLET_CONFIGS[outletId].name + '车位不足！只能再停 ' + availableSlots + ' 辆', 'error'); return; }
+  gameState.cash -= totalPrice;
+  var boughtCount = 0;
+  toBuy.forEach(function(item){
+    var v = item.vehicle;
+    var plate = v.isNew ? generateLicensePlate() : (v.licensePlate || generateLicensePlate());
+    var ownedVehicle = Object.assign({}, v, { licensePlate: plate, outletId: outletId, purchasePrice: item.price, purchaseDay: gameState.currentDay, rentedUntil: 0 });
+    delete ownedVehicle.market;
+    gameState.ownedVehicles.push(ownedVehicle);
+    if (item.marketType === 'used') {
+      gameState.usedCarMarketList = gameState.usedCarMarketList.filter(function(cv){ return cv.id !== v.id; });
+    }
+    boughtCount++;
+  });
+  addMessage('🛒 批量购入 ' + boughtCount + ' 辆车 → ' + OUTLET_CONFIGS[outletId].name + '，总花费 ' + formatCurrency(totalPrice), 'good');
+  selectedVehicles.clear();
+  var bar = document.getElementById('batchBar');
+  if (bar) bar.classList.remove('show');
+  updateUI(); updateVehicleCounts();
+  switchTab(currentTab);
+  showToast('成功批量购买 ' + boughtCount + ' 辆车！', 'success');
+}
+function clearBatchSelection() {
+  selectedVehicles.clear();
+  var bar = document.getElementById('batchBar');
+  if (bar) bar.classList.remove('show');
+  document.querySelectorAll('#vehicleTableBody .veh-checkbox').forEach(function(cb){ cb.checked = false; });
+  var saEl = document.getElementById('selectAllCheckbox');
+  if (saEl) { saEl.checked = false; saEl.indeterminate = false; }
+}
 function renderMyFleet() {
   var tbody = document.getElementById('vehicleTableBody');
   if (gameState.ownedVehicles.length === 0) {
@@ -353,7 +534,8 @@ function renderMyFleet() {
     return 0;
   });
 
-  tbody.innerHTML = '';
+  var ownedOutlets = gameState.outlets.filter(function(o){ return o.owned; });
+  var fragment = document.createDocumentFragment();
   sorted.forEach(function(v){
     var fuelInfo = getFuelTypeInfo(v.fuelType);
     var typeInfo = getVehicleTypeInfo(v.type);
@@ -376,7 +558,7 @@ function renderMyFleet() {
       outletLabel = outletCfg ? outletCfg.name : '未知';
     }
 
-    var canDispatch = !inTransit && !(v.rentedUntil && v.rentedUntil >= gameState.currentDay) && gameState.outlets.filter(function(o){ return o.owned && o.id !== v.outletId; }).length > 0;
+    var canDispatch = !inTransit && !(v.rentedUntil && v.rentedUntil >= gameState.currentDay) && ownedOutlets.some(function(o){ return o.id !== v.outletId; });
 
     var row = document.createElement('tr');
     row.innerHTML =
@@ -387,8 +569,10 @@ function renderMyFleet() {
       '<td>' + statusHtml + '</td>' +
       '<td><span class="daily-rate">' + formatCurrency(getEffectiveDailyRate(v)) + '/天</span><br><span style="font-size:10px;color:#94a3b8;">倍率 ' + getRateMultiplier(v.type).toFixed(1) + 'x</span></td>' +
       '<td><button class="action-btn btn-sell" onclick="sellVehicle(\'' + v.id + '\')" style="margin-bottom:4px;">出售 ' + formatCurrency(sellPrice) + '</button>' + (canDispatch ? '<button class="action-btn btn-dispatch" onclick="openDispatchModal(\'' + v.id + '\')">调度</button>' : '') + '</td>';
-    tbody.appendChild(row);
+    fragment.appendChild(row);
   });
+  tbody.innerHTML = '';
+  tbody.appendChild(fragment);
 }
 
 function sortMyFleet(field) {
@@ -586,11 +770,12 @@ function renderOrders() {
     return;
   }
   wrapper.innerHTML = '';
+  var fragment = document.createDocumentFragment();
   var headerBar = document.createElement('div');
   headerBar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:8px 12px;background:rgba(241,245,249,1);border-radius:8px;border:1px solid rgba(226,232,240,1);';
   headerBar.innerHTML = '<span style="font-size:13px;font-weight:700;color:#1e293b;">待处理订单 <span style="color:#2563eb;">' + gameState.pendingOrders.length + '</span> 条</span>' +
     '<button style="padding:7px 18px;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#059669,#10b981);color:#fff;box-shadow:0 2px 8px rgba(5,150,105,0.25);" onclick="acceptAllOrders()">✅ 一键全部接单</button>';
-  wrapper.appendChild(headerBar);
+  fragment.appendChild(headerBar);
   gameState.pendingOrders.forEach(function(order){
     var typeIcon = order.customerType === 'business' ? '💼' : '🏖️';
     var typeClass = order.customerType === 'business' ? 'business' : 'tourist';
@@ -605,8 +790,9 @@ function renderOrders() {
       '<div class="order-top"><div class="order-customer"><div class="order-avatar ' + typeClass + '">' + typeIcon + '</div><div class="order-customer-info"><span class="order-customer-name">' + order.customerName + eggBadge + '</span><span class="order-customer-type">' + typeLabel + ' · ' + order.outletName + '</span></div></div><span class="order-price">' + formatCurrency(order.totalIncome) + (isEgg ? '<br><span style="font-size:9px;color:#f59e0b;">×' + (order.eggBonus || 1) + ' 奖励</span>' : '') + '</span></div>' +
       '<div class="order-details"><div class="order-detail-item"><div class="order-detail-label">租用车型</div><div class="order-detail-value">' + order.vehicleName + '</div></div><div class="order-detail-item"><div class="order-detail-label">租期</div><div class="order-detail-value">' + order.rentalDays + ' 天</div></div><div class="order-detail-item"><div class="order-detail-label">净利润</div><div class="order-detail-value ' + netClass + '">' + formatCurrency(order.netIncome) + '</div></div></div>' +
       '<div class="order-actions"><button class="action-btn btn-accept" onclick="acceptOrder(\'' + order.id + '\')">✓ 接单</button><button class="action-btn btn-reject" onclick="rejectOrder(\'' + order.id + '\')">✕ 拒绝</button></div>';
-    wrapper.appendChild(card);
+    fragment.appendChild(card);
   });
+  wrapper.appendChild(fragment);
 }
 
 function acceptAllOrders() {
@@ -2105,9 +2291,15 @@ function doApplyLoan() {
   var amount=parseInt(document.getElementById('loanAmount').value)||0;
   var term=parseInt(document.getElementById('loanTerm').value)||30;
   if(amount<10000){showToast('最低贷款$10,000','error');return;}
-  if(typeof applyLoan==='function')applyLoan(amount,term);
-  showToast('贷款申请成功','success');
-  updateUI();saveGame();renderFinanceModal();
+  if(typeof applyLoan==='function'){
+    var result = applyLoan(amount,term);
+    if(!result || !result.success){
+      showToast(result && result.message ? result.message : '贷款申请失败','error');
+      return;
+    }
+    showToast('贷款申请成功：'+formatCurrency(amount)+'，期限'+term+'天','success');
+    updateUI();saveGame();renderFinanceModal();
+  }
 }
 function doRepayLoan(loanId) {
   if(typeof repayLoan==='function')repayLoan(loanId,Infinity);

@@ -150,51 +150,253 @@ function generateLicensePlate() {
 }
 
 function generateUsedCarListing(count) {
-  const usedBrands = [
-    { brand:'丰田',models:['凯美瑞','RAV4荣放','汉兰达','卡罗拉','亚洲龙'],types:[VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV,VEHICLE_TYPES.SUV,VEHICLE_TYPES.COMPACT,VEHICLE_TYPES.SEDAN],prices:[220000,250000,320000,140000,230000],rates:[280,320,420,180,300] },
-    { brand:'本田',models:['CR-V','雅阁','思域','奥德赛','缤智'],types:[VEHICLE_TYPES.SUV,VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.COMPACT,VEHICLE_TYPES.MPV,VEHICLE_TYPES.SUV],prices:[240000,230000,160000,300000,180000],rates:[320,300,200,380,220] },
-    { brand:'宝马',models:['3系','5系','X3','X1','1系'],types:[VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV,VEHICLE_TYPES.SUV,VEHICLE_TYPES.COMPACT],prices:[380000,520000,480000,300000,250000],rates:[480,600,550,380,280] },
-    { brand:'奔驰',models:['C级','E级','GLC','A级','GLA'],types:[VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV,VEHICLE_TYPES.COMPACT,VEHICLE_TYPES.SUV],prices:[360000,550000,450000,260000,300000],rates:[500,650,520,280,320] },
-    { brand:'奥迪',models:['A4L','A6L','Q5L','A3','Q3'],types:[VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV,VEHICLE_TYPES.COMPACT,VEHICLE_TYPES.SUV],prices:[360000,500000,450000,240000,280000],rates:[420,580,500,240,300] },
-    { brand:'特斯拉',models:['Model 3','Model Y','Model S','Model X'],types:[VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV,VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV],prices:[280000,320000,800000,900000],rates:[380,420,1200,1400] },
-    { brand:'大众',models:['帕萨特','途观L','迈腾','高尔夫','探岳'],types:[VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV,VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.COMPACT,VEHICLE_TYPES.SUV],prices:[240000,260000,230000,180000,250000],rates:[300,340,290,200,320] },
-    { brand:'比亚迪',models:['汉EV','唐EV','秦PLUS DM-i','宋PLUS DM-i','海豹'],types:[VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV,VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV,VEHICLE_TYPES.SEDAN],prices:[240000,280000,120000,180000,230000],rates:[320,380,180,260,300] },
-    { brand:'蔚来',models:['ET5','ES6','ET7','ES8'],types:[VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV,VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV],prices:[320000,380000,480000,520000],rates:[400,450,550,600] },
-    { brand:'理想',models:['L7','L9','ONE','L8'],types:[VEHICLE_TYPES.SUV,VEHICLE_TYPES.SUV,VEHICLE_TYPES.SUV,VEHICLE_TYPES.SUV],prices:[350000,520000,340000,420000],rates:[420,550,380,480] },
-    { brand:'小鹏',models:['P7','G6','G9','P5'],types:[VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV,VEHICLE_TYPES.SUV,VEHICLE_TYPES.SEDAN],prices:[250000,260000,320000,200000],rates:[300,320,380,240] },
-    { brand:'雷克萨斯',models:['ES200','RX300','NX250','LS500h'],types:[VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV,VEHICLE_TYPES.SUV,VEHICLE_TYPES.LUXURY],prices:[360000,480000,380000,1200000],rates:[480,550,450,1200] },
-    { brand:'沃尔沃',models:['S60','XC60','S90','XC90'],types:[VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV,VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV],prices:[300000,400000,450000,600000],rates:[380,450,500,600] },
-    { brand:'凯迪拉克',models:['CT5','XT5','CT6','XT4'],types:[VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV,VEHICLE_TYPES.SEDAN,VEHICLE_TYPES.SUV],prices:[280000,360000,400000,260000],rates:[350,400,450,300] }
+  const vehiclePool = [
+    { brand:'丰田', model:'凯美瑞', type:VEHICLE_TYPES.SEDAN, price:220000, rate:280, fuel:FUEL_TYPES.HYBRID, fc:4.5, weight:10 },
+    { brand:'丰田', model:'RAV4荣放', type:VEHICLE_TYPES.SUV, price:250000, rate:320, fuel:FUEL_TYPES.HYBRID, fc:5.0, weight:10 },
+    { brand:'丰田', model:'汉兰达', type:VEHICLE_TYPES.LARGE_SUV, price:320000, rate:420, fuel:FUEL_TYPES.HYBRID, fc:5.3, weight:10 },
+    { brand:'丰田', model:'卡罗拉', type:VEHICLE_TYPES.COMPACT, price:140000, rate:180, fuel:FUEL_TYPES.GASOLINE, fc:5.9, weight:10 },
+    { brand:'丰田', model:'亚洲龙', type:VEHICLE_TYPES.SEDAN, price:230000, rate:300, fuel:FUEL_TYPES.HYBRID, fc:4.6, weight:10 },
+    { brand:'丰田', model:'普拉多', type:VEHICLE_TYPES.LARGE_SUV, price:520000, rate:680, fuel:FUEL_TYPES.GASOLINE, fc:10.8, weight:8 },
+    { brand:'丰田', model:'皇冠SportCross', type:VEHICLE_TYPES.SEDAN, price:360000, rate:480, fuel:FUEL_TYPES.HYBRID, fc:4.8, weight:7 },
+    { brand:'丰田', model:'Supra 3.0T', type:VEHICLE_TYPES.SPORTS, price:620000, rate:900, fuel:FUEL_TYPES.GASOLINE, fc:9.5, weight:3 },
+    { brand:'丰田', model:'GR86 2.4L', type:VEHICLE_TYPES.SPORTS, price:340000, rate:520, fuel:FUEL_TYPES.GASOLINE, fc:9.2, weight:3 },
+    { brand:'本田', model:'CR-V', type:VEHICLE_TYPES.SUV, price:240000, rate:320, fuel:FUEL_TYPES.GASOLINE, fc:7.3, weight:10 },
+    { brand:'本田', model:'雅阁', type:VEHICLE_TYPES.SEDAN, price:230000, rate:300, fuel:FUEL_TYPES.GASOLINE, fc:6.8, weight:10 },
+    { brand:'本田', model:'思域', type:VEHICLE_TYPES.COMPACT, price:160000, rate:220, fuel:FUEL_TYPES.GASOLINE, fc:6.5, weight:10 },
+    { brand:'本田', model:'奥德赛', type:VEHICLE_TYPES.MPV, price:300000, rate:380, fuel:FUEL_TYPES.HYBRID, fc:5.8, weight:8 },
+    { brand:'本田', model:'缤智', type:VEHICLE_TYPES.MINI_SUV, price:180000, rate:240, fuel:FUEL_TYPES.GASOLINE, fc:6.8, weight:8 },
+    { brand:'本田', model:'ZR-V致在', type:VEHICLE_TYPES.MINI_SUV, price:180000, rate:240, fuel:FUEL_TYPES.GASOLINE, fc:7.1, weight:7 },
+    { brand:'本田', model:'Type R', type:VEHICLE_TYPES.SPORTS, price:720000, rate:1000, fuel:FUEL_TYPES.GASOLINE, fc:9.5, weight:2 },
+    { brand:'本田', model:'S2000', type:VEHICLE_TYPES.CONVERTIBLE, price:550000, rate:750, fuel:FUEL_TYPES.GASOLINE, fc:10.0, weight:1 },
+    { brand:'宝马', model:'3系', type:VEHICLE_TYPES.SEDAN, price:380000, rate:480, fuel:FUEL_TYPES.GASOLINE, fc:7.8, weight:10 },
+    { brand:'宝马', model:'5系', type:VEHICLE_TYPES.SEDAN, price:520000, rate:650, fuel:FUEL_TYPES.GASOLINE, fc:8.5, weight:10 },
+    { brand:'宝马', model:'X3', type:VEHICLE_TYPES.SUV, price:480000, rate:580, fuel:FUEL_TYPES.GASOLINE, fc:8.6, weight:10 },
+    { brand:'宝马', model:'X1', type:VEHICLE_TYPES.MINI_SUV, price:300000, rate:380, fuel:FUEL_TYPES.GASOLINE, fc:7.2, weight:8 },
+    { brand:'宝马', model:'X5', type:VEHICLE_TYPES.LARGE_SUV, price:720000, rate:880, fuel:FUEL_TYPES.GASOLINE, fc:9.5, weight:8 },
+    { brand:'宝马', model:'1系', type:VEHICLE_TYPES.COMPACT, price:250000, rate:300, fuel:FUEL_TYPES.GASOLINE, fc:6.8, weight:7 },
+    { brand:'宝马', model:'4系', type:VEHICLE_TYPES.COUPE, price:420000, rate:550, fuel:FUEL_TYPES.GASOLINE, fc:8.0, weight:5 },
+    { brand:'宝马', model:'Z4', type:VEHICLE_TYPES.CONVERTIBLE, price:530000, rate:700, fuel:FUEL_TYPES.GASOLINE, fc:8.5, weight:3 },
+    { brand:'宝马', model:'3系旅行版', type:VEHICLE_TYPES.WAGON, price:420000, rate:520, fuel:FUEL_TYPES.GASOLINE, fc:7.9, weight:4 },
+    { brand:'奔驰', model:'C级', type:VEHICLE_TYPES.SEDAN, price:360000, rate:480, fuel:FUEL_TYPES.GASOLINE, fc:7.2, weight:10 },
+    { brand:'奔驰', model:'E级', type:VEHICLE_TYPES.SEDAN, price:550000, rate:700, fuel:FUEL_TYPES.GASOLINE, fc:8.2, weight:10 },
+    { brand:'奔驰', model:'GLC', type:VEHICLE_TYPES.SUV, price:450000, rate:550, fuel:FUEL_TYPES.GASOLINE, fc:8.8, weight:10 },
+    { brand:'奔驰', model:'A级', type:VEHICLE_TYPES.COMPACT, price:260000, rate:320, fuel:FUEL_TYPES.GASOLINE, fc:6.5, weight:8 },
+    { brand:'奔驰', model:'GLA', type:VEHICLE_TYPES.MINI_SUV, price:300000, rate:360, fuel:FUEL_TYPES.GASOLINE, fc:7.3, weight:7 },
+    { brand:'奔驰', model:'GLE', type:VEHICLE_TYPES.LARGE_SUV, price:850000, rate:1000, fuel:FUEL_TYPES.GASOLINE, fc:10.0, weight:7 },
+    { brand:'奔驰', model:'CLE轿跑', type:VEHICLE_TYPES.COUPE, price:500000, rate:650, fuel:FUEL_TYPES.GASOLINE, fc:8.3, weight:4 },
+    { brand:'奥迪', model:'A4L', type:VEHICLE_TYPES.SEDAN, price:360000, rate:450, fuel:FUEL_TYPES.GASOLINE, fc:7.5, weight:10 },
+    { brand:'奥迪', model:'A6L', type:VEHICLE_TYPES.SEDAN, price:500000, rate:620, fuel:FUEL_TYPES.GASOLINE, fc:8.2, weight:10 },
+    { brand:'奥迪', model:'Q5L', type:VEHICLE_TYPES.SUV, price:450000, rate:540, fuel:FUEL_TYPES.GASOLINE, fc:8.5, weight:10 },
+    { brand:'奥迪', model:'A3', type:VEHICLE_TYPES.COMPACT, price:240000, rate:280, fuel:FUEL_TYPES.GASOLINE, fc:6.6, weight:8 },
+    { brand:'奥迪', model:'Q3', type:VEHICLE_TYPES.MINI_SUV, price:280000, rate:340, fuel:FUEL_TYPES.GASOLINE, fc:7.4, weight:7 },
+    { brand:'奥迪', model:'Q7', type:VEHICLE_TYPES.LARGE_SUV, price:750000, rate:900, fuel:FUEL_TYPES.GASOLINE, fc:9.8, weight:6 },
+    { brand:'奥迪', model:'A5 Sportback', type:VEHICLE_TYPES.COUPE, price:430000, rate:540, fuel:FUEL_TYPES.GASOLINE, fc:7.8, weight:4 },
+    { brand:'奥迪', model:'A6 Avant', type:VEHICLE_TYPES.WAGON, price:520000, rate:640, fuel:FUEL_TYPES.GASOLINE, fc:8.0, weight:3 },
+    { brand:'特斯拉', model:'Model 3', type:VEHICLE_TYPES.SEDAN, price:280000, rate:380, fuel:FUEL_TYPES.ELECTRIC, fc:12.0, weight:10 },
+    { brand:'特斯拉', model:'Model Y', type:VEHICLE_TYPES.SUV, price:320000, rate:440, fuel:FUEL_TYPES.ELECTRIC, fc:13.0, weight:10 },
+    { brand:'特斯拉', model:'Model S', type:VEHICLE_TYPES.SEDAN, price:800000, rate:1100, fuel:FUEL_TYPES.ELECTRIC, fc:17.0, weight:6 },
+    { brand:'特斯拉', model:'Model X', type:VEHICLE_TYPES.LARGE_SUV, price:900000, rate:1250, fuel:FUEL_TYPES.ELECTRIC, fc:18.0, weight:5 },
+    { brand:'特斯拉', model:'Cybertruck', type:VEHICLE_TYPES.PICKUP, price:600000, rate:800, fuel:FUEL_TYPES.ELECTRIC, fc:21.0, weight:1 },
+    { brand:'大众', model:'帕萨特', type:VEHICLE_TYPES.SEDAN, price:240000, rate:310, fuel:FUEL_TYPES.GASOLINE, fc:6.8, weight:10 },
+    { brand:'大众', model:'途观L', type:VEHICLE_TYPES.SUV, price:260000, rate:340, fuel:FUEL_TYPES.GASOLINE, fc:7.0, weight:10 },
+    { brand:'大众', model:'迈腾', type:VEHICLE_TYPES.SEDAN, price:230000, rate:300, fuel:FUEL_TYPES.GASOLINE, fc:7.0, weight:9 },
+    { brand:'大众', model:'高尔夫', type:VEHICLE_TYPES.HATCHBACK, price:160000, rate:210, fuel:FUEL_TYPES.GASOLINE, fc:6.2, weight:8 },
+    { brand:'大众', model:'探岳', type:VEHICLE_TYPES.SUV, price:240000, rate:320, fuel:FUEL_TYPES.GASOLINE, fc:7.0, weight:8 },
+    { brand:'大众', model:'ID.3', type:VEHICLE_TYPES.HATCHBACK, price:140000, rate:200, fuel:FUEL_TYPES.ELECTRIC, fc:12.5, weight:7 },
+    { brand:'大众', model:'ID.4 CROZZ', type:VEHICLE_TYPES.SUV, price:230000, rate:320, fuel:FUEL_TYPES.ELECTRIC, fc:14.5, weight:7 },
+    { brand:'大众', model:'ID.7', type:VEHICLE_TYPES.SEDAN, price:250000, rate:340, fuel:FUEL_TYPES.ELECTRIC, fc:13.5, weight:6 },
+    { brand:'大众', model:'探岳X', type:VEHICLE_TYPES.COUPE, price:260000, rate:350, fuel:FUEL_TYPES.GASOLINE, fc:7.8, weight:5 },
+    { brand:'大众', model:'威然', type:VEHICLE_TYPES.VAN, price:320000, rate:420, fuel:FUEL_TYPES.GASOLINE, fc:8.2, weight:5 },
+    { brand:'比亚迪', model:'汉EV', type:VEHICLE_TYPES.SEDAN, price:240000, rate:320, fuel:FUEL_TYPES.ELECTRIC, fc:13.0, weight:10 },
+    { brand:'比亚迪', model:'唐EV', type:VEHICLE_TYPES.SUV, price:280000, rate:380, fuel:FUEL_TYPES.ELECTRIC, fc:15.0, weight:10 },
+    { brand:'比亚迪', model:'秦PLUS DM-i', type:VEHICLE_TYPES.SEDAN, price:120000, rate:170, fuel:FUEL_TYPES.PLUGIN_HYBRID, fc:3.8, weight:10 },
+    { brand:'比亚迪', model:'宋PLUS DM-i', type:VEHICLE_TYPES.SUV, price:170000, rate:240, fuel:FUEL_TYPES.PLUGIN_HYBRID, fc:4.2, weight:10 },
+    { brand:'比亚迪', model:'海豹', type:VEHICLE_TYPES.SEDAN, price:210000, rate:290, fuel:FUEL_TYPES.ELECTRIC, fc:13.5, weight:8 },
+    { brand:'比亚迪', model:'海鸥', type:VEHICLE_TYPES.HATCHBACK, price:80000, rate:120, fuel:FUEL_TYPES.ELECTRIC, fc:10.0, weight:8 },
+    { brand:'比亚迪', model:'宋Pro DM-i', type:VEHICLE_TYPES.MINI_SUV, price:140000, rate:190, fuel:FUEL_TYPES.PLUGIN_HYBRID, fc:4.0, weight:8 },
+    { brand:'蔚来', model:'ET5', type:VEHICLE_TYPES.SEDAN, price:320000, rate:420, fuel:FUEL_TYPES.ELECTRIC, fc:15.0, weight:8 },
+    { brand:'蔚来', model:'ES6', type:VEHICLE_TYPES.SUV, price:380000, rate:500, fuel:FUEL_TYPES.ELECTRIC, fc:17.0, weight:8 },
+    { brand:'蔚来', model:'ET7', type:VEHICLE_TYPES.SEDAN, price:480000, rate:620, fuel:FUEL_TYPES.ELECTRIC, fc:15.5, weight:6 },
+    { brand:'蔚来', model:'ES8', type:VEHICLE_TYPES.LARGE_SUV, price:520000, rate:680, fuel:FUEL_TYPES.ELECTRIC, fc:18.0, weight:6 },
+    { brand:'理想', model:'L7', type:VEHICLE_TYPES.SUV, price:350000, rate:460, fuel:FUEL_TYPES.RANGE_EXTENDER, fc:5.8, weight:8 },
+    { brand:'理想', model:'L9', type:VEHICLE_TYPES.LARGE_SUV, price:520000, rate:680, fuel:FUEL_TYPES.RANGE_EXTENDER, fc:6.5, weight:8 },
+    { brand:'理想', model:'L8', type:VEHICLE_TYPES.SUV, price:400000, rate:520, fuel:FUEL_TYPES.RANGE_EXTENDER, fc:6.0, weight:7 },
+    { brand:'理想', model:'MEGA', type:VEHICLE_TYPES.MPV_LARGE, price:580000, rate:720, fuel:FUEL_TYPES.RANGE_EXTENDER, fc:7.0, weight:5 },
+    { brand:'小鹏', model:'P7', type:VEHICLE_TYPES.SEDAN, price:250000, rate:330, fuel:FUEL_TYPES.ELECTRIC, fc:14.0, weight:8 },
+    { brand:'小鹏', model:'G6', type:VEHICLE_TYPES.SUV, price:250000, rate:330, fuel:FUEL_TYPES.ELECTRIC, fc:14.0, weight:7 },
+    { brand:'小鹏', model:'G9', type:VEHICLE_TYPES.SUV, price:320000, rate:420, fuel:FUEL_TYPES.ELECTRIC, fc:16.0, weight:7 },
+    { brand:'小鹏', model:'P5', type:VEHICLE_TYPES.SEDAN, price:180000, rate:240, fuel:FUEL_TYPES.ELECTRIC, fc:12.5, weight:6 },
+    { brand:'小鹏', model:'X9', type:VEHICLE_TYPES.MPV_LARGE, price:400000, rate:520, fuel:FUEL_TYPES.ELECTRIC, fc:16.5, weight:5 },
+    { brand:'雷克萨斯', model:'ES200', type:VEHICLE_TYPES.SEDAN, price:360000, rate:480, fuel:FUEL_TYPES.GASOLINE, fc:6.8, weight:7 },
+    { brand:'雷克萨斯', model:'RX300', type:VEHICLE_TYPES.SUV, price:480000, rate:600, fuel:FUEL_TYPES.GASOLINE, fc:8.5, weight:7 },
+    { brand:'雷克萨斯', model:'NX250', type:VEHICLE_TYPES.MINI_SUV, price:350000, rate:440, fuel:FUEL_TYPES.GASOLINE, fc:7.5, weight:6 },
+    { brand:'雷克萨斯', model:'LS500h', type:VEHICLE_TYPES.LUXURY, price:1200000, rate:1400, fuel:FUEL_TYPES.HYBRID, fc:6.5, weight:3 },
+    { brand:'雷克萨斯', model:'LX600', type:VEHICLE_TYPES.LARGE_SUV, price:1680000, rate:1900, fuel:FUEL_TYPES.GASOLINE, fc:11.5, weight:2 },
+    { brand:'沃尔沃', model:'S60', type:VEHICLE_TYPES.SEDAN, price:300000, rate:390, fuel:FUEL_TYPES.GASOLINE, fc:7.0, weight:7 },
+    { brand:'沃尔沃', model:'XC60', type:VEHICLE_TYPES.SUV, price:400000, rate:500, fuel:FUEL_TYPES.GASOLINE, fc:8.0, weight:7 },
+    { brand:'沃尔沃', model:'S90', type:VEHICLE_TYPES.SEDAN, price:450000, rate:560, fuel:FUEL_TYPES.GASOLINE, fc:7.5, weight:6 },
+    { brand:'沃尔沃', model:'XC90', type:VEHICLE_TYPES.LARGE_SUV, price:600000, rate:750, fuel:FUEL_TYPES.GASOLINE, fc:9.0, weight:5 },
+    { brand:'沃尔沃', model:'V90', type:VEHICLE_TYPES.WAGON, price:480000, rate:600, fuel:FUEL_TYPES.GASOLINE, fc:7.8, weight:3 },
+    { brand:'凯迪拉克', model:'CT5', type:VEHICLE_TYPES.SEDAN, price:300000, rate:390, fuel:FUEL_TYPES.GASOLINE, fc:8.0, weight:7 },
+    { brand:'凯迪拉克', model:'XT5', type:VEHICLE_TYPES.SUV, price:360000, rate:460, fuel:FUEL_TYPES.GASOLINE, fc:8.5, weight:7 },
+    { brand:'凯迪拉克', model:'CT6', type:VEHICLE_TYPES.SEDAN, price:420000, rate:540, fuel:FUEL_TYPES.GASOLINE, fc:8.8, weight:5 },
+    { brand:'凯迪拉克', model:'XT4', type:VEHICLE_TYPES.MINI_SUV, price:280000, rate:350, fuel:FUEL_TYPES.GASOLINE, fc:7.8, weight:6 },
+    { brand:'凯迪拉克', model:'CT4', type:VEHICLE_TYPES.COUPE, price:260000, rate:340, fuel:FUEL_TYPES.GASOLINE, fc:7.6, weight:4 },
+    { brand:'保时捷', model:'Macan', type:VEHICLE_TYPES.SUV, price:620000, rate:800, fuel:FUEL_TYPES.GASOLINE, fc:9.5, weight:3 },
+    { brand:'保时捷', model:'Cayenne', type:VEHICLE_TYPES.LARGE_SUV, price:1050000, rate:1300, fuel:FUEL_TYPES.GASOLINE, fc:11.0, weight:3 },
+    { brand:'保时捷', model:'Panamera', type:VEHICLE_TYPES.LUXURY, price:1180000, rate:1500, fuel:FUEL_TYPES.HYBRID, fc:7.5, weight:3 },
+    { brand:'保时捷', model:'911', type:VEHICLE_TYPES.SPORTS, price:1480000, rate:1800, fuel:FUEL_TYPES.GASOLINE, fc:9.5, weight:2 },
+    { brand:'保时捷', model:'Taycan', type:VEHICLE_TYPES.SPORTS, price:1080000, rate:1350, fuel:FUEL_TYPES.ELECTRIC, fc:19.0, weight:2 },
+    { brand:'路虎', model:'揽胜极光', type:VEHICLE_TYPES.MINI_SUV, price:380000, rate:480, fuel:FUEL_TYPES.GASOLINE, fc:8.8, weight:3 },
+    { brand:'路虎', model:'揽胜运动版', type:VEHICLE_TYPES.SUV, price:950000, rate:1200, fuel:FUEL_TYPES.GASOLINE, fc:10.5, weight:3 },
+    { brand:'路虎', model:'揽胜', type:VEHICLE_TYPES.LARGE_SUV, price:1580000, rate:1950, fuel:FUEL_TYPES.GASOLINE, fc:12.0, weight:2 },
+    { brand:'路虎', model:'卫士', type:VEHICLE_TYPES.SUV, price:780000, rate:980, fuel:FUEL_TYPES.GASOLINE, fc:10.8, weight:3 },
+    { brand:'路虎', model:'发现', type:VEHICLE_TYPES.SUV, price:680000, rate:850, fuel:FUEL_TYPES.GASOLINE, fc:9.8, weight:3 },
+    { brand:'捷豹', model:'XEL', type:VEHICLE_TYPES.SEDAN, price:320000, rate:420, fuel:FUEL_TYPES.GASOLINE, fc:7.5, weight:3 },
+    { brand:'捷豹', model:'XFL', type:VEHICLE_TYPES.SEDAN, price:420000, rate:540, fuel:FUEL_TYPES.GASOLINE, fc:8.0, weight:3 },
+    { brand:'捷豹', model:'F-PACE', type:VEHICLE_TYPES.SUV, price:520000, rate:660, fuel:FUEL_TYPES.GASOLINE, fc:9.0, weight:3 },
+    { brand:'捷豹', model:'E-PACE', type:VEHICLE_TYPES.MINI_SUV, price:320000, rate:410, fuel:FUEL_TYPES.GASOLINE, fc:8.2, weight:2 },
+    { brand:'捷豹', model:'F-TYPE', type:VEHICLE_TYPES.SPORTS, price:620000, rate:800, fuel:FUEL_TYPES.GASOLINE, fc:9.8, weight:2 },
+    { brand:'英菲尼迪', model:'QX50', type:VEHICLE_TYPES.SUV, price:380000, rate:480, fuel:FUEL_TYPES.GASOLINE, fc:8.5, weight:3 },
+    { brand:'英菲尼迪', model:'Q50L', type:VEHICLE_TYPES.SEDAN, price:300000, rate:390, fuel:FUEL_TYPES.GASOLINE, fc:7.8, weight:3 },
+    { brand:'英菲尼迪', model:'QX60', type:VEHICLE_TYPES.LARGE_SUV, price:520000, rate:660, fuel:FUEL_TYPES.GASOLINE, fc:9.2, weight:2 },
+    { brand:'玛莎拉蒂', model:'Ghibli', type:VEHICLE_TYPES.LUXURY, price:880000, rate:1100, fuel:FUEL_TYPES.GASOLINE, fc:10.5, weight:1 },
+    { brand:'玛莎拉蒂', model:'Levante', type:VEHICLE_TYPES.SUV, price:960000, rate:1200, fuel:FUEL_TYPES.GASOLINE, fc:11.0, weight:1 },
+    { brand:'玛莎拉蒂', model:'Quattroporte', type:VEHICLE_TYPES.LUXURY, price:1580000, rate:1950, fuel:FUEL_TYPES.GASOLINE, fc:12.0, weight:1 },
+    { brand:'阿斯顿·马丁', model:'DBX', type:VEHICLE_TYPES.LARGE_SUV, price:2380000, rate:2900, fuel:FUEL_TYPES.GASOLINE, fc:12.0, weight:1 },
+    { brand:'阿斯顿·马丁', model:'Vantage', type:VEHICLE_TYPES.SPORTS, price:1980000, rate:2400, fuel:FUEL_TYPES.GASOLINE, fc:11.0, weight:1 },
+    { brand:'宾利', model:'飞驰', type:VEHICLE_TYPES.LUXURY, price:3380000, rate:4000, fuel:FUEL_TYPES.GASOLINE, fc:13.0, weight:1 },
+    { brand:'宾利', model:'添越', type:VEHICLE_TYPES.LARGE_SUV, price:3080000, rate:3700, fuel:FUEL_TYPES.GASOLINE, fc:12.8, weight:1 },
+    { brand:'宾利', model:'欧陆GT', type:VEHICLE_TYPES.LUXURY, price:3580000, rate:4300, fuel:FUEL_TYPES.GASOLINE, fc:13.5, weight:1 },
+    { brand:'迈凯伦', model:'GT', type:VEHICLE_TYPES.SPORTS, price:1980000, rate:2400, fuel:FUEL_TYPES.GASOLINE, fc:10.8, weight:1 },
+    { brand:'迈凯伦', model:'Artura', type:VEHICLE_TYPES.SUPERCAR, price:2480000, rate:3000, fuel:FUEL_TYPES.PLUGIN_HYBRID, fc:7.8, weight:1 },
+    { brand:'法拉利', model:'Roma', type:VEHICLE_TYPES.SUPERCAR, price:2680000, rate:3200, fuel:FUEL_TYPES.GASOLINE, fc:10.5, weight:1 },
+    { brand:'法拉利', model:'GTC4Lusso', type:VEHICLE_TYPES.SUPERCAR, price:3680000, rate:4400, fuel:FUEL_TYPES.GASOLINE, fc:12.0, weight:1 },
+    { brand:'吉利', model:'星瑞', type:VEHICLE_TYPES.SEDAN, price:130000, rate:180, fuel:FUEL_TYPES.GASOLINE, fc:6.5, weight:6 },
+    { brand:'吉利', model:'博越', type:VEHICLE_TYPES.SUV, price:120000, rate:165, fuel:FUEL_TYPES.GASOLINE, fc:6.8, weight:6 },
+    { brand:'吉利', model:'帝豪', type:VEHICLE_TYPES.SEDAN, price:85000, rate:120, fuel:FUEL_TYPES.GASOLINE, fc:6.2, weight:6 },
+    { brand:'吉利', model:'缤越', type:VEHICLE_TYPES.MINI_SUV, price:95000, rate:130, fuel:FUEL_TYPES.GASOLINE, fc:6.5, weight:6 },
+    { brand:'吉利', model:'星越L', type:VEHICLE_TYPES.SUV, price:180000, rate:250, fuel:FUEL_TYPES.GASOLINE, fc:7.5, weight:6 },
+    { brand:'吉利', model:'银河E8', type:VEHICLE_TYPES.SEDAN, price:160000, rate:220, fuel:FUEL_TYPES.ELECTRIC, fc:13.0, weight:5 },
+    { brand:'长城', model:'哈弗H6', type:VEHICLE_TYPES.SUV, price:130000, rate:175, fuel:FUEL_TYPES.GASOLINE, fc:7.0, weight:6 },
+    { brand:'长城', model:'坦克300', type:VEHICLE_TYPES.SUV, price:230000, rate:320, fuel:FUEL_TYPES.GASOLINE, fc:10.5, weight:6 },
+    { brand:'长城', model:'炮', type:VEHICLE_TYPES.PICKUP, price:170000, rate:240, fuel:FUEL_TYPES.DIESEL, fc:8.5, weight:5 },
+    { brand:'长城', model:'摩卡', type:VEHICLE_TYPES.SUV, price:190000, rate:260, fuel:FUEL_TYPES.GASOLINE, fc:7.3, weight:5 },
+    { brand:'红旗', model:'H5', type:VEHICLE_TYPES.SEDAN, price:180000, rate:250, fuel:FUEL_TYPES.GASOLINE, fc:7.0, weight:4 },
+    { brand:'红旗', model:'H9', type:VEHICLE_TYPES.LUXURY, price:350000, rate:460, fuel:FUEL_TYPES.GASOLINE, fc:9.0, weight:3 },
+    { brand:'红旗', model:'HS5', type:VEHICLE_TYPES.SUV, price:220000, rate:300, fuel:FUEL_TYPES.GASOLINE, fc:7.8, weight:4 },
+    { brand:'红旗', model:'E-HS9', type:VEHICLE_TYPES.LARGE_SUV, price:580000, rate:720, fuel:FUEL_TYPES.ELECTRIC, fc:18.0, weight:3 },
+    { brand:'领克', model:'03', type:VEHICLE_TYPES.SEDAN, price:170000, rate:230, fuel:FUEL_TYPES.GASOLINE, fc:7.2, weight:4 },
+    { brand:'领克', model:'05', type:VEHICLE_TYPES.SUV, price:220000, rate:300, fuel:FUEL_TYPES.GASOLINE, fc:7.8, weight:4 },
+    { brand:'领克', model:'09', type:VEHICLE_TYPES.LARGE_SUV, price:320000, rate:420, fuel:FUEL_TYPES.PLUGIN_HYBRID, fc:4.5, weight:4 },
+    { brand:'领克', model:'03+', type:VEHICLE_TYPES.COUPE, price:340000, rate:460, fuel:FUEL_TYPES.GASOLINE, fc:9.0, weight:3 },
+    { brand:'广汽传祺', model:'GS8', type:VEHICLE_TYPES.SUV, price:200000, rate:270, fuel:FUEL_TYPES.GASOLINE, fc:8.0, weight:5 },
+    { brand:'广汽传祺', model:'M8', type:VEHICLE_TYPES.MPV_LARGE, price:220000, rate:300, fuel:FUEL_TYPES.GASOLINE, fc:8.8, weight:5 },
+    { brand:'广汽传祺', model:'影豹', type:VEHICLE_TYPES.SPORTS, price:140000, rate:200, fuel:FUEL_TYPES.GASOLINE, fc:7.0, weight:4 },
+    { brand:'五菱', model:'宏光MINIEV', type:VEHICLE_TYPES.HATCHBACK, price:40000, rate:65, fuel:FUEL_TYPES.ELECTRIC, fc:8.5, weight:6 },
+    { brand:'五菱', model:'缤果', type:VEHICLE_TYPES.HATCHBACK, price:65000, rate:95, fuel:FUEL_TYPES.ELECTRIC, fc:10.0, weight:6 },
+    { brand:'五菱', model:'凯捷', type:VEHICLE_TYPES.MPV, price:100000, rate:140, fuel:FUEL_TYPES.GASOLINE, fc:7.0, weight:5 },
+    { brand:'奇瑞', model:'瑞虎8', type:VEHICLE_TYPES.SUV, price:120000, rate:165, fuel:FUEL_TYPES.GASOLINE, fc:7.2, weight:5 },
+    { brand:'奇瑞', model:'艾瑞泽8', type:VEHICLE_TYPES.SEDAN, price:110000, rate:150, fuel:FUEL_TYPES.GASOLINE, fc:6.6, weight:5 },
+    { brand:'奇瑞', model:'QQ冰淇淋', type:VEHICLE_TYPES.HATCHBACK, price:35000, rate:55, fuel:FUEL_TYPES.ELECTRIC, fc:8.0, weight:5 },
+    { brand:'马自达', model:'CX-5', type:VEHICLE_TYPES.SUV, price:200000, rate:270, fuel:FUEL_TYPES.GASOLINE, fc:7.3, weight:6 },
+    { brand:'马自达', model:'阿特兹', type:VEHICLE_TYPES.SEDAN, price:190000, rate:260, fuel:FUEL_TYPES.GASOLINE, fc:7.0, weight:6 },
+    { brand:'马自达', model:'CX-30', type:VEHICLE_TYPES.MINI_SUV, price:160000, rate:220, fuel:FUEL_TYPES.GASOLINE, fc:6.8, weight:5 },
+    { brand:'马自达', model:'MX-5', type:VEHICLE_TYPES.CONVERTIBLE, price:340000, rate:460, fuel:FUEL_TYPES.GASOLINE, fc:8.0, weight:2 },
+    { brand:'斯巴鲁', model:'森林人', type:VEHICLE_TYPES.SUV, price:230000, rate:310, fuel:FUEL_TYPES.GASOLINE, fc:8.0, weight:5 },
+    { brand:'斯巴鲁', model:'XV', type:VEHICLE_TYPES.MINI_SUV, price:210000, rate:280, fuel:FUEL_TYPES.GASOLINE, fc:7.5, weight:4 },
+    { brand:'斯巴鲁', model:'BRZ', type:VEHICLE_TYPES.SPORTS, price:320000, rate:440, fuel:FUEL_TYPES.GASOLINE, fc:9.0, weight:3 },
+    { brand:'三菱', model:'欧蓝德', type:VEHICLE_TYPES.SUV, price:180000, rate:245, fuel:FUEL_TYPES.GASOLINE, fc:7.5, weight:5 },
+    { brand:'三菱', model:'劲炫ASX', type:VEHICLE_TYPES.MINI_SUV, price:130000, rate:175, fuel:FUEL_TYPES.GASOLINE, fc:7.0, weight:4 },
+    { brand:'铃木', model:'吉姆尼', type:VEHICLE_TYPES.SUV, price:320000, rate:420, fuel:FUEL_TYPES.GASOLINE, fc:7.8, weight:3 },
+    { brand:'福特', model:'Mustang', type:VEHICLE_TYPES.SPORTS, price:400000, rate:550, fuel:FUEL_TYPES.GASOLINE, fc:10.5, weight:4 },
+    { brand:'福特', model:'F-150猛禽', type:VEHICLE_TYPES.PICKUP, price:720000, rate:920, fuel:FUEL_TYPES.GASOLINE, fc:13.0, weight:3 },
+    { brand:'福特', model:'探险者', type:VEHICLE_TYPES.LARGE_SUV, price:350000, rate:460, fuel:FUEL_TYPES.GASOLINE, fc:9.5, weight:5 },
+    { brand:'福特', model:'蒙迪欧', type:VEHICLE_TYPES.SEDAN, price:180000, rate:245, fuel:FUEL_TYPES.GASOLINE, fc:7.2, weight:5 },
+    { brand:'雪佛兰', model:'科迈罗', type:VEHICLE_TYPES.SPORTS, price:420000, rate:570, fuel:FUEL_TYPES.GASOLINE, fc:11.0, weight:4 },
+    { brand:'雪佛兰', model:'开拓者', type:VEHICLE_TYPES.SUV, price:280000, rate:370, fuel:FUEL_TYPES.GASOLINE, fc:8.5, weight:5 },
+    { brand:'雪佛兰', model:'库罗德', type:VEHICLE_TYPES.PICKUP, price:480000, rate:620, fuel:FUEL_TYPES.DIESEL, fc:9.5, weight:3 },
+    { brand:'别克', model:'GL8', type:VEHICLE_TYPES.MPV, price:280000, rate:370, fuel:FUEL_TYPES.GASOLINE, fc:8.5, weight:6 },
+    { brand:'别克', model:'君威', type:VEHICLE_TYPES.SEDAN, price:190000, rate:260, fuel:FUEL_TYPES.GASOLINE, fc:7.2, weight:6 },
+    { brand:'别克', model:'昂科威', type:VEHICLE_TYPES.SUV, price:230000, rate:310, fuel:FUEL_TYPES.GASOLINE, fc:7.8, weight:5 },
+    { brand:'林肯', model:'领航员', type:VEHICLE_TYPES.LARGE_SUV, price:1120000, rate:1400, fuel:FUEL_TYPES.GASOLINE, fc:12.5, weight:3 },
+    { brand:'林肯', model:'飞行家', type:VEHICLE_TYPES.SUV, price:680000, rate:860, fuel:FUEL_TYPES.GASOLINE, fc:10.0, weight:3 },
+    { brand:'林肯', model:'Zephyr', type:VEHICLE_TYPES.SEDAN, price:320000, rate:420, fuel:FUEL_TYPES.HYBRID, fc:5.5, weight:3 },
+    { brand:'特斯拉', model:'Roadster', type:VEHICLE_TYPES.SUPERCAR, price:8800000, rate:10000, fuel:FUEL_TYPES.ELECTRIC, fc:22.0, weight:1 },
+    { brand:'雷诺', model:'科雷傲', type:VEHICLE_TYPES.SUV, price:200000, rate:270, fuel:FUEL_TYPES.GASOLINE, fc:7.2, weight:3 },
+    { brand:'标致', model:'508L', type:VEHICLE_TYPES.SEDAN, price:180000, rate:245, fuel:FUEL_TYPES.GASOLINE, fc:6.5, weight:3 },
+    { brand:'Mini', model:'Cooper', type:VEHICLE_TYPES.HATCHBACK, price:260000, rate:350, fuel:FUEL_TYPES.GASOLINE, fc:6.0, weight:3 },
+    { brand:'Mini', model:'Countryman', type:VEHICLE_TYPES.MINI_SUV, price:320000, rate:420, fuel:FUEL_TYPES.GASOLINE, fc:6.8, weight:3 },
+    { brand:'Smart', model:'精灵#1', type:VEHICLE_TYPES.HATCHBACK, price:180000, rate:240, fuel:FUEL_TYPES.ELECTRIC, fc:13.0, weight:3 },
+    { brand:'极氪', model:'001', type:VEHICLE_TYPES.SEDAN, price:280000, rate:380, fuel:FUEL_TYPES.ELECTRIC, fc:15.0, weight:4 },
+    { brand:'极氪', model:'009', type:VEHICLE_TYPES.MPV_LARGE, price:480000, rate:620, fuel:FUEL_TYPES.ELECTRIC, fc:17.0, weight:4 },
+    { brand:'极氪', model:'X', type:VEHICLE_TYPES.SUV, price:260000, rate:350, fuel:FUEL_TYPES.ELECTRIC, fc:14.5, weight:4 },
+    { brand:'问界', model:'M5', type:VEHICLE_TYPES.SUV, price:280000, rate:370, fuel:FUEL_TYPES.RANGE_EXTENDER, fc:5.5, weight:4 },
+    { brand:'问界', model:'M7', type:VEHICLE_TYPES.SUV, price:320000, rate:420, fuel:FUEL_TYPES.RANGE_EXTENDER, fc:5.8, weight:4 },
+    { brand:'问界', model:'M9', type:VEHICLE_TYPES.LARGE_SUV, price:520000, rate:680, fuel:FUEL_TYPES.RANGE_EXTENDER, fc:6.2, weight:4 },
+    { brand:'智己', model:'L7', type:VEHICLE_TYPES.SEDAN, price:320000, rate:420, fuel:FUEL_TYPES.ELECTRIC, fc:14.0, weight:4 },
+    { brand:'智己', model:'LS6', type:VEHICLE_TYPES.SUV, price:280000, rate:380, fuel:FUEL_TYPES.ELECTRIC, fc:14.5, weight:4 },
+    { brand:'岚图', model:'FREE', type:VEHICLE_TYPES.SUV, price:280000, rate:370, fuel:FUEL_TYPES.RANGE_EXTENDER, fc:5.5, weight:4 },
+    { brand:'岚图', model:'梦想家', type:VEHICLE_TYPES.MPV_LARGE, price:380000, rate:500, fuel:FUEL_TYPES.RANGE_EXTENDER, fc:6.2, weight:4 }
   ];
-  const fuelOptions = [FUEL_TYPES.GASOLINE, FUEL_TYPES.HYBRID, FUEL_TYPES.ELECTRIC, FUEL_TYPES.PLUGIN_HYBRID, FUEL_TYPES.RANGE_EXTENDER];
+  const totalWeight = vehiclePool.reduce((s, v) => s + v.weight, 0);
   const conditions = [CONDITION_LEVELS.EXCELLENT, CONDITION_LEVELS.GOOD, CONDITION_LEVELS.GOOD, CONDITION_LEVELS.GOOD, CONDITION_LEVELS.AVERAGE, CONDITION_LEVELS.AVERAGE, CONDITION_LEVELS.POOR];
+  function pickVehicle() {
+    let r = Math.random() * totalWeight;
+    for (let i = 0; i < vehiclePool.length; i++) {
+      r -= vehiclePool[i].weight;
+      if (r <= 0) return vehiclePool[i];
+    }
+    return vehiclePool[vehiclePool.length - 1];
+  }
+  function getAgeRange(v) {
+    if (v.type === VEHICLE_TYPES.SUPERCAR) return [1, Math.floor(Math.random() * 3) + 1];
+    if (v.type === VEHICLE_TYPES.LUXURY || v.type === VEHICLE_TYPES.CONVERTIBLE || v.type === VEHICLE_TYPES.SPORTS) return [1, Math.floor(Math.random() * 4) + 1];
+    if (v.price >= 500000) return [1, Math.floor(Math.random() * 4) + 1];
+    if (v.price <= 100000) return [1, Math.floor(Math.random() * 7) + 1];
+    return [1, Math.floor(Math.random() * 5) + 1];
+  }
+  function getFuelConsumption(v, ft) {
+    if (ft === FUEL_TYPES.ELECTRIC) {
+      if (v.type === VEHICLE_TYPES.SUPERCAR || v.type === VEHICLE_TYPES.SPORTS) return Math.round((16 + Math.random() * 8) * 10) / 10;
+      if (v.type === VEHICLE_TYPES.LARGE_SUV) return Math.round((17 + Math.random() * 5) * 10) / 10;
+      return Math.round((11 + Math.random() * 6) * 10) / 10;
+    }
+    if (v.type === VEHICLE_TYPES.SUPERCAR) return Math.round((10 + Math.random() * 5) * 10) / 10;
+    if (v.type === VEHICLE_TYPES.SPORTS || v.type === VEHICLE_TYPES.CONVERTIBLE) return Math.round((8.5 + Math.random() * 3) * 10) / 10;
+    if (v.type === VEHICLE_TYPES.PICKUP || v.type === VEHICLE_TYPES.LARGE_SUV) return Math.round((9 + Math.random() * 5) * 10) / 10;
+    if (ft === FUEL_TYPES.HYBRID || ft === FUEL_TYPES.PLUGIN_HYBRID || ft === FUEL_TYPES.RANGE_EXTENDER) return Math.round((3.5 + Math.random() * 2.5) * 10) / 10;
+    return Math.round((5.5 + Math.random() * 3.5) * 10) / 10;
+  }
   const listings = [];
   for (let i = 0; i < count; i++) {
-    const bi = usedBrands[Math.floor(Math.random() * usedBrands.length)];
-    const mi = Math.floor(Math.random() * bi.models.length);
-    const age = Math.floor(Math.random() * 5) + 1;
+    const v = pickVehicle();
+    const ageRange = getAgeRange(v);
+    const age = ageRange[0] + Math.floor(Math.random() * (ageRange[1] - ageRange[0] + 1));
     const year = 2025 - age;
     const condition = conditions[Math.floor(Math.random() * conditions.length)];
     const mileage = Math.floor((Math.random() * 12000 + 6000) * age);
-    const basePrice = bi.prices[mi];
-    const baseRate = bi.rates[mi];
     const cm = condition === CONDITION_LEVELS.EXCELLENT ? 1.0 : condition === CONDITION_LEVELS.GOOD ? 0.9 : condition === CONDITION_LEVELS.AVERAGE ? 0.75 : 0.55;
     const rv = Math.max(0.25, Math.round((0.85 - age * 0.06) * cm * 100) / 100);
     const md = Math.min(mileage / 100000, 0.2);
-    const ev = Math.round(basePrice * rv * (1 - md));
-    const ft = fuelOptions[Math.floor(Math.random() * fuelOptions.length)];
+    const ev = Math.round(v.price * rv * (1 - md));
+    const ft = v.fuel || (function() {
+      const fuelOptions = [FUEL_TYPES.GASOLINE, FUEL_TYPES.HYBRID, FUEL_TYPES.ELECTRIC, FUEL_TYPES.PLUGIN_HYBRID, FUEL_TYPES.RANGE_EXTENDER];
+      return fuelOptions[Math.floor(Math.random() * fuelOptions.length)];
+    })();
+    const fc = getFuelConsumption(v, ft);
     listings.push({
       id: 'UC' + Date.now().toString(36) + '_' + i + '_' + Math.random().toString(36).substr(2, 4),
-      licensePlate: generateLicensePlate(), brand: bi.brand,
-      model: bi.models[mi] + ' ' + year + '款', type: bi.types[mi], year,
-      dailyRate: Math.round(baseRate * (0.55 + Math.random() * 0.3)),
-      fuelCostPerDay: Math.round((40 + Math.random() * 80) * (1 + age * 0.03)),
+      licensePlate: generateLicensePlate(), brand: v.brand,
+      model: v.model + ' ' + year + '款', type: v.type, year,
+      dailyRate: Math.round(v.rate * (0.55 + Math.random() * 0.3)),
+      fuelCostPerDay: ft === FUEL_TYPES.ELECTRIC ? Math.round((25 + Math.random() * 30) * (1 + age * 0.02)) : Math.round((40 + Math.random() * 80) * (1 + age * 0.03)),
       maintenanceCostPerDay: Math.round((15 + Math.random() * 40) * (1 + age * 0.08)),
       popularity: Math.max(1, 8 - Math.floor(age / 2) + Math.floor(Math.random() * 3)),
       residualValue: rv, age, fuelType: ft,
-      fuelConsumption: ft === FUEL_TYPES.ELECTRIC ? Math.round((12 + Math.random() * 6) * 10) / 10 : Math.round((5 + Math.random() * 6) * 10) / 10,
+      fuelConsumption: fc,
       mileage, market: MARKET_TYPES.USED_CAR, isNew: false, condition,
-      purchasePrice: basePrice, estimatedValue: ev
+      purchasePrice: v.price, estimatedValue: ev
     });
   }
   return listings;
