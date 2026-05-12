@@ -597,7 +597,8 @@ function showOutletPopup(outletId, px, py) {
     var vehs = getVehiclesAtOutlet(outletId);
     document.getElementById('popupCapacity').textContent = vehs.length + ' / ' + cap;
     document.getElementById('popupOrders').textContent = (gameState.outletOrderCounts[outletId] || 0) + ' 单';
-    document.getElementById('popupLevel').textContent = 'Lv.' + os.level;
+    var occ = getParkingOccupancy(outletId);
+    document.getElementById('popupLevel').textContent = 'Lv.' + os.level + ' | 🅿️ ' + occ.customer.used + '/' + occ.customer.total;
     var vList = document.getElementById('popupVehicles');
     if (vehs.length === 0) {
       vList.innerHTML = '<div style="font-size:12px;color:rgba(255,255,255,0.3);padding:8px 0;">暂无车辆</div>';
@@ -610,9 +611,9 @@ function showOutletPopup(outletId, px, py) {
     var nextLevel = OUTLET_LEVELS.find(function(l){ return l.level === os.level + 1; });
     var actionsEl = document.getElementById('popupActions');
     if (nextLevel) {
-      actionsEl.innerHTML = '<button class="popup-btn" style="background:linear-gradient(135deg,#ff6b35,#f7931e);color:#fff;" onclick="hideOutletPopup();enterInterior(' + outletId + ')">🏠 进入店铺</button><button class="popup-btn popup-btn-upgrade" onclick="upgradeOutlet(' + outletId + ')" ' + (gameState.cash < nextLevel.upgradeCost ? 'disabled' : '') + '>⬆ 升级</button><button class="popup-btn" style="background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;" onclick="openFacilityModal(' + outletId + ')">🏗️ 设施</button>';
+      actionsEl.innerHTML = '<button class="popup-btn" style="background:linear-gradient(135deg,#ff6b35,#f7931e);color:#fff;" onclick="hideOutletPopup();enterInterior(' + outletId + ')">🏠 3D视图</button><button class="popup-btn" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;" onclick="hideOutletPopup();openInternalLayoutModal(' + outletId + ')">📋 店铺内部</button><button class="popup-btn popup-btn-upgrade" onclick="upgradeOutlet(' + outletId + ')" ' + (gameState.cash < nextLevel.upgradeCost ? 'disabled' : '') + '>⬆ 升级</button><button class="popup-btn" style="background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;" onclick="openFacilityModal(' + outletId + ')">🏗️ 设施</button>';
     } else {
-      actionsEl.innerHTML = '<button class="popup-btn" style="background:linear-gradient(135deg,#ff6b35,#f7931e);color:#fff;" onclick="hideOutletPopup();enterInterior(' + outletId + ')">🏠 进入店铺</button><button class="popup-btn popup-btn-upgrade" disabled>已满级</button><button class="popup-btn" style="background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;" onclick="openFacilityModal(' + outletId + ')">🏗️ 设施</button>';
+      actionsEl.innerHTML = '<button class="popup-btn" style="background:linear-gradient(135deg,#ff6b35,#f7931e);color:#fff;" onclick="hideOutletPopup();enterInterior(' + outletId + ')">🏠 3D视图</button><button class="popup-btn" style="background:linear-gradient(135deg,#10b981,#059669);color:#fff;" onclick="hideOutletPopup();openInternalLayoutModal(' + outletId + ')">📋 店铺内部</button><button class="popup-btn popup-btn-upgrade" disabled>已满级</button><button class="popup-btn" style="background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;" onclick="openFacilityModal(' + outletId + ')">🏗️ 设施</button>';
     }
   } else {
     document.getElementById('popupCapacity').textContent = '-';
@@ -1606,4 +1607,216 @@ function renderFacilityModal() {
     html += '</table></div>';
   }
   content.innerHTML = html;
+}
+
+var internalLayoutTab = 'overview';
+function openInternalLayoutModal(outletId) {
+  window._layoutOutletId = outletId;
+  internalLayoutTab = 'overview';
+  document.getElementById('internalLayoutModal').classList.add('active');
+  var cfg = OUTLET_CONFIGS.find(function(c){ return c.id === outletId; });
+  document.getElementById('layoutOutletName').textContent = cfg.name + ' 内部布局';
+  renderInternalLayoutModal();
+}
+function closeInternalLayoutModal() {
+  document.getElementById('internalLayoutModal').classList.remove('active');
+}
+function switchLayoutTab(tab) {
+  internalLayoutTab = tab;
+  renderInternalLayoutModal();
+}
+function renderInternalLayoutModal() {
+  var outletId = window._layoutOutletId;
+  var os = getOutletState(outletId);
+  if (!os) return;
+  var content = document.getElementById('internalLayoutContent');
+  var html = '<div style="display:flex;gap:6px;margin-bottom:14px;">';
+  html += '<button style="padding:8px 14px;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;min-height:40px;' + (internalLayoutTab === 'overview' ? 'background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;' : 'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.1);') + '" onclick="switchLayoutTab(\'overview\')">📋 概览</button>';
+  html += '<button style="padding:8px 14px;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;min-height:40px;' + (internalLayoutTab === 'parking' ? 'background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;' : 'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.1);') + '" onclick="switchLayoutTab(\'parking\')">🅿️ 停车位</button>';
+  html += '<button style="padding:8px 14px;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;min-height:40px;' + (internalLayoutTab === 'amenity' ? 'background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;' : 'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.1);') + '" onclick="switchLayoutTab(\'amenity\')">🛋️ 客户设施</button>';
+  html += '<button style="padding:8px 14px;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;min-height:40px;' + (internalLayoutTab === 'operational' ? 'background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;' : 'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.1);') + '" onclick="switchLayoutTab(\'operational\')">⚙️ 运营设施</button>';
+  html += '<button style="padding:8px 14px;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;min-height:40px;' + (internalLayoutTab === 'layout' ? 'background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;' : 'background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);border:1px solid rgba(255,255,255,0.1);') + '" onclick="switchLayoutTab(\'layout\')">📐 布局编辑</button>';
+  html += '</div>';
+  if (internalLayoutTab === 'overview') {
+    html += renderLayoutOverview(outletId, os);
+  } else if (internalLayoutTab === 'parking') {
+    html += renderLayoutParking(outletId, os);
+  } else if (internalLayoutTab === 'amenity') {
+    html += renderLayoutFacilities(outletId, os, 'amenity');
+  } else if (internalLayoutTab === 'operational') {
+    html += renderLayoutFacilities(outletId, os, 'operational');
+  } else if (internalLayoutTab === 'layout') {
+    html += renderLayoutZones(outletId, os);
+  }
+  content.innerHTML = html;
+}
+function renderLayoutOverview(outletId, os) {
+  var html = '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;">🏗️ 店铺平面图</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:rgba(255,255,255,0.03);border-radius:12px;padding:12px;">';
+  html += '<div class="layout-zone reception" style="background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.3);border-radius:8px;padding:10px;min-height:80px;text-align:center;"><div style="font-size:24px;margin-bottom:4px;">🛎️</div><div style="font-size:10px;color:#60a5fa;font-weight:600;">接待区</div><div style="font-size:9px;color:rgba(255,255,255,0.4);margin-top:2px;">总台 · 客户等候</div></div>';
+  html += '<div class="layout-zone parking-area" style="background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:10px;min-height:80px;text-align:center;"><div style="font-size:24px;margin-bottom:4px;">🚗</div><div style="font-size:10px;color:#fbbf24;font-weight:600;">停车区</div><div style="font-size:9px;color:rgba(255,255,255,0.4);margin-top:2px;">' + (os.parkingSpots ? os.parkingSpots.customer : 5) + '个顾客车位</div></div>';
+  html += '<div class="layout-zone garage" style="background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.3);border-radius:8px;padding:10px;min-height:80px;text-align:center;"><div style="font-size:24px;margin-bottom:4px;">🏠</div><div style="font-size:10px;color:#4ade80;font-weight:600;">内部车库</div><div style="font-size:9px;color:rgba(255,255,255,0.4);margin-top:2px;">' + (os.parkingSpots ? os.parkingSpots.internal : 10) + '个车库位</div></div>';
+  html += '<div class="layout-zone logistics" style="background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.3);border-radius:8px;padding:10px;min-height:80px;text-align:center;"><div style="font-size:24px;margin-bottom:4px;">📦</div><div style="font-size:10px;color:#a855f7;font-weight:600;">后勤区</div><div style="font-size:9px;color:rgba(255,255,255,0.4);margin-top:2px;">维修 · 充电</div></div>';
+  html += '</div></div>';
+  var facilities = typeof getOutletFacilities === 'function' ? getOutletFacilities(outletId) : [];
+  html += '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;">📊 今日概况</div>';
+  var occ = getParkingOccupancy(outletId);
+  html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">';
+  html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px;"><div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:4px;">顾客停车位</div><div style="font-size:20px;font-weight:700;color:#fbbf24;">' + occ.customer.used + '/' + occ.customer.total + '</div><div style="font-size:10px;color:rgba(255,255,255,0.3);">已占用/总容量</div></div>';
+  html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px;"><div style="="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:4px;">内部车库</div><div style="font-size:20px;font-weight:700;color:#4ade80;">' + occ.internal.used + '/' + occ.internal.total + '</div><div style="font-size:10px;color:rgba(255,255,255,0.3);">已占用/总容量</div></div>';
+  html += '</div></div>';
+  html += '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;">🛋️ 已安装设施 (' + facilities.length + ')</div>';
+  if (facilities.length === 0) {
+    html += '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:12px;">暂无设施，点击上方标签购买</div>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">';
+    facilities.forEach(function(f) {
+      var zone = getFacilityZone(outletId, f.id);
+      html += '<div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:10px;text-align:center;position:relative;">' + (f.disabled ? '<div style="position:absolute;top:4px;right:4px;font-size:8px;color:#f87171;">⏸</div>' : f.broken ? '<div style="position:absolute;top:4px;right:4px;font-size:8px;color:#f87171;">⚠</div>' : '') + '<div style="font-size:24px;margin-bottom:4px;">' + f.config.icon + '</div><div style="font-size:11px;font-weight:600;color:#fff;">' + f.config.name + '</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">' + getZoneName(zone) + '</div></div>';
+    });
+    html += '</div>';
+  }
+  html += '</div>';
+  if (gameState.interiorDecorUnlocked && typeof renderDecorations === 'function') {
+    html += renderDecorations(outletId);
+  }
+  return html;
+}
+function renderLayoutParking(outletId, os) {
+  var html = '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;">🅿️ 停车位管理</div>';
+  var occ = getParkingOccupancy(outletId);
+  var dailyRent = getDailyParkingRent(outletId);
+  var pressure = getParkingPressureLevel(outletId);
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">';
+  html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;"><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px;">顾客停车位</div><div style="font-size:24px;font-weight:700;color:#fbbf24;">' + os.parkingSpots.customer + '</div><div style="font-size:9px;color:rgba(255,255,255,0.3);">当前 / 最大 ' + PARKING_CONFIG.customer.max + '</div><div style="margin-top:8px;"><div style="width:100%;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;"><div style="width:' + (pressure * 100) + '%;height:100%;background:' + (pressure >= 0.9 ? '#f87171' : pressure >= 0.7 ? '#fbbf24' : '#4ade80') + ';border-radius:3px;"></div></div></div><div style="font-size:9px;color:rgba(255,255,255,0.4);margin-top:4px;">占用率 ' + Math.round(pressure * 100) + '%</div></div>';
+  html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;"><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px;">内部车库</div><div style="font-size:24px;font-weight:700;color:#4ade80;">' + os.parkingSpots.internal + '</div><div style="font-size:9px;color:rgba(255,255,255,0.3);">当前 / 最大 ' + PARKING_CONFIG.internal.max + '</div><div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:8px;">已用 ' + occ.internal.used + ' / 可用 ' + occ.internal.available + '</div></div>';
+  html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;"><div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:6px;">日租金</div><div style="font-size:24px;font-weight:700;color:#f87171;">' + formatCurrency(dailyRent) + '</div><div style="font-size:9px;color:rgba(255,255,255,0.3);">每车位 +' + PARKING_CONFIG.customer.dailyRent + '元/天</div></div>';
+  html += '</div>';
+  html += '<div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:8px;">扩建停车场</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">';
+  var canUpgradeCustomer = os.parkingSpots.customer < PARKING_CONFIG.customer.max && gameState.cash >= PARKING_CONFIG.customer.upgradeCost;
+  var canUpgradeInternal = os.parkingSpots.internal < PARKING_CONFIG.internal.max && gameState.cash >= PARKING_CONFIG.internal.upgradeCost;
+  html += '<div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:10px;padding:14px;"><div style="font-size:12px;font-weight:600;color:#fbbf24;margin-bottom:4px;">🚗 顾客停车区</div><div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:8px;">扩建 +' + PARKING_CONFIG.customer.perUpgrade + '个车位 (当前' + os.parkingSpots.customer + '/' + PARKING_CONFIG.customer.max + ')</div><button style="width:100%;padding:8px;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;" onclick="upgradeParkingSpot(' + outletId + ',\'customer\');renderInternalLayoutModal();" ' + (!canUpgradeCustomer ? 'disabled' : '') + '>' + formatCurrency(PARKING_CONFIG.customer.upgradeCost) + ' 元</button></div>';
+  html += '<div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);border-radius:10px;padding:14px;"><div style="font-size:12px;font-weight:600;color:#4ade80;margin-bottom:4px;">🏠 内部车库</div><div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:8px;">扩建 +' + PARKING_CONFIG.internal.perUpgrade + '个车位 (当前' + os.parkingSpots.internal + '/' + PARKING_CONFIG.internal.max + ')</div><button style="width:100%;padding:8px;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;" onclick="upgradeParkingSpot(' + outletId + ',\'internal\');renderInternalLayoutModal();" ' + (!canUpgradeInternal ? 'disabled' : '') + '>' + formatCurrency(PARKING_CONFIG.internal.upgradeCost) + ' 元</button></div>';
+  html += '</div>';
+  html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;margin-bottom:14px;"><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:8px;">📝 车位预约设置</div>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.06);"><div><div style="font-size:11px;color:#fff;">自动推荐预约停车</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">额外+50元/单，优先预留车位</div></div><label style="position:relative;display:inline-block;width:44px;height:24px;"><input type="checkbox" id="autoReservationToggle" style="opacity:0;width:0;height:0;" ' + (gameState.autoRecommendReservation ? 'checked' : '') + ' onchange="setAutoRecommendReservation(this.checked);"><span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:' + (gameState.autoRecommendReservation ? '#3b82f6' : '#ccc') + ';transition:.3s;border-radius:24px;"></span><span style="position:absolute;content:"";height:18px;width:18px;left:' + (gameState.autoRecommendReservation ? '22px' : '3px') + ';bottom:3px;background-color:white;transition:.3s;border-radius:50%;"></span></label></div>';
+  html += '</div>';
+  html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;"><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:8px;">📊 车位压力</div>';
+  if (pressure >= 0.9) {
+    html += '<div style="padding:10px;background:rgba(248,113,113,0.1);border-radius:8px;border:1px solid rgba(248,113,113,0.3);"><div style="font-size:11px;color:#f87171;font-weight:600;margin-bottom:4px;">⚠️ 车位紧张！</div><div style="font-size:10px;color:rgba(255,255,255,0.6);">已连续' + (os.parkingPressureDays || 0) + '天超90%</div><div style="font-size:10px;color:rgba(255,255,255,0.6);">建议扩建或开启预约停车</div></div>';
+  } else if (pressure >= 0.7) {
+    html += '<div style="padding:10px;background:rgba(251,191,36,0.1);border-radius:8px;border:1px solid rgba(251,191,36,0.3);"><div style="font-size:11px;color:#fbbf24;font-weight:600;margin-bottom:4px;">⚡ 车位偏紧</div><div style="font-size:10px;color:rgba(255,255,255,0.6);">建议关注车位使用情况</div></div>';
+  } else {
+    html += '<div style="padding:10px;background:rgba(74,222,128,0.1);border-radius:8px;border:1px solid rgba(74,222,128,0.3);"><div style="font-size:11px;color:#4ade80;font-weight:600;margin-bottom:4px;">✓ 车位充足</div><div style="font-size:10px;color:rgba(255,255,255,0.6);">当前车位充裕，运营正常</div></div>';
+  }
+  html += '</div>';
+  return html;
+}
+function renderLayoutFacilities(outletId, os, category) {
+  var html = '<div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;">' + (category === 'amenity' ? '🛋️ 客户舒适设施' : '⚙️ 运营设施') + '</div>';
+  var owned = os.facilities || [];
+  var ownedInCategory = owned.map(function(fid) {
+    var cfg = getFacilityConfig(fid);
+    if (!cfg || cfg.category !== category) return null;
+    var f = { id: fid, config: cfg };
+    f.disabled = os.disabledFacilities && os.disabledFacilities.indexOf(fid) !== -1;
+    f.broken = os.brokenFacilities && os.brokenFacilities[fid] && os.brokenFacilities[fid] > gameState.currentDay;
+    return f;
+  }).filter(function(f){ return f; });
+  if (ownedInCategory.length > 0) {
+    html += '<div style="margin-bottom:14px;"><div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.5);margin-bottom:8px;">已安装</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">';
+    ownedInCategory.forEach(function(f) {
+      var zone = getFacilityZone(outletId, f.id);
+      var eff = getOperationalFacilityEffectiveness(outletId, f.id);
+      var staffReq = f.config.requiredStaff ? '<div style="font-size:9px;color:' + (eff >= 1 ? '#4ade80' : '#fbbf24') + ';">员工效果:' + Math.round(eff * 100) + '%</div>' : '';
+      html += '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;"><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:20px;">' + f.config.icon + '</span><span style="font-size:9px;padding:2px 6px;border-radius:4px;background:' + (f.disabled ? 'rgba(255,255,255,0.1)' : f.broken ? 'rgba(248,113,113,0.2)' : 'rgba(74,222,128,0.2)') + ';color:' + (f.disabled ? 'rgba(255,255,255,0.5)' : f.broken ? '#f87171' : '#4ade80') + ';">' + (f.disabled ? '已停用' : f.broken ? '故障中' : '运行中') + '</span></div><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:4px;">' + f.config.name + '</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">所在区域: ' + getZoneName(zone) + '</div>' + staffReq + '<div style="font-size:9px;color:rgba(255,255,255,0.4);">满意度+' + f.config.satisfactionBonus + ' · 收入+' + f.config.incomeBonusPercent + '%</div><button style="margin-top:6px;padding:4px 8px;border:none;border-radius:4px;font-size:9px;cursor:pointer;background:' + (f.disabled ? 'linear-gradient(135deg,#27ae60,#2ecc71)' : 'rgba(231,76,60,0.2)') + ';color:' + (f.disabled ? '#fff' : '#e74c3c') + ';" onclick="toggleFacility(' + outletId + ',\'' + f.id + '\');renderInternalLayoutModal();">' + (f.disabled ? '启用' : '停用') + '</button></div>';
+    });
+    html += '</div></div>';
+  }
+  html += '<div style="font-size:11px;font-weight:600;color:rgba(255,255,255,0.5);margin-bottom:8px;">可购买</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">';
+  facilitiesConfig.filter(function(fc) { return fc.category === category; }).forEach(function(fc) {
+    if (owned.indexOf(fc.id) !== -1) return;
+    var canBuy = typeof canPurchaseFacility === 'function' ? canPurchaseFacility(outletId, fc.id) : {ok: false};
+    var levelOk = os.level >= fc.baseLevel;
+    html += '<div style="background:rgba(255,255,255,0.03);border:1px solid ' + (levelOk ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.04)') + ';border-radius:10px;padding:12px;' + (levelOk ? '' : 'opacity:0.5;') + '><div style="font-size:20px;margin-bottom:4px;">' + fc.icon + '</div><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:4px;">' + fc.name + '</div>';
+    html += '<div style="font-size:9px;color:rgba(255,255,255,0.4);margin-bottom:2px;">需要Lv.' + fc.baseLevel + ' · 费用 ' + formatCurrency(fc.cost) + '</div>';
+    if (fc.requiredStaff) html += '<div style="font-size:9px;color:#a855f7;margin-bottom:2px;">需要:' + (fc.requiredStaff === 'car_washer' ? '洗车工' : '维修技师') + '</div>';
+    if (fc.effect) html += '<div style="font-size:9px;color:rgba(255,255,255,0.5);margin-bottom:4px;">效果:' + (fc.effect === 'cleanliness' ? '自动清洗' : fc.effect === 'repair' ? '维修折扣' : fc.effect === 'morale' ? '士气维护' : fc.effect === 'order_capacity' ? '订单+20%' : fc.effect === 'ev_charge' ? '充电加成' : fc.effect) + '</div>';
+    html += '<div style="font-size:9px;color:rgba(255,255,255,0.4);margin-bottom:6px;">满意度+' + fc.satisfactionBonus + ' · 收入+' + fc.incomeBonusPercent + '% · 维护$' + fc.dailyMaintenance + '/天</div>';
+    if (levelOk) {
+      html += '<button style="width:100%;padding:6px;border:none;border-radius:4px;font-size:10px;font-weight:600;cursor:pointer;background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;" onclick="purchaseFacility(' + outletId + ',\'' + fc.id + '\');renderInternalLayoutModal();" ' + (gameState.cash < fc.cost ? 'disabled' : '') + '>' + (gameState.cash >= fc.cost ? '购买' : '资金不足') + '</button>';
+    } else {
+      html += '<div style="text-align:center;font-size:9px;color:#f87171;padding:6px 0;">网点等级不足</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
+function renderLayoutZones(outletId, os) {
+  var html = '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:8px;">📐 设施布局编辑</div>';
+  html += '<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:14px;">拖拽设施到不同区域可获得效率加成。布局优化后可提高运营效率。</div>';
+  var facilities = typeof getOutletFacilities === 'function' ? getOutletFacilities(outletId) : [];
+  if (facilities.length === 0) {
+    html += '<div style="text-align:center;padding:30px;color:rgba(255,255,255,0.3);font-size:12px;">暂无设施可布局</div>';
+    return html;
+  }
+  html += '<div style="margin-bottom:14px;"><div style="font-size:11px;font-weight:600;color:#fff;margin-bottom:8px;">🏷️ 区域效率加成</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
+  html += '<div style="background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:20px;margin-bottom:4px;">🛎️</div><div style="font-size:11px;font-weight:600;color:#60a5fa;">接待区</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">客户设施效率+10%</div></div>';
+  html += '<div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:20px;margin-bottom:4px;">🚗</div><div style="font-size:11px;font-weight:600;color:#fbbf24;">停车区</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">洗车房效率+5%</div></div>';
+  html += '<div style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:20px;margin-bottom:4px;">📦</div><div style="font-size:11px;font-weight:600;color:#a855f7;">后勤区</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">维修/充电+5%</div></div>';
+  html += '</div></div>';
+  html += '<div style="font-size:11px;font-weight:600;color:#fff;margin-bottom:8px;">⚙️ 设施位置设置</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">';
+  facilities.forEach(function(f) {
+    var currentZone = getFacilityZone(outletId, f.id);
+    html += '<div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:12px;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:20px;">' + f.config.icon + '</span><div><div style="font-size:11px;font-weight:600;color:#fff;">' + f.config.name + '</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">当前: ' + getZoneName(currentZone) + '</div></div></div>';
+    html += '<div style="display:flex;gap:4px;">';
+    ['reception', 'parking', 'logistics'].forEach(function(zone) {
+      var selected = currentZone === zone;
+      html += '<button style="flex:1;padding:6px;border:none;border-radius:4px;font-size:9px;font-weight:600;cursor:pointer;background:' + (selected ? 'linear-gradient(135deg,#3b82f6,#6366f1)' : 'rgba(255,255,255,0.08)') + ';color:' + (selected ? '#fff' : 'rgba(255,255,255,0.5)') + ';" onclick="setFacilityZone(' + outletId + ',\'' + f.id + '\',\'' + zone + '\');renderInternalLayoutModal();">' + getZoneName(zone) + '</button>';
+    });
+    html += '</div></div>';
+  });
+  html += '</div>';
+  var zoneBonus = typeof getZoneEfficiencyBonus === 'function' ? getZoneEfficiencyBonus(outletId) : 0;
+  if (zoneBonus > 0) {
+    html += '<div style="margin-top:14px;padding:10px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.2);border-radius:8px;"><div style="font-size:11px;color:#4ade80;font-weight:600;">✓ 布局优化生效中</div><div style="font-size:10px;color:rgba(255,255,255,0.6);">当前效率加成: +' + Math.round(zoneBonus * 100) + '%</div></div>';
+  }
+  return html;
+}
+function renderDecorations(outletId) {
+  var html = '<div style="margin-top:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;">🌿 室内装饰 <span style="font-size:10px;color:#f1c40f;">(旗舰店铺解锁)</span></div>';
+  var DECORATIONS = [
+    { id: 'plant', name: '绿植', cost: 5000, satisfactionBonus: 2, icon: '🪴' },
+    { id: 'aquarium', name: '鱼缸', cost: 8000, satisfactionBonus: 3, icon: '🐠' },
+    { id: 'fountain', name: '室内喷泉', cost: 15000, satisfactionBonus: 5, icon: '⛲' }
+  ];
+  var ownedDecos = (gameState.decorations || []).filter(function(d){ return d.outletId === outletId; });
+  if (ownedDecos.length > 0) {
+    html += '<div style="display:flex;gap:6px;margin-bottom:10px;">';
+    ownedDecos.forEach(function(d) {
+      html += '<div style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.2);border-radius:8px;padding:8px 12px;text-align:center;"><span style="font-size:20px;">' + d.icon + '</span><div style="font-size:9px;color:#4ade80;">' + d.name + '</div></div>';
+    });
+    html += '</div>';
+    var totalBonus = ownedDecos.reduce(function(s, d){ return s + d.satisfactionBonus; }, 0);
+    html += '<div style="font-size:10px;color:#4ade80;margin-bottom:10px;">装饰满意度加成: +' + totalBonus + '</div>';
+  }
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
+  DECORATIONS.forEach(function(d) {
+    var owned = ownedDecos.some(function(od){ return od.id === d.id; });
+    html += '<div style="background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.08);border-radius:8px;padding:12px;text-align:center;' + (owned ? 'opacity:0.5;' : '') + '"><div style="font-size:24px;margin-bottom:4px;">' + d.icon + '</div><div style="font-size:11px;font-weight:600;color:#fff;">' + d.name + '</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">满意度+' + d.satisfactionBonus + '</div>';
+    if (!owned) {
+      html += '<button style="margin-top:6px;padding:6px;border:none;border-radius:4px;font-size:9px;font-weight:600;cursor:pointer;background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;width:100%;" onclick="purchaseDecoration(' + outletId + ',\'' + d.id + '\');renderInternalLayoutModal();">' + formatCurrency(d.cost) + '</button>';
+    } else {
+      html += '<div style="margin-top:6px;font-size:9px;color:#4ade80;">已购买</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div></div>';
+  return html;
 }
