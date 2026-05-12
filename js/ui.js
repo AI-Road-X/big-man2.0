@@ -610,9 +610,9 @@ function showOutletPopup(outletId, px, py) {
     var nextLevel = OUTLET_LEVELS.find(function(l){ return l.level === os.level + 1; });
     var actionsEl = document.getElementById('popupActions');
     if (nextLevel) {
-      actionsEl.innerHTML = '<button class="popup-btn popup-btn-upgrade" onclick="upgradeOutlet(' + outletId + ')" ' + (gameState.cash < nextLevel.upgradeCost ? 'disabled' : '') + '>⬆ 升级 Lv.' + nextLevel.level + ' (' + formatCurrency(nextLevel.upgradeCost) + ')</button>';
+      actionsEl.innerHTML = '<button class="popup-btn" style="background:linear-gradient(135deg,#ff6b35,#f7931e);color:#fff;" onclick="hideOutletPopup();enterInterior(' + outletId + ')">🏠 进入店铺</button><button class="popup-btn popup-btn-upgrade" onclick="upgradeOutlet(' + outletId + ')" ' + (gameState.cash < nextLevel.upgradeCost ? 'disabled' : '') + '>⬆ 升级</button><button class="popup-btn" style="background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;" onclick="openFacilityModal(' + outletId + ')">🏗️ 设施</button>';
     } else {
-      actionsEl.innerHTML = '<button class="popup-btn popup-btn-upgrade" disabled>已满级</button>';
+      actionsEl.innerHTML = '<button class="popup-btn" style="background:linear-gradient(135deg,#ff6b35,#f7931e);color:#fff;" onclick="hideOutletPopup();enterInterior(' + outletId + ')">🏠 进入店铺</button><button class="popup-btn popup-btn-upgrade" disabled>已满级</button><button class="popup-btn" style="background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;" onclick="openFacilityModal(' + outletId + ')">🏗️ 设施</button>';
     }
   } else {
     document.getElementById('popupCapacity').textContent = '-';
@@ -1525,4 +1525,85 @@ function doSellStock(ticker) {
   if(typeof sellStock==='function')sellStock(ticker,qty);
   showToast('卖出成功','success');
   updateUI();saveGame();renderFinanceModal();
+}
+function openFacilityModal(outletId) {
+  window._facilityOutletId = outletId;
+  document.getElementById('facilityModal').classList.add('active');
+  renderFacilityModal();
+}
+function closeFacilityModal() {
+  document.getElementById('facilityModal').classList.remove('active');
+}
+function renderFacilityModal() {
+  var outletId = window._facilityOutletId;
+  var os = getOutletState(outletId);
+  if (!os) return;
+  var outletCfg = OUTLET_CONFIGS.find(function(c){return c.id===outletId;});
+  var content = document.getElementById('facilityContent');
+  var satBonus = typeof getOutletSatisfactionBonus === 'function' ? getOutletSatisfactionBonus(outletId) : 0;
+  var incBonus = typeof getOutletIncomeBonusPercent === 'function' ? getOutletIncomeBonusPercent(outletId) : 0;
+  var maintCost = typeof getOutletDailyMaintenance === 'function' ? getOutletDailyMaintenance(outletId) : 0;
+  var html = '<div style="display:flex;gap:10px;margin-bottom:14px;flex-wrap:wrap;">';
+  html += '<div style="padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:8px;"><span style="color:rgba(255,255,255,0.5);">网点</span> <span style="color:#60a5fa;font-weight:700;">'+outletCfg.name+' Lv.'+os.level+'</span></div>';
+  html += '<div style="padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:8px;"><span style="color:rgba(255,255,255,0.5);">满意度加成</span> <span style="color:#4ade80;font-weight:700;">+'+satBonus+'</span></div>';
+  html += '<div style="padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:8px;"><span style="color:rgba(255,255,255,0.5);">收入加成</span> <span style="color:#fbbf24;font-weight:700;">+'+incBonus+'%</span></div>';
+  html += '<div style="padding:8px 14px;background:rgba(255,255,255,0.04);border-radius:8px;"><span style="color:rgba(255,255,255,0.5);">日维护费</span> <span style="color:#f87171;font-weight:700;">'+formatCurrency(maintCost)+'</span></div>';
+  html += '</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;">已安装设施</div>';
+  var facilities = typeof getOutletFacilities === 'function' ? getOutletFacilities(outletId) : [];
+  if (facilities.length === 0) {
+    html += '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:12px;">暂无设施，从下方购买</div>';
+  } else {
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">';
+    facilities.forEach(function(f){
+      var statusTag = f.broken ? '<span style="color:#f87171;font-size:9px;">⚠故障中</span>' : f.disabled ? '<span style="color:rgba(255,255,255,0.3);font-size:9px;">⏸已停用</span>' : '<span style="color:#4ade80;font-size:9px;">●运行中</span>';
+      var toggleLabel = f.disabled ? '启用' : '停用';
+      var toggleColor = f.disabled ? 'background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;' : 'background:rgba(231,76,60,0.2);color:#e74c3c;border:1px solid #e74c3c;';
+      html += '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);border-radius:10px;padding:12px;">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">';
+      html += '<span style="font-size:14px;">'+f.config.icon+'</span>'+statusTag+'</div>';
+      html += '<div style="font-size:12px;font-weight:600;color:#fff;">'+f.config.name+'</div>';
+      html += '<div style="font-size:9px;color:rgba(255,255,255,0.4);margin-top:2px;">满意度+'+f.config.satisfactionBonus+' · 收入+'+f.config.incomeBonusPercent+'% · 维护$'+f.config.dailyMaintenance+'/天</div>';
+      html += '<button style="margin-top:6px;padding:4px 10px;border:none;border-radius:4px;font-size:9px;cursor:pointer;'+toggleColor+'" onclick="toggleFacility('+outletId+',\''+f.id+'\');renderFacilityModal();">'+toggleLabel+'</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;">可购买设施</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
+  facilitiesConfig.forEach(function(fc){
+    var owned = os.facilities && os.facilities.indexOf(fc.id) !== -1;
+    if (owned) return;
+    var canBuy = typeof canPurchaseFacility === 'function' ? canPurchaseFacility(outletId, fc.id) : {ok:false};
+    var levelOk = os.level >= fc.baseLevel;
+    html += '<div style="background:rgba(255,255,255,0.03);border:1px solid '+(levelOk?'rgba(255,255,255,0.08)':'rgba(255,255,255,0.04)')+';border-radius:10px;padding:12px;'+(levelOk?'':'opacity:0.5;')+'">';
+    html += '<div style="font-size:14px;margin-bottom:2px;">'+fc.icon+'</div>';
+    html += '<div style="font-size:12px;font-weight:600;color:#fff;">'+fc.name+'</div>';
+    html += '<div style="font-size:9px;color:rgba(255,255,255,0.4);margin-top:2px;">需要Lv.'+fc.baseLevel+' · 费用 '+formatCurrency(fc.cost)+'</div>';
+    html += '<div style="font-size:9px;color:rgba(255,255,255,0.4);">满意度+'+fc.satisfactionBonus+' · 收入+'+fc.incomeBonusPercent+'% · 维护$'+fc.dailyMaintenance+'/天</div>';
+    if (levelOk) {
+      var estPayback = fc.dailyMaintenance > 0 || fc.incomeBonusPercent > 0 ? Math.ceil(fc.cost / Math.max(1, (fc.incomeBonusPercent * 40 + (FACILITY_SERVICE_FEES[fc.id]||0) - fc.dailyMaintenance))) : '—';
+      html += '<button style="margin-top:6px;padding:4px 12px;border:none;border-radius:4px;font-size:9px;cursor:pointer;background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;" onclick="purchaseFacility('+outletId+',\''+fc.id+'\');renderFacilityModal();">'+(gameState.cash>=fc.cost?'购买':'资金不足')+'</button>';
+      html += '<div style="margin-top:4px;font-size:8px;color:rgba(255,255,255,0.3);">预估回本: ~'+estPayback+'天</div>';
+    } else {
+      html += '<div style="margin-top:6px;font-size:9px;color:#f87171;">网点等级不足</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  var incomeReport = typeof getFacilityIncomeReport === 'function' ? getFacilityIncomeReport() : {};
+  var reportKeys = Object.keys(incomeReport);
+  if (reportKeys.length > 0) {
+    html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;margin-top:16px;">📊 设施收入报告</div>';
+    html += '<div style="background:rgba(255,255,255,0.03);border-radius:10px;padding:12px;">';
+    html += '<table style="width:100%;border-collapse:collapse;">';
+    html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.08);"><th style="text-align:left;padding:6px 8px;font-size:9px;color:rgba(255,255,255,0.4);">设施</th><th style="text-align:left;padding:6px 8px;font-size:9px;color:rgba(255,255,255,0.4);">服务费</th><th style="text-align:left;padding:6px 8px;font-size:9px;color:rgba(255,255,255,0.4);">覆盖网点</th></tr>';
+    reportKeys.forEach(function(fid){
+      var r = incomeReport[fid];
+      var fee = FACILITY_SERVICE_FEES[fid] || 0;
+      html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);"><td style="padding:6px 8px;font-size:11px;color:#fff;">'+r.icon+' '+r.name+'</td><td style="padding:6px 8px;font-size:11px;color:#4ade80;">+$'+fee+'/次</td><td style="padding:6px 8px;font-size:11px;color:rgba(255,255,255,0.5);">'+r.outlets.length+'个网点</td></tr>';
+    });
+    html += '</table></div>';
+  }
+  content.innerHTML = html;
 }

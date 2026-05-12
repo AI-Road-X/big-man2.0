@@ -54,7 +54,7 @@ var ENERGY_LOW_THRESHOLD = 500;
 var defaultGameState = {
   cash: 1000000,
   currentDay: 1,
-  outlets: [{ id:0, level:1, owned:true }],
+  outlets: [{ id:0, level:1, owned:true, facilities:[], disabledFacilities:[], brokenFacilities:{}, upgradeProgress:{profitableDays:0,maxProfit:0} }],
   ownedVehicles: [],
   pendingOrders: [],
   todayIncome: 0,
@@ -236,6 +236,12 @@ function loadGame() {
       if (!gameState.consecutiveProfitDays) gameState.consecutiveProfitDays = 0;
       if (!gameState.lastQuarterDay) gameState.lastQuarterDay = 0;
       if (!gameState.hostileTakeoverRisk) gameState.hostileTakeoverRisk = 0;
+      gameState.outlets.forEach(function(o){
+        if (!o.facilities) o.facilities = [];
+        if (!o.disabledFacilities) o.disabledFacilities = [];
+        if (!o.brokenFacilities) o.brokenFacilities = {};
+        if (!o.upgradeProgress) o.upgradeProgress = {profitableDays:0,maxProfit:0};
+      });
       return true;
     }
   } catch(e) { console.error('加载失败:', e); }
@@ -246,7 +252,7 @@ function unlockOutlet(outletId) {
   var cfg = OUTLET_CONFIGS.find(function(c){ return c.id === outletId; });
   if (!cfg || gameState.cash < cfg.unlockCost) return;
   gameState.cash -= cfg.unlockCost;
-  gameState.outlets.push({ id: outletId, level: 1, owned: true });
+  gameState.outlets.push({ id: outletId, level: 1, owned: true, facilities: [], disabledFacilities: [], brokenFacilities: {}, upgradeProgress: {profitableDays:0,maxProfit:0} });
   addMessage('解锁新网点：' + cfg.name + '（' + cfg.cityLabel + '）', 'good');
   if (typeof createOutletBuildings === 'function') createOutletBuildings();
   updateUI(); saveGame();

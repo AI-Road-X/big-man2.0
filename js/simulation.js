@@ -6,6 +6,11 @@ function generateCustomers() {
     var mult = CITY_SIZE_MULTIPLIERS[cfg.citySize] || 1;
     var demandMult = eventEffects.demandMultiplier || 1;
     var base = Math.floor(Math.random() * 10 * mult * demandMult) + 1;
+    if (typeof hasPreferredFacility === 'function') {
+      var hasBiz = hasPreferredFacility(outlet.id, 'business');
+      var hasTour = hasPreferredFacility(outlet.id, 'tourist');
+      if (hasBiz || hasTour) base = Math.ceil(base * 1.2);
+    }
     var count = Math.min(base, 12);
     for (var i = 0; i < count; i++) {
       var isBusiness = Math.random() < 0.45;
@@ -77,6 +82,12 @@ function nextDay() {
 
   if (typeof processLoanInterest === 'function') processLoanInterest();
   if (typeof processDailyFinance === 'function') processDailyFinance();
+
+  if (typeof processFacilityMaintenance === 'function') {
+    var maintCost = processFacilityMaintenance();
+    if (maintCost > 0) addMessage('🔧 设施维护支出 ' + formatCurrency(maintCost), 'warn');
+  }
+  if (typeof processFacilityEvents === 'function') processFacilityEvents();
 
   var energyMessages = updateEnergyPrices();
   energyMessages.forEach(function(msg){
@@ -225,7 +236,17 @@ function acceptOrder(orderId) {
   if (isInTransit(vehicle.id)) { addMessage('订单取消：' + order.vehicleName + ' 正在调度中', 'bad'); gameState.pendingOrders.splice(idx,1); renderOrders(); saveGame(); return; }
 
   var serviceResult = applyValueAddedServices(vehicle, order.rentalDays);
-  var totalIncome = order.totalIncome + serviceResult.serviceIncome;
+  var facilityFee = 0;
+  if (typeof getFacilityServiceFee === 'function') {
+    facilityFee = getFacilityServiceFee(order.outletId, order.customerType);
+  }
+  var incomeBonusPct = 0;
+  if (typeof getOutletIncomeBonusPercent === 'function') {
+    incomeBonusPct = getOutletIncomeBonusPercent(order.outletId);
+  }
+  var baseIncome = order.totalIncome;
+  var bonusIncome = Math.round(baseIncome * incomeBonusPct / 100);
+  var totalIncome = baseIncome + serviceResult.serviceIncome + facilityFee + bonusIncome;
 
   gameState.cash += totalIncome;
   gameState.todayIncome += totalIncome;
@@ -247,7 +268,9 @@ function acceptOrder(orderId) {
   var typeLabel = order.customerType === 'business' ? '商务' : '旅游';
   var memberTag = order.memberId ? '👤' : '';
   var serviceMsg = serviceResult.serviceNames.length > 0 ? '，购买 ' + serviceResult.serviceNames.join(' + ') : '';
-  addMessage(memberTag + typeLabel + '客户 <span class="msg-highlight">' + order.customerName + '</span> 租用 ' + order.vehicleName + ' ' + order.rentalDays + '天' + serviceMsg + '，共支付 ' + formatCurrency(totalIncome), 'good');
+  var facilityMsg = facilityFee > 0 ? '，设施服务 +' + formatCurrency(facilityFee) : '';
+  var bonusMsg = bonusIncome > 0 ? '，加成 +' + formatCurrency(bonusIncome) : '';
+  addMessage(memberTag + typeLabel + '客户 <span class="msg-highlight">' + order.customerName + '</span> 租用 ' + order.vehicleName + ' ' + order.rentalDays + '天' + serviceMsg + facilityMsg + bonusMsg + '，共支付 ' + formatCurrency(totalIncome), 'good');
 
   order.acceptedDay = gameState.currentDay;
   order.actualIncome = totalIncome;
