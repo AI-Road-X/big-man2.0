@@ -85,6 +85,7 @@ function recordDailyFinancials() {
 
 function getPnL(period) {
   var revenue = 0, expenses = 0, netProfit = 0;
+  if (!gameState.financials) return { revenue: 0, expenses: 0, netProfit: 0 };
   if (period === 'today') {
     revenue = gameState.todayIncome;
     expenses = gameState.todayExpense;
@@ -109,6 +110,7 @@ function getPnL(period) {
 }
 
 function getBalanceSheet() {
+  if (!gameState.financials) initFinancialState();
   var cash = gameState.cash;
   var vehicleValue = 0;
   gameState.ownedVehicles.forEach(function(v) {
@@ -141,6 +143,7 @@ function getBalanceSheet() {
 
 function getCashFlow() {
   var f = gameState.financials;
+  if (!f || !f.todayDetail) return { operating: 0, investing: 0, financing: 0 };
   var d = f.todayDetail;
   var rentalIncome = gameState.todayIncome - (gameState.serviceStats ? gameState.serviceStats.today.totalIncome : 0);
   var serviceIncome = gameState.serviceStats ? gameState.serviceStats.today.totalIncome : 0;

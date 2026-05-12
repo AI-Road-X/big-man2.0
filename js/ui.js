@@ -1659,8 +1659,13 @@ function renderStocks() {
   html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;">';
   html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">📊 虚拟股票市场</div>';
   var vStocks = typeof VIRTUAL_STOCKS !== 'undefined' ? VIRTUAL_STOCKS : [];
+  var lastPrices = {};
+  if (st.stockHistory && st.stockHistory.length > 0) {
+    var lastSnapshot = st.stockHistory[st.stockHistory.length - 1];
+    vStocks.forEach(function(vs) { lastPrices[vs.ticker] = lastSnapshot[vs.ticker] || vs.basePrice; });
+  }
   vStocks.forEach(function(vs){
-    var price = (st.virtualPrices && st.virtualPrices[vs.ticker]) || vs.basePrice;
+    var price = lastPrices[vs.ticker] || vs.basePrice;
     html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);">';
     html += '<div><span style="color:#fff;font-weight:600;">'+vs.ticker+'</span> <span style="color:rgba(255,255,255,0.5);font-size:10px;">'+vs.name+'</span></div>';
     html += '<div style="display:flex;gap:6px;align-items:center;">';
@@ -1676,7 +1681,7 @@ function renderStocks() {
     html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;margin-top:10px;">';
     html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">💼 我的持仓</div>';
     portfolio.forEach(function(p){
-      var curPrice = (st.virtualPrices && st.virtualPrices[p.ticker]) || 0;
+      var curPrice = lastPrices[p.ticker] || 0;
       var val = Math.round(p.shares * curPrice);
       html += '<div style="display:flex;justify-content:space-between;padding:4px 0;font-size:11px;color:rgba(255,255,255,0.6);">';
       html += '<span>'+p.ticker+' × '+p.shares+'</span><span style="color:#4ade80;">'+formatCurrency(val)+'</span></div>';
