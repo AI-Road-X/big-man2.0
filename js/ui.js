@@ -518,19 +518,40 @@ function renderOrders() {
     return;
   }
   wrapper.innerHTML = '';
+  var headerBar = document.createElement('div');
+  headerBar.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:8px 12px;background:rgba(241,245,249,1);border-radius:8px;border:1px solid rgba(226,232,240,1);';
+  headerBar.innerHTML = '<span style="font-size:13px;font-weight:700;color:#1e293b;">待处理订单 <span style="color:#2563eb;">' + gameState.pendingOrders.length + '</span> 条</span>' +
+    '<button style="padding:7px 18px;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#059669,#10b981);color:#fff;box-shadow:0 2px 8px rgba(5,150,105,0.25);" onclick="acceptAllOrders()">✅ 一键全部接单</button>';
+  wrapper.appendChild(headerBar);
   gameState.pendingOrders.forEach(function(order){
     var typeIcon = order.customerType === 'business' ? '💼' : '🏖️';
     var typeClass = order.customerType === 'business' ? 'business' : 'tourist';
     var typeLabel = order.customerType === 'business' ? '商务客户' : '旅游客户';
     var netClass = order.netIncome >= 0 ? 'msg-highlight' : 'msg-bad';
+    var isEgg = order.isEasterEgg;
     var card = document.createElement('div');
     card.className = 'order-card';
+    if (isEgg) card.style.borderLeft = '4px solid #f59e0b';
+    var eggBadge = isEgg ? '<span style="font-size:9px;padding:1px 6px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#fff;border-radius:4px;font-weight:700;margin-left:6px;">🎁 彩蛋订单</span>' : '';
     card.innerHTML =
-      '<div class="order-top"><div class="order-customer"><div class="order-avatar ' + typeClass + '">' + typeIcon + '</div><div class="order-customer-info"><span class="order-customer-name">' + order.customerName + '</span><span class="order-customer-type">' + typeLabel + ' · ' + order.outletName + '</span></div></div><span class="order-price">' + formatCurrency(order.totalIncome) + '</span></div>' +
+      '<div class="order-top"><div class="order-customer"><div class="order-avatar ' + typeClass + '">' + typeIcon + '</div><div class="order-customer-info"><span class="order-customer-name">' + order.customerName + eggBadge + '</span><span class="order-customer-type">' + typeLabel + ' · ' + order.outletName + '</span></div></div><span class="order-price">' + formatCurrency(order.totalIncome) + (isEgg ? '<br><span style="font-size:9px;color:#f59e0b;">×' + (order.eggBonus || 1) + ' 奖励</span>' : '') + '</span></div>' +
       '<div class="order-details"><div class="order-detail-item"><div class="order-detail-label">租用车型</div><div class="order-detail-value">' + order.vehicleName + '</div></div><div class="order-detail-item"><div class="order-detail-label">租期</div><div class="order-detail-value">' + order.rentalDays + ' 天</div></div><div class="order-detail-item"><div class="order-detail-label">净利润</div><div class="order-detail-value ' + netClass + '">' + formatCurrency(order.netIncome) + '</div></div></div>' +
       '<div class="order-actions"><button class="action-btn btn-accept" onclick="acceptOrder(\'' + order.id + '\')">✓ 接单</button><button class="action-btn btn-reject" onclick="rejectOrder(\'' + order.id + '\')">✕ 拒绝</button></div>';
     wrapper.appendChild(card);
   });
+}
+
+function acceptAllOrders() {
+  var count = gameState.pendingOrders.length;
+  if (count === 0) return;
+  var ids = gameState.pendingOrders.map(function(o){ return o.id; });
+  var accepted = 0;
+  ids.forEach(function(id){
+    try { acceptOrder(id); accepted++; } catch(e) {}
+  });
+  addMessage('⚡ 一键接单：成功接下 ' + accepted + '/' + count + ' 个订单', 'good');
+  showToast('已接单 ' + accepted + ' 个', 'success');
+  updateUI(); saveGame();
 }
 
 function openDispatchModal(vehicleId) {

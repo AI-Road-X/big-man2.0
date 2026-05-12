@@ -48,10 +48,58 @@ function generateCustomers() {
   return customers;
 }
 
+function generateEasterEggOrder() {
+  if (Math.random() > 0.35) return null;
+  var available = [];
+  gameState.outlets.filter(function(o){ return o.owned; }).forEach(function(outlet){
+    available = available.concat(getAvailableVehiclesAtOutlet(outlet.id));
+  });
+  if (available.length === 0) return null;
+  var vehicle = available[Math.floor(Math.random() * available.length)];
+  var outlet = OUTLET_CONFIGS[vehicle.outletId];
+  var EGG_SCENARIOS = [
+    { name: '🎬 电影剧组', desc: '某电影需要拍摄用车', bonus: 2.5, days: [3,7], customer: '张导演' },
+    { name: '👑 明星出行', desc: '知名艺人低调租车', bonus: 3.0, days: [1,3], customer: '神秘明星' },
+    { name: '🏢 企业高管', desc: '跨国公司CEO来访', bonus: 2.0, days: [5,10], customer: '王总' },
+    { name: '💒 婚礼车队', desc: '新人婚庆包车需求', bonus: 2.8, days: [1,2], customer: '李先生' },
+    { name: '📺 综艺节目', desc: '热门综艺外景拍摄', bonus: 2.3, days: [4,6], customer: '节目组' },
+    { name: '🎤 歌手巡演', desc: '演唱会巡演后勤用车', bonus: 3.5, days: [7,14], customer: '巡演团队' },
+    { name: '🏥 医疗急救', desc: '医院紧急转运任务', bonus: 4.0, days: [1,1], customer: '急救中心' },
+    { name: '🎮 游戏主播', desc: '百万粉丝UP主探店', bonus: 1.8, days: [2,4], customer: '游戏酱' },
+    { name: '🌍 外国使团', desc: '外国代表团访问用车', bonus: 3.2, days: [5,8], customer: 'Smith大使' },
+    { name: '🏆 体育赛事', desc: '国家队集训接送', bonus: 2.6, days: [14,21], customer: '体育总局' },
+    { name: '🚀 科技公司', desc: '科技巨头发布会用车', bonus: 2.2, days: [2,3], customer: '产品经理' },
+    { name: '🎭 戏曲名家', desc: '非遗传承人巡演用车', bonus: 1.9, days: [3,5], customer: '梅老师' }
+  ];
+  var scenario = EGG_SCENARIOS[Math.floor(Math.random() * EGG_SCENARIOS.length)];
+  var rentalDays = scenario.days[0] + Math.floor(Math.random() * (scenario.days[1] - scenario.days[0] + 1));
+  var effectiveRate = getEffectiveDailyRate(vehicle);
+  var totalIncome = Math.round(effectiveRate * rentalDays * scenario.bonus);
+  var eventEffects = getEventEffects();
+  var fuelCost = vehicle.fuelCostPerDay * (eventEffects.fuelMultiplier || 1);
+  var maintCost = vehicle.maintenanceCostPerDay * (eventEffects.maintenanceMultiplier || 1);
+  var totalCost = Math.round((fuelCost + maintCost) * rentalDays * 0.5);
+  return {
+    id: 'EGG_' + Date.now() + '_' + Math.random().toString(36).substr(2,6),
+    customerId: 'egg_' + Date.now(), customerName: scenario.customer, customerType: Math.random() > 0.5 ? 'business' : 'tourist',
+    memberId: null,
+    outletId: vehicle.outletId, outletName: outlet.name,
+    vehicleId: vehicle.id, vehicleName: vehicle.brand + ' ' + vehicle.model,
+    vehicleType: vehicle.type, dailyRate: effectiveRate,
+    rentalDays: rentalDays, totalIncome: totalIncome,
+    fuelCostPerDay: Math.round(fuelCost), maintenanceCostPerDay: Math.round(maintCost),
+    totalCost: totalCost, netIncome: Math.round(totalIncome - totalCost),
+    createdDay: gameState.currentDay,
+    isEasterEgg: true, eggBonus: scenario.bonus, eggScenario: scenario.name, eggDesc: scenario.desc
+  };
+}
+
 function matchVehicleForCustomer(customer) {
   var available = getAvailableVehiclesAtOutlet(customer.outletId);
   if (available.length === 0) return null;
   var eventEffects = getEventEffects();
+  if (!gameState._vehicleRentHistory) gameState._vehicleRentHistory = {};
+  var today = gameState.currentDay;
   var scored = available.map(function(v){
     var pref = customer.preferences[v.type] || 1;
     if (eventEffects.fuelDemandMultiplier && eventEffects.fuelDemandMultiplier[v.fuelType]) {
@@ -65,10 +113,18 @@ function matchVehicleForCustomer(customer) {
         effectiveRate = Math.round(effectiveRate * levelInfo.discount);
       }
     }
-    return { vehicle: v, score: pref * (1000 / Math.max(effectiveRate, 1)), effectiveRate: effectiveRate };
+    var lastRented = gameState._vehicleRentHistory[v.id] || 0;
+    var daysSince = Math.max(0, today - lastRented);
+    var rentPenalty = daysSince <= 0 ? 10 : daysSince < 3 ? 5 : daysSince < 7 ? 2 : 0;
+    var randomFactor = 0.8 + Math.random() * 0.4;
+    return { vehicle: v, score: pref * (1000 / Math.max(effectiveRate, 1)) * randomFactor - rentPenalty, effectiveRate: effectiveRate };
   });
   scored.sort(function(a,b){ return b.score - a.score; });
-  return scored[0];
+  var topN = Math.min(3, scored.length);
+  var pickIdx = Math.floor(Math.random() * topN);
+  var chosen = scored[pickIdx];
+  gameState._vehicleRentHistory[chosen.vehicle.id] = today;
+  return chosen;
 }
 
 function nextDay() {
@@ -156,6 +212,11 @@ function nextDay() {
   if (newOrders.length > 0) {
     gameState.pendingOrders = gameState.pendingOrders.concat(newOrders);
     addMessage('收到 <span class="msg-highlight">' + newOrders.length + '</span> 个新订单，请及时处理！', 'warn');
+    var eggOrder = generateEasterEggOrder();
+    if (eggOrder) {
+      gameState.pendingOrders.push(eggOrder);
+      addMessage('🎁 彩蛋订单！' + eggOrder.customerName + ' — 收入×' + eggOrder.eggBonus, 'good');
+    }
   } else {
     addMessage('今日无客户下单', 'bad');
   }
