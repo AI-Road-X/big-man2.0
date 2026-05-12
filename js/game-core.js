@@ -210,6 +210,31 @@ function saveGame() {
   try { localStorage.setItem(SAVE_KEY, JSON.stringify(gameState)); } catch(e) { console.error('保存失败:', e); }
 }
 
+var CHEAT_CODES = {
+  'showmethemoney': { desc: '获得100万现金', fn: function(){ gameState.cash += 1000000; addMessage('💰 作弊码：获得100万现金','good'); } },
+  'greedisgood': { desc: '获得50万现金+全部设施', fn: function(){ gameState.cash += 500000; facilitiesConfig.forEach(function(fc){ if(gameState.outlets[0].facilities.indexOf(fc.id)===-1) gameState.outlets[0].facilities.push(fc.id); }); addMessage('💰 作弊码：50万+全部设施','good'); } },
+  'levelup': { desc: '网点升1级', fn: function(){ var os=getOutletState(0); if(os.level<5){os.level++;addMessage('⬆️ 作弊码：网点升至Lv.'+os.level,'good');} } },
+  'maxlevel': { desc: '网点满级', fn: function(){ var os=getOutletState(0); os.level=5; addMessage('⭐ 作弊码：网点满级','good'); } },
+  'parkingfull': { desc: '停车位扩建满', fn: function(){ var os=getOutletState(0); os.parkingSpots={customer:20,internal:30}; os.parkingUpgradeLevel={customer:8,internal:4}; addMessage('🅿️ 作弊码：停车位扩建满','good'); } },
+  'alldecor': { desc: '解锁全部装饰', fn: function(){ gameState.interiorDecorUnlocked=true; gameState.decorations=[{outletId:0,id:'plant',name:'绿植',icon:'🪴',satisfactionBonus:2},{outletId:0,id:'aquarium',name:'鱼缸',icon:'🐠',satisfactionBonus:3},{outletId:0,id:'fountain',name:'室内喷泉',icon:'⛲',satisfactionBonus:5}]; addMessage('🌿 作弊码：全部装饰','good'); } },
+  'reputation': { desc: '声誉+50', fn: function(){ addReputation(50); addMessage('⭐ 作弊码：声誉+50','good'); } },
+  'freefuel': { desc: '免费加油充电', fn: function(){ gameState.oilStorage=10000; gameState.elecStorage=10000; addMessage('⛽ 作弊码：能源满','good'); } },
+  'addvehicle': { desc: '免费获得1辆随机车', fn: function(){ var types=Object.keys(VEHICLE_CATALOG); var type=types[Math.floor(Math.random()*types.length)]; var model=VEHICLE_CATALOG[type]; if(model&&model.models){ var m=model.models[Math.floor(Math.random()*model.models.length)]; if(m){ purchaseVehicle(type,m.name,0); addMessage('🚗 作弊码：免费获得 '+m.name,'good'); } } } },
+  'resetgame': { desc: '重置游戏', fn: function(){ localStorage.removeItem(SAVE_KEY); location.reload(); } }
+};
+
+function enterCheatCode(code) {
+  var c = code.toLowerCase().replace(/\s/g,'');
+  var cheat = CHEAT_CODES[c];
+  if (cheat) {
+    cheat.fn();
+    updateUI(); saveGame();
+    return true;
+  }
+  addMessage('❌ 无效作弊码: ' + code, 'bad');
+  return false;
+}
+
 function loadGame() {
   try {
     var raw = localStorage.getItem(SAVE_KEY);

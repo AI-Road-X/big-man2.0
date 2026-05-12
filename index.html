@@ -10,44 +10,39 @@
     body{font-family:'JetBrains Mono','Noto Sans SC',monospace;overflow:hidden;background:#0a0a0f;-webkit-tap-highlight-color:transparent}
     #canvas-container{position:fixed;top:0;left:0;width:100%;height:100%;z-index:1}
 
-    #control-panel{position:fixed;bottom:16px;right:16px;z-index:100;background:rgba(255,255,255,0.12);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border:1px solid rgba(255,255,255,0.18);border-radius:16px;padding:16px 18px;min-width:220px;box-shadow:0 8px 32px rgba(0,0,0,0.4);animation:slideIn .6s cubic-bezier(.16,1,.3,1)}
-    @keyframes slideIn{from{opacity:0;transform:translateY(30px) scale(.95)}to{opacity:1;transform:translateY(0) scale(1)}}
+    #control-panel{position:fixed;bottom:0;left:0;right:0;z-index:100;background:rgba(10,10,15,0.92);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-top:1px solid rgba(255,255,255,0.12);padding:8px 12px;animation:slideUp .5s cubic-bezier(.16,1,.3,1)}
+    @keyframes slideUp{from{opacity:0;transform:translateY(100%)}to{opacity:1;transform:translateY(0)}}
     @keyframes pulse{0%,100%{opacity:1}50%{opacity:.6}}
-    #control-panel h2{font-size:14px;font-weight:700;color:#fff;margin-bottom:10px;padding-bottom:8px;border-bottom:2px solid rgba(255,255,255,0.1);display:flex;align-items:center;gap:8px}
-    #control-panel h2::before{content:'';width:6px;height:6px;background:#ff6b35;border-radius:50%;animation:pulse 2s infinite}
-    .stat{display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06)}
-    .stat:last-of-type{border-bottom:none}
-    .stat-label{font-size:11px;color:rgba(255,255,255,0.6);letter-spacing:.5px}
-    .stat-value{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:#fff}
+    #control-panel .panel-top{display:flex;align-items:center;gap:12px;padding-bottom:6px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:6px}
+    #control-panel .panel-top h2{font-size:13px;font-weight:700;color:#fff;display:flex;align-items:center;gap:8px;white-space:nowrap}
+    #control-panel .panel-top h2::before{content:'';width:6px;height:6px;background:#ff6b35;border-radius:50%;animation:pulse 2s infinite}
+    .stat{display:inline-flex;align-items:center;gap:4px;padding:0 8px;border-right:1px solid rgba(255,255,255,0.08)}
+    .stat:last-of-type{border-right:none}
+    .stat-label{font-size:10px;color:rgba(255,255,255,0.5);letter-spacing:.3px}
+    .stat-value{font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700;color:#fff}
     .stat-value.cash{color:#4ade80}.stat-value.fleet{color:#60a5fa}.stat-value.income{color:#fbbf24}.stat-value.expense{color:#f87171}
-    .panel-btn{margin-top:6px;width:100%;padding:10px 14px;border:none;border-radius:8px;color:#fff;font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;cursor:pointer;transition:all .3s ease;display:flex;align-items:center;justify-content:center;gap:6px;min-height:44px}
-    .panel-btn:hover{transform:translateY(-2px)}
+    .panel-btn{padding:6px 10px;border:none;border-radius:6px;color:#fff;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;cursor:pointer;transition:all .2s ease;display:inline-flex;align-items:center;justify-content:center;gap:4px;min-height:32px;white-space:nowrap}
+    .panel-btn:hover{transform:translateY(-1px);filter:brightness(1.15)}
     .panel-btn.next-day{background:linear-gradient(135deg,#3b82f6,#6366f1)}
-    .panel-btn.next-day:hover{box-shadow:0 6px 20px rgba(59,130,246,0.4)}
     .panel-btn.orders{background:linear-gradient(135deg,#f59e0b,#d97706);position:relative}
-    .panel-btn.orders:hover{box-shadow:0 6px 20px rgba(245,158,11,0.4)}
     .panel-btn.fleet{background:linear-gradient(135deg,#ff6b35,#f7931e)}
-    .panel-btn.fleet:hover{box-shadow:0 6px 20px rgba(255,107,53,0.4)}
     .panel-btn.pricing{background:linear-gradient(135deg,#9b59b6,#8e44ad)}
-    .panel-btn.pricing:hover{box-shadow:0 6px 20px rgba(155,89,182,0.4)}
     .panel-btn.energy{background:linear-gradient(135deg,#27ae60,#2ecc71)}
-    .panel-btn.energy:hover{box-shadow:0 6px 20px rgba(39,174,96,0.4)}
     .panel-btn.service-stats{background:linear-gradient(135deg,#e67e22,#f39c12)}
-    .panel-btn.service-stats:hover{box-shadow:0 6px 20px rgba(230,126,34,0.4)}
     .panel-btn.members{background:linear-gradient(135deg,#1abc9c,#16a085)}
-    .panel-btn.members:hover{box-shadow:0 6px 20px rgba(26,188,156,0.4)}
     .panel-btn.service-pricing{background:linear-gradient(135deg,#e74c3c,#c0392b)}
-    .panel-btn.service-pricing:hover{box-shadow:0 6px 20px rgba(231,76,60,0.4)}
     .panel-btn.employees{background:linear-gradient(135deg,#8e44ad,#9b59b6)}
-    .panel-btn.employees:hover{box-shadow:0 6px 20px rgba(142,68,173,0.4)}
     .panel-btn.finance{background:linear-gradient(135deg,#2c3e50,#34495e)}
-    .panel-btn.finance:hover{box-shadow:0 6px 20px rgba(44,62,80,0.4)}
     .panel-btn.order-history{background:linear-gradient(135deg,#16a085,#1abc9c)}
-    .panel-btn.order-history:hover{box-shadow:0 6px 20px rgba(22,160,133,0.4)}
-    .order-badge{position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:10px;min-width:18px;height:18px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:700;animation:pulse 1.5s infinite}
+    .order-badge{position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;font-size:9px;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:700;animation:pulse 1.5s infinite}
     .order-badge:empty{display:none}
-    #activeEventsBar{display:none;flex-wrap:wrap;gap:4px;margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08)}
-    .event-tag{font-size:10px;padding:3px 8px;border-radius:6px;background:rgba(251,191,36,0.15);color:#fbbf24;white-space:nowrap}
+    #activeEventsBar{display:none;flex-wrap:wrap;gap:4px;padding:2px 0}
+    .event-tag{font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(251,191,36,0.15);color:#fbbf24;white-space:nowrap}
+    .panel-section-header{cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:4px 8px;border-radius:6px;margin-bottom:2px;transition:background .2s}
+    .panel-section-header:hover{filter:brightness(1.2)}
+    .panel-section-body{display:flex;gap:4px;flex-wrap:wrap}
+    .panel-row{display:flex;gap:4px;flex-wrap:wrap;align-items:center}
+    .panel-section{margin-top:4px}
     #marketCoeffDisplay{font-size:10px;color:rgba(255,255,255,0.6);text-align:center;margin-top:4px}
 
     #loading-screen{position:fixed;top:0;left:0;width:100%;height:100%;background:#0a0a0f;display:flex;flex-direction:column;justify-content:center;align-items:center;z-index:1000;transition:opacity .8s ease,visibility .8s ease}
@@ -323,71 +318,40 @@
   </div>
 
   <div id="control-panel">
-    <h2>租车公司</h2>
-    <div class="stat"><span class="stat-label">日期</span><span class="stat-value" id="dayDisplay">2023年1月1日 周日</span></div>
-    <div class="stat"><span class="stat-label">公司现金</span><span class="stat-value cash" id="cash">$1,000,000</span></div>
-    <div class="stat"><span class="stat-label">总车队</span><span class="stat-value fleet" id="fleet">0 辆</span></div>
-    <div class="stat"><span class="stat-label">今日收入</span><span class="stat-value income" id="todayIncome">$0</span></div>
-    <div class="stat"><span class="stat-label">今日支出</span><span class="stat-value expense" id="todayExpense">$0</span></div>
-    <div id="marketCoeffDisplay">市场系数: 1.00</div>
-    <div style="display:flex;gap:8px;font-size:10px;">
-      <span id="oilPriceDisplay" style="flex:1;text-align:center;">⛽ 5.00</span>
-      <span id="elecPriceDisplay" style="flex:1;text-align:center;">🔋 0.80</span>
+    <div class="panel-top">
+      <h2>租车公司</h2>
+      <div class="stat"><span class="stat-label">日期</span><span class="stat-value" id="dayDisplay">2023年1月1日</span></div>
+      <div class="stat"><span class="stat-label">现金</span><span class="stat-value cash" id="cash">$1,000,000</span></div>
+      <div class="stat"><span class="stat-label">车队</span><span class="stat-value fleet" id="fleet">0辆</span></div>
+      <div class="stat"><span class="stat-label">收入</span><span class="stat-value income" id="todayIncome">$0</span></div>
+      <div class="stat"><span class="stat-label">支出</span><span class="stat-value expense" id="todayExpense">$0</span></div>
+      <span id="marketCoeffDisplay" style="font-size:9px;color:rgba(255,255,255,0.4);">系数:1.00</span>
+      <span id="oilPriceDisplay" style="font-size:9px;color:rgba(255,255,255,0.4);">⛽5.00</span>
+      <span id="elecPriceDisplay" style="font-size:9px;color:rgba(255,255,255,0.4);">🔋0.80</span>
+      <span id="oilStorageDisplay" style="font-size:8px;color:rgba(255,255,255,0.25);">⛽5000L</span>
+      <span id="elecStorageDisplay" style="font-size:8px;color:rgba(255,255,255,0.25);">🔋5000kWh</span>
+      <div id="activeEventsBar"></div>
     </div>
-    <div style="display:flex;gap:8px;font-size:9px;">
-      <span id="oilStorageDisplay" style="flex:1;text-align:center;color:rgba(255,255,255,0.4);">⛽ 5000/10000L</span>
-      <span id="elecStorageDisplay" style="flex:1;text-align:center;color:rgba(255,255,255,0.4);">🔋 5000/10000kWh</span>
+    <div class="panel-row">
+      <button class="panel-btn next-day" onclick="nextDay()">⏭ 下一日</button>
+      <button style="padding:4px 8px;border:1px solid rgba(255,255,255,0.15);border-radius:4px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:9px;cursor:pointer;min-height:28px;" onclick="setGameSpeed(1)" id="speedBtn1">1x</button>
+      <button style="padding:4px 8px;border:1px solid rgba(255,255,255,0.15);border-radius:4px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:9px;cursor:pointer;min-height:28px;" onclick="setGameSpeed(5)" id="speedBtn5">5x</button>
+      <button style="padding:4px 8px;border:1px solid rgba(255,255,255,0.15);border-radius:4px;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.6);font-size:9px;cursor:pointer;min-height:28px;" onclick="setGameSpeed(30)" id="speedBtn30">30x</button>
+      <button class="panel-btn orders" onclick="openOrdersModal()">📋 订单<span class="order-badge" id="orderBadge"></span></button>
+      <span style="width:1px;height:20px;background:rgba(255,255,255,0.1);margin:0 4px;"></span>
+      <button class="panel-btn fleet" onclick="openFleetModal()">🚗 车队</button>
+      <button class="panel-btn pricing" onclick="openPricingModal()">💰 调价</button>
+      <button class="panel-btn energy" onclick="openEnergyModal()">⛽ 能源</button>
+      <button class="panel-btn members" onclick="openMemberModal()">👤 会员</button>
+      <button class="panel-btn employees" onclick="openEmployeeModal()">👔 员工</button>
+      <button class="panel-btn finance" onclick="openFinanceModal()">🏦 财务</button>
+      <button class="panel-btn order-history" onclick="openOrderHistoryModal()">📋 历史</button>
+      <button class="panel-btn service-stats" onclick="openServiceStatsModal()">📊 服务</button>
+      <button class="panel-btn service-pricing" onclick="openServicePricingModal()">🏷️ 定价</button>
+      <button class="panel-btn" style="background:linear-gradient(135deg,#f1c40f,#f39c12);" onclick="openMilestoneModal()">🏆 里程碑</button>
+      <span style="width:1px;height:20px;background:rgba(255,255,255,0.1);margin:0 4px;"></span>
+      <input id="cheatInput" type="text" placeholder="输入作弊码..." style="padding:4px 8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:9px;width:120px;outline:none;min-height:28px;" onkeydown="if(event.key==='Enter'){enterCheatCode(this.value);this.value='';}" />
     </div>
-    <div id="activeEventsBar"></div>
-    <button class="panel-btn next-day" onclick="nextDay()">⏭ 下一日</button>
-    <div style="display:flex;gap:4px;margin-top:4px;">
-      <button class="panel-btn" style="flex:1;padding:6px;font-size:10px;min-height:32px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);" onclick="setGameSpeed(1)" id="speedBtn1">1x</button>
-      <button class="panel-btn" style="flex:1;padding:6px;font-size:10px;min-height:32px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);" onclick="setGameSpeed(5)" id="speedBtn5">5x</button>
-      <button class="panel-btn" style="flex:1;padding:6px;font-size:10px;min-height:32px;background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);" onclick="setGameSpeed(30)" id="speedBtn30">30x</button>
-    </div>
-    <button class="panel-btn orders" onclick="openOrdersModal()">📋 待处理订单<span class="order-badge" id="orderBadge"></span></button>
-    <div class="panel-section" style="margin-top:6px;">
-      <div class="panel-section-header" onclick="togglePanelSection(this)" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(255,107,53,0.15);border:1px solid rgba(255,107,53,0.3);border-radius:8px;margin-bottom:4px;">
-        <span style="font-size:11px;font-weight:700;color:#ff6b35;">🚗 车辆运营</span>
-        <span class="section-arrow" style="font-size:10px;color:rgba(255,255,255,0.4);transition:transform .2s;">▼</span>
-      </div>
-      <div class="panel-section-body" style="display:flex;flex-direction:column;gap:4px;">
-        <button class="panel-btn fleet" onclick="openFleetModal()">🚗 车队管理</button>
-        <button class="panel-btn pricing" onclick="openPricingModal()">💰 调价</button>
-        <button class="panel-btn energy" onclick="openEnergyModal()">⛽ 能源</button>
-      </div>
-    </div>
-    <div class="panel-section" style="margin-top:4px;">
-      <div class="panel-section-header" onclick="togglePanelSection(this)" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(142,68,173,0.15);border:1px solid rgba(142,68,173,0.3);border-radius:8px;margin-bottom:4px;">
-        <span style="font-size:11px;font-weight:700;color:#9b59b6;">👥 人员客户</span>
-        <span class="section-arrow" style="font-size:10px;color:rgba(255,255,255,0.4);transition:transform .2s;">▼</span>
-      </div>
-      <div class="panel-section-body" style="display:flex;flex-direction:column;gap:4px;">
-        <button class="panel-btn members" onclick="openMemberModal()">👤 会员</button>
-        <button class="panel-btn employees" onclick="openEmployeeModal()">👔 员工</button>
-      </div>
-    </div>
-    <div class="panel-section" style="margin-top:4px;">
-      <div class="panel-section-header" onclick="togglePanelSection(this)" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(44,62,80,0.3);border:1px solid rgba(44,62,80,0.5);border-radius:8px;margin-bottom:4px;">
-        <span style="font-size:11px;font-weight:700;color:#95a5a6;">🏦 财务报表</span>
-        <span class="section-arrow" style="font-size:10px;color:rgba(255,255,255,0.4);transition:transform .2s;">▼</span>
-      </div>
-      <div class="panel-section-body" style="display:flex;flex-direction:column;gap:4px;">
-        <button class="panel-btn finance" onclick="openFinanceModal()">🏦 财务</button>
-        <button class="panel-btn order-history" onclick="openOrderHistoryModal()">📋 订单</button>
-      </div>
-    </div>
-    <div class="panel-section" style="margin-top:4px;">
-      <div class="panel-section-header" onclick="togglePanelSection(this)" style="cursor:pointer;display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:rgba(241,196,15,0.15);border:1px solid rgba(241,196,15,0.3);border-radius:8px;margin-bottom:4px;">
-        <span style="font-size:11px;font-weight:700;color:#f1c40f;">📊 增值服务</span>
-        <span class="section-arrow" style="font-size:10px;color:rgba(255,255,255,0.4);transition:transform .2s;">▼</span>
-      </div>
-      <div class="panel-section-body" style="display:flex;flex-direction:column;gap:4px;">
-        <button class="panel-btn service-stats" onclick="openServiceStatsModal()">📊 增值服务</button>
-        <button class="panel-btn service-pricing" onclick="openServicePricingModal()">🏷️ 服务定价</button>
-      </div>
-    </div>
-    <button class="panel-btn" style="background:linear-gradient(135deg,#f1c40f,#f39c12);margin-top:4px;" onclick="openMilestoneModal()">🏆 里程碑</button>
   </div>
 
   <div id="outlet-popup">
