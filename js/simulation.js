@@ -191,6 +191,8 @@ function nextDay() {
     if (typeof showWinScreen === 'function') showWinScreen();
   }
 
+  if (typeof processProgressionDaily === 'function') processProgressionDaily();
+
   updateUI(); saveGame();
 }
 

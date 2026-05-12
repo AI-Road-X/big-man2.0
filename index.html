@@ -349,6 +349,7 @@
       <button class="panel-btn service-stats" onclick="openServiceStatsModal()">📊 服务</button>
       <button class="panel-btn service-pricing" onclick="openServicePricingModal()">🏷️ 定价</button>
       <button class="panel-btn" style="background:linear-gradient(135deg,#f1c40f,#f39c12);" onclick="openMilestoneModal()">🏆 里程碑</button>
+      <button class="panel-btn" style="background:linear-gradient(135deg,#e74c3c,#c0392b);" onclick="openProgressionModal()">🎯 成长</button>
       <span style="width:1px;height:20px;background:rgba(255,255,255,0.1);margin:0 4px;"></span>
       <input id="cheatInput" type="text" placeholder="输入作弊码..." style="padding:4px 8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:9px;width:120px;outline:none;min-height:28px;" onkeydown="if(event.key==='Enter'){enterCheatCode(this.value);this.value='';}" />
     </div>
@@ -533,6 +534,16 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="progressionModal">
+    <div class="modal-container" style="max-width:900px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">🎯</span> 成长体系</div>
+        <button class="close-btn" onclick="closeProgressionModal()">✕</button>
+      </div>
+      <div class="vehicle-table-wrapper" id="progressionContent" style="padding:16px 22px;"></div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="pricingModal">
     <div class="modal-container" style="max-width:600px;">
       <div class="modal-header">
@@ -568,6 +579,7 @@
   <script src="js/finance.js"></script>
   <script src="js/facilities.js"></script>
   <script src="js/milestones.js"></script>
+  <script src="js/progression.js"></script>
   <script src="js/simulation.js"></script>
   <script src="js/scene3d.js"></script>
   <script src="js/ui.js"></script>

@@ -220,6 +220,9 @@ var CHEAT_CODES = {
   'reputation': { desc: '声誉+50', fn: function(){ addReputation(50); addMessage('⭐ 作弊码：声誉+50','good'); } },
   'freefuel': { desc: '免费加油充电', fn: function(){ gameState.oilStorage=10000; gameState.elecStorage=10000; addMessage('⛽ 作弊码：能源满','good'); } },
   'addvehicle': { desc: '免费获得1辆随机车', fn: function(){ var types=Object.keys(VEHICLE_CATALOG); var type=types[Math.floor(Math.random()*types.length)]; var model=VEHICLE_CATALOG[type]; if(model&&model.models){ var m=model.models[Math.floor(Math.random()*model.models.length)]; if(m){ purchaseVehicle(type,m.name,0); addMessage('🚗 作弊码：免费获得 '+m.name,'good'); } } } },
+  'researchall': { desc: '研究全部科技', fn: function(){ if(typeof TECH_TREE!=='undefined'){Object.keys(TECH_TREE.branches).forEach(function(bk){TECH_TREE.branches[bk].techs.forEach(function(t){gameState.techResearched[t.id]=true;});});addMessage('🔬 作弊码：全部科技','good');} } },
+  'prestige5': { desc: '获得5声望点数', fn: function(){ gameState.prestigePoints=(gameState.prestigePoints||0)+5; addMessage('✨ 作弊码：+5声望点数','good'); } },
+  'rivalboost': { desc: '竞争对手强化', fn: function(){ if(gameState.rivals){gameState.rivals.forEach(function(r){r.strength=Math.min(1,r.strength+0.2);});addMessage('⚔️ 作弊码：竞争对手强化','good');} } },
   'resetgame': { desc: '重置游戏', fn: function(){ localStorage.removeItem(SAVE_KEY); location.reload(); } }
 };
 

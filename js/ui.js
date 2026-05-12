@@ -1361,6 +1361,212 @@ function renderPnL() {
   }
   return html;
 }
+
+var progressionTab = 'achievements';
+function openProgressionModal() {
+  progressionTab = 'achievements';
+  document.getElementById('progressionModal').classList.add('active');
+  renderProgressionModal();
+}
+function closeProgressionModal() {
+  document.getElementById('progressionModal').classList.remove('active');
+}
+function switchProgressionTab(tab) {
+  progressionTab = tab;
+  renderProgressionModal();
+}
+function renderProgressionModal() {
+  if (typeof initProgressionState === 'function') initProgressionState();
+  var content = document.getElementById('progressionContent');
+  var tabs = [
+    { id:'achievements', name:'🏆 成就', color:'#fbbf24' },
+    { id:'techtree', name:'🔬 科技', color:'#3b82f6' },
+    { id:'rivals', name:'⚔️ 竞争', color:'#ef4444' },
+    { id:'daily', name:'📋 挑战', color:'#4ade80' },
+    { id:'prestige', name:'✨ 重生', color:'#a855f7' }
+  ];
+  var html = '<div style="display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap;">';
+  tabs.forEach(function(t) {
+    var active = progressionTab === t.id;
+    html += '<button style="padding:6px 12px;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;min-height:32px;background:' + (active ? t.color : 'rgba(255,255,255,0.06)') + ';color:' + (active ? '#fff' : 'rgba(255,255,255,0.5)') + ';" onclick="switchProgressionTab(\'' + t.id + '\')">' + t.name + '</button>';
+  });
+  html += '</div>';
+  if (progressionTab === 'achievements') html += renderAchievementsTab();
+  else if (progressionTab === 'techtree') html += renderTechTreeTab();
+  else if (progressionTab === 'rivals') html += renderRivalsTab();
+  else if (progressionTab === 'daily') html += renderDailyTab();
+  else if (progressionTab === 'prestige') html += renderPrestigeTab();
+  content.innerHTML = html;
+}
+
+function renderAchievementsTab() {
+  var prog = typeof getAchievementProgress === 'function' ? getAchievementProgress() : {total:0,unlocked:0,claimed:0};
+  var html = '<div style="display:flex;gap:12px;margin-bottom:14px;align-items:center;">';
+  html += '<div style="font-size:24px;font-weight:700;color:#fbbf24;">' + prog.unlocked + '/' + prog.total + '</div>';
+  html += '<div><div style="font-size:11px;color:#fff;">成就解锁</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">已领取 ' + prog.claimed + ' 个奖励</div></div>';
+  html += '<div style="flex:1;height:6px;background:rgba(255,255,255,0.1);border-radius:3px;overflow:hidden;"><div style="width:' + (prog.total>0?Math.round(prog.unlocked/prog.total*100):0) + '%;height:100%;background:linear-gradient(90deg,#fbbf24,#f59e0b);border-radius:3px;"></div></div>';
+  html += '</div>';
+  var cats = typeof ACHIEVEMENT_CATEGORIES !== 'undefined' ? ACHIEVEMENT_CATEGORIES : {};
+  Object.keys(cats).forEach(function(catKey) {
+    var cat = cats[catKey];
+    var catAchs = (typeof ACHIEVEMENTS !== 'undefined' ? ACHIEVEMENTS : []).filter(function(a){ return a.cat === catKey; });
+    html += '<div style="margin-bottom:14px;"><div style="font-size:12px;font-weight:700;color:' + cat.color + ';margin-bottom:8px;">' + cat.icon + ' ' + cat.name + '</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">';
+    catAchs.forEach(function(a) {
+      var record = (gameState.achievements || {})[a.id];
+      var unlocked = !!record;
+      var claimed = record && record.claimed;
+      html += '<div style="background:' + (unlocked ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.02)') + ';border:1px solid ' + (unlocked ? cat.color + '40' : 'rgba(255,255,255,0.06)') + ';border-radius:8px;padding:10px;' + (unlocked ? '' : 'opacity:0.5;') + '">';
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span style="font-size:14px;">' + a.icon + '</span>';
+      if (claimed) html += '<span style="font-size:8px;color:#4ade80;">已领取</span>';
+      else if (unlocked) html += '<button style="padding:2px 8px;border:none;border-radius:4px;font-size:8px;font-weight:700;cursor:pointer;background:' + cat.color + ';color:#fff;" onclick="claimAchievement(\'' + a.id + '\');renderProgressionModal();">领取</button>';
+      html += '</div>';
+      html += '<div style="font-size:11px;font-weight:600;color:#fff;">' + a.name + '</div>';
+      html += '<div style="font-size:9px;color:rgba(255,255,255,0.4);">' + a.desc + '</div>';
+      if (a.reward.cash) html += '<div style="font-size:8px;color:#4ade80;margin-top:2px;">奖励: ' + formatCurrency(a.reward.cash) + '</div>';
+      if (a.reward.reputation) html += '<div style="font-size:8px;color:#fbbf24;">声誉+' + a.reward.reputation + '</div>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+  return html;
+}
+
+function renderTechTreeTab() {
+  var branches = typeof TECH_TREE !== 'undefined' ? TECH_TREE.branches : {};
+  var html = '';
+  if (gameState.techResearching) {
+    var rt = gameState.techResearching;
+    var pct = rt.totalDays > 0 ? Math.round((1 - rt.remaining / rt.totalDays) * 100) : 100;
+    html += '<div style="background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:8px;padding:12px;margin-bottom:14px;">';
+    html += '<div style="font-size:11px;color:#60a5fa;font-weight:700;">🔬 研究中: ' + rt.id + '</div>';
+    html += '<div style="margin-top:6px;height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;"><div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,#3b82f6,#6366f1);border-radius:4px;"></div></div>';
+    html += '<div style="font-size:9px;color:rgba(255,255,255,0.4);margin-top:4px;">剩余 ' + rt.remaining + ' 天 (' + pct + '%)</div>';
+    html += '</div>';
+  }
+  Object.keys(branches).forEach(function(bk) {
+    var branch = branches[bk];
+    html += '<div style="margin-bottom:16px;"><div style="font-size:12px;font-weight:700;color:' + branch.color + ';margin-bottom:8px;">' + branch.icon + ' ' + branch.name + '</div>';
+    html += '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+    branch.techs.forEach(function(tech, idx) {
+      var researched = gameState.techResearched && gameState.techResearched[tech.id];
+      var researching = gameState.techResearching && gameState.techResearching.id === tech.id;
+      var canResearch = !researched && !researching && (!tech.requires || tech.requires.every(function(r){ return gameState.techResearched && gameState.techResearched[r]; }));
+      var locked = !researched && !researching && !canResearch;
+      html += '<div style="background:' + (researched ? branch.color + '20' : 'rgba(255,255,255,0.03)') + ';border:1px solid ' + (researched ? branch.color + '60' : researching ? '#3b82f6' : 'rgba(255,255,255,0.08)') + ';border-radius:8px;padding:10px;min-width:140px;' + (locked ? 'opacity:0.4;' : '') + '">';
+      if (idx > 0) html += '<div style="font-size:8px;color:rgba(255,255,255,0.2);margin-bottom:2px;">↑ 前置</div>';
+      html += '<div style="font-size:11px;font-weight:700;color:#fff;">' + tech.name + '</div>';
+      html += '<div style="font-size:9px;color:rgba(255,255,255,0.5);margin:2px 0;">' + tech.desc + '</div>';
+      html += '<div style="font-size:8px;color:rgba(255,255,255,0.3);">费用 ' + formatCurrency(tech.cost) + ' · ' + tech.researchDays + '天</div>';
+      if (researched) html += '<div style="font-size:9px;color:#4ade80;font-weight:700;margin-top:4px;">✓ 已完成</div>';
+      else if (researching) html += '<div style="font-size:9px;color:#3b82f6;font-weight:700;margin-top:4px;">⏳ 研究中</div>';
+      else if (canResearch) html += '<button style="margin-top:4px;padding:4px 8px;border:none;border-radius:4px;font-size:9px;font-weight:700;cursor:pointer;background:' + branch.color + ';color:#fff;" onclick="startResearch(\'' + tech.id + '\');renderProgressionModal();">' + (gameState.cash >= tech.cost ? '研究' : '资金不足') + '</button>';
+      else html += '<div style="font-size:9px;color:rgba(255,255,255,0.3);margin-top:4px;">🔒 需前置</div>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+  return html;
+}
+
+function renderRivalsTab() {
+  var rivals = gameState.rivals || [];
+  var html = '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;">⚔️ 竞争对手</div>';
+  html += '<div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:14px;">竞争对手每周成长，抢夺市场份额。保持优势！</div>';
+  rivals.forEach(function(r) {
+    var info = typeof getRivalInfo === 'function' ? getRivalInfo(r.id) : null;
+    if (!info) return;
+    var strengthPct = Math.round(r.strength * 100);
+    html += '<div style="background:rgba(255,255,255,0.04);border:1px solid ' + info.color + '30;border-radius:10px;padding:14px;margin-bottom:8px;">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+    html += '<div><span style="font-size:16px;">' + info.icon + '</span> <span style="font-size:13px;font-weight:700;color:#fff;">' + info.name + '</span> <span style="font-size:9px;color:rgba(255,255,255,0.4);">(' + info.style + ')</span></div>';
+    html += '<span style="font-size:10px;color:' + info.color + ';font-weight:700;">实力 ' + strengthPct + '%</span>';
+    html += '</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
+    html += '<div style="text-align:center;"><div style="font-size:14px;font-weight:700;color:#fff;">' + r.vehicles + '</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">车辆</div></div>';
+    html += '<div style="text-align:center;"><div style="font-size:14px;font-weight:700;color:#fff;">' + Math.round(r.marketShare * 100) + '%</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">市场份额</div></div>';
+    html += '<div style="text-align:center;"><div style="font-size:14px;font-weight:700;color:#fff;">' + r.reputation + '</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">声誉</div></div>';
+    html += '</div>';
+    html += '<div style="margin-top:8px;height:4px;background:rgba(255,255,255,0.1);border-radius:2px;overflow:hidden;"><div style="width:' + strengthPct + '%;height:100%;background:' + info.color + ';border-radius:2px;"></div></div>';
+    html += '</div>';
+  });
+  var myShare = Math.max(0, 1 - rivals.reduce(function(s,r){return s+r.marketShare;},0));
+  html += '<div style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.3);border-radius:10px;padding:14px;text-align:center;">';
+  html += '<div style="font-size:11px;color:#4ade80;font-weight:700;">你的市场份额</div>';
+  html += '<div style="font-size:28px;font-weight:700;color:#4ade80;">' + Math.round(myShare * 100) + '%</div>';
+  html += '</div>';
+  return html;
+}
+
+function renderDailyTab() {
+  var html = '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;">📋 每日挑战</div>';
+  var ch = gameState.dailyChallenge;
+  if (!ch) {
+    html += '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:12px;">今日暂无挑战</div>';
+  } else {
+    var pct = ch.target > 0 ? Math.min(100, Math.round(ch.progress / ch.target * 100)) : 0;
+    html += '<div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);border-radius:10px;padding:14px;">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+    html += '<div style="font-size:12px;font-weight:700;color:#fff;">' + ch.desc + '</div>';
+    html += '<span style="font-size:9px;padding:2px 8px;border-radius:4px;background:' + (ch.completed ? 'rgba(74,222,128,0.2);color:#4ade80' : 'rgba(251,191,36,0.2);color:#fbbf24') + ';">' + (ch.completed ? '已完成' : '进行中') + '</span>';
+    html += '</div>';
+    html += '<div style="height:8px;background:rgba(255,255,255,0.1);border-radius:4px;overflow:hidden;margin-bottom:6px;"><div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,#4ade80,#22c55e);border-radius:4px;"></div></div>';
+    html += '<div style="display:flex;justify-content:space-between;font-size:9px;color:rgba(255,255,255,0.4);">';
+    html += '<span>进度: ' + ch.progress + '/' + ch.target + '</span><span>' + pct + '%</span></div>';
+    if (ch.reward.cash) html += '<div style="font-size:9px;color:#4ade80;margin-top:4px;">奖励: ' + formatCurrency(ch.reward.cash) + '</div>';
+    if (ch.reward.reputation) html += '<div style="font-size:9px;color:#fbbf24;">声誉+' + ch.reward.reputation + '</div>';
+    if (ch.completed && !ch.claimed) html += '<button style="margin-top:8px;padding:6px 14px;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#4ade80,#22c55e);color:#fff;" onclick="claimDailyChallenge();renderProgressionModal();">领取奖励</button>';
+    if (ch.claimed) html += '<div style="margin-top:8px;font-size:9px;color:#4ade80;">✓ 已领取</div>';
+    html += '</div>';
+  }
+  if (gameState.storyEventActive) {
+    var evt = gameState.storyEventActive;
+    html += '<div style="margin-top:14px;background:rgba(244,114,182,0.1);border:1px solid rgba(244,114,182,0.3);border-radius:10px;padding:14px;">';
+    html += '<div style="font-size:13px;font-weight:700;color:#f472b6;margin-bottom:6px;">' + evt.icon + ' ' + evt.name + '</div>';
+    html += '<div style="font-size:11px;color:rgba(255,255,255,0.6);margin-bottom:10px;">' + evt.desc + '</div>';
+    evt.choices.forEach(function(c, i) {
+      html += '<button style="display:block;width:100%;text-align:left;padding:8px 12px;margin-bottom:4px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;background:rgba(255,255,255,0.04);color:#fff;font-size:10px;cursor:pointer;" onclick="resolveStoryEvent(' + i + ');renderProgressionModal();">' + c.text + (c.cost > 0 ? ' <span style="color:#f87171;">(-' + formatCurrency(c.cost) + ')</span>' : '') + '</button>';
+    });
+    html += '<button style="margin-top:4px;padding:4px 8px;border:none;border-radius:4px;font-size:9px;cursor:pointer;background:rgba(255,255,255,0.06);color:rgba(255,255,255,0.4);" onclick="dismissStoryEvent();renderProgressionModal();">忽略</button>';
+    html += '</div>';
+  }
+  return html;
+}
+
+function renderPrestigeTab() {
+  var canP = typeof canPrestige === 'function' ? canPrestige() : false;
+  var points = typeof getPrestigePointsEarned === 'function' ? getPrestigePointsEarned() : 0;
+  var html = '<div style="text-align:center;margin-bottom:16px;">';
+  html += '<div style="font-size:36px;font-weight:700;color:#a855f7;">Lv.' + (gameState.prestigeLevel || 0) + '</div>';
+  html += '<div style="font-size:11px;color:rgba(255,255,255,0.5);">声望等级 · 可用点数: <span style="color:#a855f7;font-weight:700;">' + (gameState.prestigePoints || 0) + '</span></div>';
+  html += '</div>';
+  html += '<div style="background:rgba(168,85,247,0.08);border:1px solid rgba(168,85,247,0.2);border-radius:10px;padding:14px;margin-bottom:14px;text-align:center;">';
+  html += '<div style="font-size:11px;color:#a855f7;font-weight:700;margin-bottom:6px;">🔄 声望重生</div>';
+  html += '<div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:8px;">重置游戏进度，获得永久声望加成</div>';
+  html += '<div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:4px;">条件: 声誉≥80 且 经营≥100天</div>';
+  html += '<div style="font-size:10px;color:rgba(255,255,255,0.4);margin-bottom:8px;">预计获得: <span style="color:#a855f7;font-weight:700;">' + points + '</span> 声望点数</div>';
+  html += '<button style="padding:8px 20px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;background:' + (canP ? 'linear-gradient(135deg,#a855f7,#7c3aed)' : 'rgba(255,255,255,0.1)') + ';color:' + (canP ? '#fff' : 'rgba(255,255,255,0.3)') + ';" onclick="if(confirm(' + "'" + '确定要声望重生吗？这将重置大部分游戏进度！' + "'" + ')){doPrestige();renderProgressionModal();}" ' + (!canP ? 'disabled' : '') + '>🔄 声望重生</button>';
+  html += '</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">✨ 声望天赋</div>';
+  var perks = typeof PRESTIGE_PERKS !== 'undefined' ? PRESTIGE_PERKS : [];
+  html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">';
+  perks.forEach(function(perk) {
+    var owned = (gameState.prestigePerks || []).indexOf(perk.id) !== -1;
+    var canBuy = !owned && gameState.prestigePoints >= perk.cost;
+    var requiresMet = !perk.requires || perk.requires.every(function(r){ return (gameState.prestigePerks||[]).indexOf(r)!==-1; });
+    var locked = !owned && !requiresMet;
+    html += '<div style="background:' + (owned ? 'rgba(168,85,247,0.15)' : 'rgba(255,255,255,0.03)') + ';border:1px solid ' + (owned ? 'rgba(168,85,247,0.4)' : 'rgba(255,255,255,0.08)') + ';border-radius:8px;padding:10px;' + (locked ? 'opacity:0.4;' : '') + '">';
+    html += '<div style="font-size:11px;font-weight:700;color:#fff;">' + perk.name + '</div>';
+    html += '<div style="font-size:9px;color:rgba(255,255,255,0.5);margin:2px 0;">' + perk.desc + '</div>';
+    html += '<div style="font-size:8px;color:#a855f7;">费用: ' + perk.cost + ' 点</div>';
+    if (owned) html += '<div style="font-size:9px;color:#4ade80;font-weight:700;margin-top:4px;">✓ 已解锁</div>';
+    else if (canBuy && requiresMet) html += '<button style="margin-top:4px;padding:3px 8px;border:none;border-radius:4px;font-size:8px;font-weight:700;cursor:pointer;background:#a855f7;color:#fff;" onclick="purchasePrestigePerk(\'' + perk.id + '\');renderProgressionModal();">解锁</button>';
+    else if (!requiresMet) html += '<div style="font-size:8px;color:rgba(255,255,255,0.3);margin-top:4px;">🔒 需前置</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
+}
 function renderBalanceSheet() {
   var bs = getBalanceSheet();
   var html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
