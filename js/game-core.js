@@ -1,11 +1,11 @@
 var SAVE_KEY = 'rentalCompanyGame_v3';
 
 var OUTLET_CONFIGS = [
-  { id:0, name:'总部网点', citySize:'large', cityLabel:'大型城市', position:{x:0,z:0}, unlockCost:0 },
-  { id:1, name:'城东分店', citySize:'medium', cityLabel:'中型城市', position:{x:55,z:0}, unlockCost:500000 },
-  { id:2, name:'城西分店', citySize:'small', cityLabel:'小型城市', position:{x:-55,z:0}, unlockCost:300000 },
-  { id:3, name:'城北分店', citySize:'large', cityLabel:'大型城市', position:{x:0,z:55}, unlockCost:800000 },
-  { id:4, name:'城南分店', citySize:'medium', cityLabel:'中型城市', position:{x:0,z:-55}, unlockCost:600000 }
+  { id:0, name:'总部网点', citySize:'large', cityLabel:'大型城市', position:{x:12,z:12}, unlockCost:0 },
+  { id:1, name:'城东分店', citySize:'medium', cityLabel:'中型城市', position:{x:67,z:12}, unlockCost:500000 },
+  { id:2, name:'城西分店', citySize:'small', cityLabel:'小型城市', position:{x:-43,z:-12}, unlockCost:300000 },
+  { id:3, name:'城北分店', citySize:'large', cityLabel:'大型城市', position:{x:12,z:67}, unlockCost:800000 },
+  { id:4, name:'城南分店', citySize:'medium', cityLabel:'中型城市', position:{x:-12,z:-67}, unlockCost:600000 }
 ];
 
 var OUTLET_LEVELS = [
@@ -222,7 +222,7 @@ var CHEAT_CODES = {
   'level': { desc: '网点+1级', fn: function(){ var os=getOutletState(0); if(os.level<5){os.level++;addMessage('⬆️ 网点Lv.'+os.level,'good');} } },
   'max': { desc: '网点满级', fn: function(){ getOutletState(0).level=5; addMessage('⭐ 网点满级','good'); } },
   'parking': { desc: '停车位满', fn: function(){ var os=getOutletState(0); os.parkingSpots={customer:20,internal:30}; os.parkingUpgradeLevel={customer:8,internal:4}; addMessage('🅿️ 停车位满','good'); } },
-  'fuel': { desc: '能源满', fn: function(){ gameState.oilStorage=10000; gameState.elecStorage=10000; if(gameState.energy){gameState.energy.oilStorage=10000;gameState.energy.batteryStorage=10000;} addMessage('⛽ 能源满','good'); } },
+  'fuel': { desc: '能源满', fn: function(){ if(gameState.energy){gameState.energy.oilStorage=gameState.energy.maxOilCapacity;gameState.energy.batteryStorage=gameState.energy.maxBatteryCapacity;} addMessage('⛽ 能源已补满','good'); } },
   'rep': { desc: '声誉+50', fn: function(){ addReputation(50); addMessage('⭐ 声誉+50','good'); } },
   'fac': { desc: '全部设施', fn: function(){ facilitiesConfig.forEach(function(fc){ if(gameState.outlets[0].facilities.indexOf(fc.id)===-1) gameState.outlets[0].facilities.push(fc.id); }); addMessage('🏗️ 全部设施','good'); } },
   'decor': { desc: '全部装饰', fn: function(){ gameState.interiorDecorUnlocked=true; gameState.decorations=[{outletId:0,id:'plant',name:'绿植',icon:'🪴',satisfactionBonus:2},{outletId:0,id:'aquarium',name:'鱼缸',icon:'🐠',satisfactionBonus:3},{outletId:0,id:'fountain',name:'室内喷泉',icon:'⛲',satisfactionBonus:5}]; addMessage('🌿 全部装饰','good'); } },
