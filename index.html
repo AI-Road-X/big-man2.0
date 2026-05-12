@@ -540,8 +540,8 @@
 
   <div class="toast" id="toast"></div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+  <script src="js/vendor/three.min.js"></script>
+  <script src="js/vendor/OrbitControls.js"></script>
   <script src="js/vehicles.js"></script>
   <script src="js/game-core.js"></script>
   <script src="js/economy.js"></script>
@@ -684,7 +684,7 @@
     window.addEventListener('DOMContentLoaded', function(){
       initRateMultipliers();
       var loaded = loadGame();
-      init3D();
+      try { init3D(); } catch(e) { console.warn('3D scene init failed:', e.message); }
       if (loaded && gameState.messages.length > 0) {
         renderMessages();
       } else {
