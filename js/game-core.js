@@ -92,7 +92,7 @@ var defaultGameState = {
   outletOrderCounts: {},
   activeEvents: [],
   marketCoefficient: 1.0,
-  rateMultipliers: {},
+  rateMultipliers: { '轿车':1.0,'SUV':1.3,'跑车':1.8,'MPV':1.2,'紧凑型':0.85,'豪华车':1.6,'超跑':2.5,'旅行车':0.95,'皮卡':1.4,'面包车':0.9,'轿跑':1.7,'小型SUV':1.15,'大型SUV':1.5,'大型MPV':1.35,'敞篷':2.0,'两厢':0.8 },
   lastCompetitorUpdate: 1,
   tutorialStep: 0,
   totalDaysRented: 0,
@@ -258,7 +258,7 @@ function loadGame() {
       if (!gameState.usedCarMarketList) gameState.usedCarMarketList = [];
       if (!gameState.outletOrderCounts) gameState.outletOrderCounts = {};
       if (!gameState.activeEvents) gameState.activeEvents = [];
-      if (!gameState.rateMultipliers) gameState.rateMultipliers = {};
+      if (!gameState.rateMultipliers || Object.keys(gameState.rateMultipliers).length === 0) gameState.rateMultipliers = { '轿车':1.0,'SUV':1.3,'跑车':1.8,'MPV':1.2,'紧凑型':0.85,'豪华车':1.6,'超跑':2.5,'旅行车':0.95,'皮卡':1.4,'面包车':0.9,'轿跑':1.7,'小型SUV':1.15,'大型SUV':1.5,'大型MPV':1.35,'敞篷':2.0,'两厢':0.8 };
       if (gameState.marketCoefficient === undefined) gameState.marketCoefficient = 1.0;
       if (gameState.lastCompetitorUpdate === undefined) gameState.lastCompetitorUpdate = 1;
       if (gameState.tutorialStep === undefined) gameState.tutorialStep = 0;

@@ -422,7 +422,7 @@ function calculateVehicleValue(vehicle) {
 function getMarketInfo() {
   return {
     [MARKET_TYPES.LOCAL_DEALER]: { id:MARKET_TYPES.LOCAL_DEALER,name:'本地经销商',subtitle:'一手新车',description:'批量采购享95折优惠，即时交付',discount:0.95,deliveryTime:'即时交付',color:'#3498db',bgColor:'rgba(52,152,219,0.1)',icon:'🏪' },
-    [MARKET_TYPES.USED_CAR]: { id:MARKET_TYPES.USED_CAR,name:'二手车市场',subtitle:'认证二手车',description:'价格实惠，每次刷新20辆车',discount:1.0,deliveryTime:'1-3个工作日',color:'#e67e22',bgColor:'rgba(230,126,34,0.1)',icon:'🚗',highlightResidualValue:true },
+    [MARKET_TYPES.USED_CAR]: { id:MARKET_TYPES.USED_CAR,name:'二手车市场',subtitle:'认证二手车',description:'价格实惠，每次刷新100+辆车',discount:1.0,deliveryTime:'1-3个工作日',color:'#e67e22',bgColor:'rgba(230,126,34,0.1)',icon:'🚗',highlightResidualValue:true },
     [MARKET_TYPES.OVERSEAS]: { id:MARKET_TYPES.OVERSEAS,name:'海外进口市场',subtitle:'独家超跑·超豪华车',description:'海外直采，独一无二的车型',discount:1.1,deliveryTime:'15-30个工作日',color:'#9b59b6',bgColor:'rgba(155,89,182,0.1)',icon:'🌍',isExclusive:true }
   };
 }

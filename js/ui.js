@@ -861,16 +861,29 @@ function acceptAllOrders() {
 
 function openDispatchModal(vehicleId) {
   var vehicle = gameState.ownedVehicles.find(function(v){ return v.id === vehicleId; });
-  if (!vehicle) return;
-  var currentOutlet = OUTLET_CONFIGS.find(function(c){ return c.id === vehicle.outletId; });
-  var otherOutlets = gameState.outlets.filter(function(o){ return o.owned && o.id !== vehicle.outletId; });
-  if (otherOutlets.length === 0) { showToast('没有其他可用网点', 'error'); return; }
+  if (!vehicle) { showToast('车辆信息不存在', 'error'); return; }
+  if (isInTransit(vehicleId)) { showToast('该车辆正在调度中', 'warn'); return; }
+  if (vehicle.rentedUntil && vehicle.rentedUntil >= gameState.currentDay) { showToast('该车辆已租出，无法调度', 'warn'); return; }
+  var vid = typeof vehicle.outletId !== 'undefined' && vehicle.outletId !== null ? vehicle.outletId : 0;
+  var currentOutlet = OUTLET_CONFIGS.find(function(c){ return c.id === vid; }) || OUTLET_CONFIGS[0];
+  var otherOutlets = gameState.outlets.filter(function(o){
+    return o.owned && o.id !== vid;
+  });
+  if (otherOutlets.length === 0) {
+    var ownedCount = gameState.outlets.filter(function(o){ return o.owned; }).length;
+    if (ownedCount <= 1) {
+      showToast('当前只有1个网点，请先解锁更多网点后再调度', 'warn');
+    } else {
+      showToast('没有其他可用网点', 'error');
+    }
+    return;
+  }
   var content = document.getElementById('dispatchContent');
   var options = otherOutlets.map(function(o){
     var cfg = OUTLET_CONFIGS[o.id];
     var count = getVehiclesAtOutlet(o.id).length;
     var cap = getOutletCapacity(o.id);
-    var dist = getDistanceBetweenOutlets(vehicle.outletId, o.id);
+    var dist = getDistanceBetweenOutlets(vid, o.id);
     var cost = Math.round(dist * 100);
     var days = Math.max(1, Math.ceil(dist / 25));
     return '<option value="' + o.id + '" data-cost="' + cost + '" data-days="' + days + '">' + cfg.name + ' (' + count + '/' + cap + ') · ' + formatCurrency(cost) + ' · ' + days + '天</option>';
