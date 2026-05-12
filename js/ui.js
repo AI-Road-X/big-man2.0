@@ -1651,32 +1651,69 @@ function renderInternalLayoutModal() {
   content.innerHTML = html;
 }
 function renderLayoutOverview(outletId, os) {
-  var html = '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;">🏗️ 店铺平面图</div>';
-  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;background:rgba(255,255,255,0.03);border-radius:12px;padding:12px;">';
-  html += '<div class="layout-zone reception" style="background:rgba(96,165,250,0.15);border:1px solid rgba(96,165,250,0.3);border-radius:8px;padding:10px;min-height:80px;text-align:center;"><div style="font-size:24px;margin-bottom:4px;">🛎️</div><div style="font-size:10px;color:#60a5fa;font-weight:600;">接待区</div><div style="font-size:9px;color:rgba(255,255,255,0.4);margin-top:2px;">总台 · 客户等候</div></div>';
-  html += '<div class="layout-zone parking-area" style="background:rgba(251,191,36,0.15);border:1px solid rgba(251,191,36,0.3);border-radius:8px;padding:10px;min-height:80px;text-align:center;"><div style="font-size:24px;margin-bottom:4px;">🚗</div><div style="font-size:10px;color:#fbbf24;font-weight:600;">停车区</div><div style="font-size:9px;color:rgba(255,255,255,0.4);margin-top:2px;">' + (os.parkingSpots ? os.parkingSpots.customer : 5) + '个顾客车位</div></div>';
-  html += '<div class="layout-zone garage" style="background:rgba(74,222,128,0.15);border:1px solid rgba(74,222,128,0.3);border-radius:8px;padding:10px;min-height:80px;text-align:center;"><div style="font-size:24px;margin-bottom:4px;">🏠</div><div style="font-size:10px;color:#4ade80;font-weight:600;">内部车库</div><div style="font-size:9px;color:rgba(255,255,255,0.4);margin-top:2px;">' + (os.parkingSpots ? os.parkingSpots.internal : 10) + '个车库位</div></div>';
-  html += '<div class="layout-zone logistics" style="background:rgba(168,85,247,0.15);border:1px solid rgba(168,85,247,0.3);border-radius:8px;padding:10px;min-height:80px;text-align:center;"><div style="font-size:24px;margin-bottom:4px;">📦</div><div style="font-size:10px;color:#a855f7;font-weight:600;">后勤区</div><div style="font-size:9px;color:rgba(255,255,255,0.4);margin-top:2px;">维修 · 充电</div></div>';
-  html += '</div></div>';
   var facilities = typeof getOutletFacilities === 'function' ? getOutletFacilities(outletId) : [];
-  html += '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;">📊 今日概况</div>';
   var occ = getParkingOccupancy(outletId);
-  html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">';
-  html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px;"><div style="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:4px;">顾客停车位</div><div style="font-size:20px;font-weight:700;color:#fbbf24;">' + occ.customer.used + '/' + occ.customer.total + '</div><div style="font-size:10px;color:rgba(255,255,255,0.3);">已占用/总容量</div></div>';
-  html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:12px;"><div style="="font-size:10px;color:rgba(255,255,255,0.5);margin-bottom:4px;">内部车库</div><div style="font-size:20px;font-weight:700;color:#4ade80;">' + occ.internal.used + '/' + occ.internal.total + '</div><div style="font-size:10px;color:rgba(255,255,255,0.3);">已占用/总容量</div></div>';
+  
+  var html = '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:12px;">📐 店铺平面图</div>';
+  html += '<div style="position:relative;background:rgba(255,255,255,0.02);border:2px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px;min-height:280px;">';
+  
+  html += '<div style="position:absolute;top:6px;left:12px;font-size:9px;color:rgba(255,255,255,0.3);">俯视图 · 比例示意</div>';
+  html += '<div style="position:absolute;top:6px;right:12px;font-size:9px;color:rgba(255,255,255,0.3);">北 ↑</div>';
+  
+  html += '<svg width="100%" height="240" viewBox="0 0 600 240" style="display:block;">';
+  
+  html += '<rect x="20" y="40" width="240" height="180" fill="rgba(96,165,250,0.1)" stroke="#60a5fa" stroke-width="2" rx="4"/>';
+  html += '<text x="140" y="135" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="bold">接 待 区</text>';
+  html += '<text x="140" y="152" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="9">🛎️ 总台 · 等候区</text>';
+  
+  html += '<rect x="280" y="40" width="300" height="100" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="2" rx="4"/>';
+  html += '<text x="430" y="95" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="bold">顾 客 停 车 区</text>';
+  html += '<text x="430" y="115" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="9">🚗 ' + os.parkingSpots.customer + ' 个车位 · ' + occ.customer.used + ' 已用</text>';
+  
+  var parkWidth = 280;
+  for (var i = 0; i < Math.min(os.parkingSpots.customer, 10); i++) {
+    var px = 290 + (i % 5) * 55;
+    var py = 55 + Math.floor(i / 5) * 40;
+    var isUsed = i < occ.customer.used;
+    html += '<rect x="' + px + '" y="' + py + '" width="40" height="30" fill="' + (isUsed ? 'rgba(251,191,36,0.5)' : 'rgba(251,191,36,0.15)') + '" stroke="#fbbf24" stroke-width="1" rx="2"/>';
+    html += '<text x="' + (px + 20) + '" y="' + (py + 18) + '" text-anchor="middle" fill="' + (isUsed ? '#fff' : 'rgba(255,255,255,0.3)') + '" font-size="10">' + (i + 1) + '</text>';
+  }
+  
+  html += '<rect x="280" y="155" width="145" height="65" fill="rgba(74,222,128,0.1)" stroke="#4ade80" stroke-width="2" rx="4"/>';
+  html += '<text x="352" y="192" text-anchor="middle" fill="#4ade80" font-size="11" font-weight="bold">内 部 车 库</text>';
+  html += '<text x="352" y="208" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="9">🏠 ' + os.parkingSpots.internal + ' 个 · ' + occ.internal.used + ' 已租</text>';
+  
+  html += '<rect x="435" y="155" width="145" height="65" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="2" rx="4"/>';
+  html += '<text x="507" y="192" text-anchor="middle" fill="#a855f7" font-size="11" font-weight="bold">后 勤 区</text>';
+  html += '<text x="507" y="208" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="9">📦 维修 · 充电</text>';
+  
+  html += '<path d="M 260 130 L 280 130" stroke="rgba(255,255,255,0.2)" stroke-width="2" marker-end="url(#arrow)"/>';
+  html += '<path d="M 425 130 L 435 155" stroke="rgba(255,255,255,0.2)" stroke-width="2" stroke-dasharray="4"/>';
+  html += '<path d="M 425 130 L 435 155" stroke="rgba(255,255,255,0.2)" stroke-width="2" marker-end="url(#arrow)"/>';
+  
+  html += '<defs><marker id="arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="rgba(255,255,255,0.3)"/></marker></defs>';
+  html += '</svg>';
+  
+  html += '<div style="display:flex;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);">';
+  html += '<div style="flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;color:#fbbf24;">' + occ.customer.used + '/' + occ.customer.total + '</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">顾客车位</div></div>';
+  html += '<div style="width:1px;background:rgba(255,255,255,0.1);"></div>';
+  html += '<div style="flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;color:#4ade80;">' + occ.internal.used + '/' + occ.internal.total + '</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">内部车库</div></div>';
+  html += '<div style="width:1px;background:rgba(255,255,255,0.1);"></div>';
+  html += '<div style="flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;color:#60a5fa;">' + facilities.length + '</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">已装设施</div></div>';
+  html += '</div>';
   html += '</div></div>';
-  html += '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;">🛋️ 已安装设施 (' + facilities.length + ')</div>';
-  if (facilities.length === 0) {
-    html += '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:12px;">暂无设施，点击上方标签购买</div>';
-  } else {
-    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;">';
+  
+  if (facilities.length > 0) {
+    html += '<div style="margin-bottom:14px;"><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:8px;">🛋️ 已安装设施</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
     facilities.forEach(function(f) {
       var zone = getFacilityZone(outletId, f.id);
-      html += '<div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:10px;text-align:center;position:relative;">' + (f.disabled ? '<div style="position:absolute;top:4px;right:4px;font-size:8px;color:#f87171;">⏸</div>' : f.broken ? '<div style="position:absolute;top:4px;right:4px;font-size:8px;color:#f87171;">⚠</div>' : '') + '<div style="font-size:24px;margin-bottom:4px;">' + f.config.icon + '</div><div style="font-size:11px;font-weight:600;color:#fff;">' + f.config.name + '</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">' + getZoneName(zone) + '</div></div>';
+      var statusClass = f.disabled ? '⚠️' : f.broken ? '❌' : '✅';
+      html += '<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:6px 12px;font-size:11px;">' + statusClass + ' <span>' + f.config.icon + '</span> <span style="color:#fff;">' + f.config.name + '</span> <span style="color:rgba(255,255,255,0.3);font-size:9px;">' + getZoneName(zone) + '</span></div>';
     });
-    html += '</div>';
+    html += '</div></div>';
   }
-  html += '</div>';
+  
   if (gameState.interiorDecorUnlocked && typeof renderDecorations === 'function') {
     html += renderDecorations(outletId);
   }
@@ -1757,35 +1794,71 @@ function renderLayoutFacilities(outletId, os, category) {
   return html;
 }
 function renderLayoutZones(outletId, os) {
-  var html = '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:8px;">📐 设施布局编辑</div>';
-  html += '<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:14px;">拖拽设施到不同区域可获得效率加成。布局优化后可提高运营效率。</div>';
   var facilities = typeof getOutletFacilities === 'function' ? getOutletFacilities(outletId) : [];
+  var zoneBonus = typeof getZoneEfficiencyBonus === 'function' ? getZoneEfficiencyBonus(outletId) : 0;
+  
+  var html = '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:8px;">📐 设施布局编辑</div>';
+  html += '<div style="font-size:11px;color:rgba(255,255,255,0.5);margin-bottom:12px;">将设施放置在不同区域可获得效率加成</div>';
+  
+  html += '<div style="position:relative;background:rgba(255,255,255,0.02);border:2px solid rgba(255,255,255,0.1);border-radius:12px;padding:16px;min-height:200px;margin-bottom:14px;">';
+  html += '<svg width="100%" height="180" viewBox="0 0 500 180" style="display:block;">';
+  
+  var zoneColors = {
+    reception: { fill: 'rgba(96,165,250,0.15)', stroke: '#60a5fa', label: '接待区' },
+    parking: { fill: 'rgba(251,191,36,0.15)', stroke: '#fbbf24', label: '停车区' },
+    logistics: { fill: 'rgba(168,85,247,0.15)', stroke: '#a855f7', label: '后勤区' }
+  };
+  
+  html += '<rect x="10" y="10" width="150" height="160" fill="' + zoneColors.reception.fill + '" stroke="' + zoneColors.reception.stroke + '" stroke-width="2" rx="6"/>';
+  html += '<text x="85" y="90" text-anchor="middle" fill="' + zoneColors.reception.stroke + '" font-size="10" font-weight="bold">接待区</text>';
+  html += '<text x="85" y="105" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="8">客户设施+10%</text>';
+  
+  html += '<rect x="175" y="10" width="160" height="160" fill="' + zoneColors.parking.fill + '" stroke="' + zoneColors.parking.stroke + '" stroke-width="2" rx="6"/>';
+  html += '<text x="255" y="90" text-anchor="middle" fill="' + zoneColors.parking.stroke + '" font-size="10" font-weight="bold">停车区</text>';
+  html += '<text x="255" y="105" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="8">洗车房+5%</text>';
+  
+  html += '<rect x="350" y="10" width="140" height="160" fill="' + zoneColors.logistics.fill + '" stroke="' + zoneColors.logistics.stroke + '" stroke-width="2" rx="6"/>';
+  html += '<text x="420" y="90" text-anchor="middle" fill="' + zoneColors.logistics.stroke + '" font-size="10" font-weight="bold">后勤区</text>';
+  html += '<text x="420" y="105" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="8">维修/充电+5%</text>';
+  
+  var zonePositions = { reception: {x: 55, y: 130}, parking: {x: 225, y: 130}, logistics: {x: 400, y: 130} };
+  var zoneOffsets = { reception: 0, parking: 0, logistics: 0 };
+  
+  facilities.forEach(function(f) {
+    var zone = getFacilityZone(outletId, f.id);
+    var pos = zonePositions[zone] || zonePositions.parking;
+    var offsetY = zoneOffsets[zone] * 25;
+    zoneOffsets[zone]++;
+    
+    html += '<circle cx="' + pos.x + '" cy="' + (pos.y - offsetY) + '" r="10" fill="' + zoneColors[zone].stroke + '"/>';
+    html += '<text x="' + pos.x + '" y="' + (pos.y - offsetY + 4) + '" text-anchor="middle" font-size="10">' + f.config.icon + '</text>';
+  });
+  
+  html += '</svg></div>';
+  
   if (facilities.length === 0) {
-    html += '<div style="text-align:center;padding:30px;color:rgba(255,255,255,0.3);font-size:12px;">暂无设施可布局</div>';
+    html += '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:12px;">暂无设施可布局</div>';
     return html;
   }
-  html += '<div style="margin-bottom:14px;"><div style="font-size:11px;font-weight:600;color:#fff;margin-bottom:8px;">🏷️ 区域效率加成</div>';
-  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
-  html += '<div style="background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:20px;margin-bottom:4px;">🛎️</div><div style="font-size:11px;font-weight:600;color:#60a5fa;">接待区</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">客户设施效率+10%</div></div>';
-  html += '<div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:20px;margin-bottom:4px;">🚗</div><div style="font-size:11px;font-weight:600;color:#fbbf24;">停车区</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">洗车房效率+5%</div></div>';
-  html += '<div style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:20px;margin-bottom:4px;">📦</div><div style="font-size:11px;font-weight:600;color:#a855f7;">后勤区</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">维修/充电+5%</div></div>';
-  html += '</div></div>';
-  html += '<div style="font-size:11px;font-weight:600;color:#fff;margin-bottom:8px;">⚙️ 设施位置设置</div>';
-  html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">';
+  
+  html += '<div style="font-size:11px;font-weight:600;color:#fff;margin-bottom:8px;">⚙️ 拖动设施到区域</div>';
+  html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
   facilities.forEach(function(f) {
     var currentZone = getFacilityZone(outletId, f.id);
-    html += '<div style="background:rgba(255,255,255,0.04);border-radius:8px;padding:12px;"><div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;"><span style="font-size:20px;">' + f.config.icon + '</span><div><div style="font-size:11px;font-weight:600;color:#fff;">' + f.config.name + '</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">当前: ' + getZoneName(currentZone) + '</div></div></div>';
+    html += '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:10px;min-width:140px;">';
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;"><span style="font-size:18px;">' + f.config.icon + '</span><span style="font-size:11px;color:#fff;">' + f.config.name + '</span></div>';
     html += '<div style="display:flex;gap:4px;">';
     ['reception', 'parking', 'logistics'].forEach(function(zone) {
       var selected = currentZone === zone;
-      html += '<button style="flex:1;padding:6px;border:none;border-radius:4px;font-size:9px;font-weight:600;cursor:pointer;background:' + (selected ? 'linear-gradient(135deg,#3b82f6,#6366f1)' : 'rgba(255,255,255,0.08)') + ';color:' + (selected ? '#fff' : 'rgba(255,255,255,0.5)') + ';" onclick="setFacilityZone(' + outletId + ',\'' + f.id + '\',\'' + zone + '\');renderInternalLayoutModal();">' + getZoneName(zone) + '</button>';
+      var color = zoneColors[zone].stroke;
+      html += '<button style="flex:1;padding:4px 6px;border:none;border-radius:4px;font-size:8px;font-weight:600;cursor:pointer;background:' + (selected ? color : 'rgba(255,255,255,0.08)') + ';color:' + (selected ? '#fff' : 'rgba(255,255,255,0.5)') + ';" onclick="setFacilityZone(' + outletId + ',\'' + f.id + '\',\'' + zone + '\');renderInternalLayoutModal();">' + getZoneName(zone) + '</button>';
     });
     html += '</div></div>';
   });
   html += '</div>';
-  var zoneBonus = typeof getZoneEfficiencyBonus === 'function' ? getZoneEfficiencyBonus(outletId) : 0;
+  
   if (zoneBonus > 0) {
-    html += '<div style="margin-top:14px;padding:10px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.2);border-radius:8px;"><div style="font-size:11px;color:#4ade80;font-weight:600;">✓ 布局优化生效中</div><div style="font-size:10px;color:rgba(255,255,255,0.6);">当前效率加成: +' + Math.round(zoneBonus * 100) + '%</div></div>';
+    html += '<div style="margin-top:14px;padding:12px;background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.2);border-radius:8px;text-align:center;"><div style="font-size:14px;color:#4ade80;font-weight:bold;">✓ 布局优化生效</div><div style="font-size:11px;color:rgba(255,255,255,0.6);">当前效率加成: +' + Math.round(zoneBonus * 100) + '%</div></div>';
   }
   return html;
 }
