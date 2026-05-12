@@ -1653,66 +1653,109 @@ function renderInternalLayoutModal() {
 function renderLayoutOverview(outletId, os) {
   var facilities = typeof getOutletFacilities === 'function' ? getOutletFacilities(outletId) : [];
   var occ = getParkingOccupancy(outletId);
+  var amenityFacs = facilities.filter(function(f){ return f.config.category === 'amenity'; });
+  var opFacs = facilities.filter(function(f){ return f.config.category === 'operational'; });
   
   var html = '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:12px;">📐 店铺平面图</div>';
-  html += '<div style="position:relative;background:rgba(255,255,255,0.02);border:2px solid rgba(255,255,255,0.1);border-radius:12px;padding:20px;min-height:280px;">';
+  html += '<div style="background:#0d1117;border:3px solid rgba(255,255,255,0.15);border-radius:12px;overflow:hidden;">';
   
-  html += '<div style="position:absolute;top:6px;left:12px;font-size:9px;color:rgba(255,255,255,0.3);">俯视图 · 比例示意</div>';
-  html += '<div style="position:absolute;top:6px;right:12px;font-size:9px;color:rgba(255,255,255,0.3);">北 ↑</div>';
+  html += '<svg width="100%" viewBox="0 0 680 420" style="display:block;font-family:\'JetBrains Mono\',monospace;">';
   
-  html += '<svg width="100%" height="240" viewBox="0 0 600 240" style="display:block;">';
+  html += '<rect x="0" y="0" width="680" height="420" fill="#0d1117"/>';
   
-  html += '<rect x="20" y="40" width="240" height="180" fill="rgba(96,165,250,0.1)" stroke="#60a5fa" stroke-width="2" rx="4"/>';
-  html += '<text x="140" y="135" text-anchor="middle" fill="#60a5fa" font-size="11" font-weight="bold">接 待 区</text>';
-  html += '<text x="140" y="152" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="9">🛎️ 总台 · 等候区</text>';
+  html += '<rect x="20" y="20" width="640" height="380" fill="none" stroke="rgba(255,255,255,0.25)" stroke-width="4" rx="2"/>';
   
-  html += '<rect x="280" y="40" width="300" height="100" fill="rgba(251,191,36,0.1)" stroke="#fbbf24" stroke-width="2" rx="4"/>';
-  html += '<text x="430" y="95" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="bold">顾 客 停 车 区</text>';
-  html += '<text x="430" y="115" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="9">🚗 ' + os.parkingSpots.customer + ' 个车位 · ' + occ.customer.used + ' 已用</text>';
+  html += '<rect x="24" y="24" width="180" height="140" fill="rgba(96,165,250,0.08)" stroke="#60a5fa" stroke-width="2"/>';
+  html += '<text x="114" y="55" text-anchor="middle" fill="#60a5fa" font-size="13" font-weight="bold">🛎️ 接待大厅</text>';
+  html += '<line x1="44" y1="65" x2="184" y2="65" stroke="rgba(96,165,250,0.3)" stroke-width="1"/>';
+  html += '<rect x="40" y="75" width="60" height="30" fill="rgba(96,165,250,0.15)" stroke="rgba(96,165,250,0.4)" stroke-width="1" rx="2"/>';
+  html += '<text x="70" y="95" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="9">总台</text>';
+  html += '<rect x="110" y="75" width="80" height="30" fill="rgba(96,165,250,0.15)" stroke="rgba(96,165,250,0.4)" stroke-width="1" rx="2"/>';
+  html += '<text x="150" y="95" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="9">等候区</text>';
+  html += '<rect x="40" y="115" width="150" height="35" fill="rgba(96,165,250,0.1)" stroke="rgba(96,165,250,0.3)" stroke-width="1" rx="2"/>';
+  html += '<text x="115" y="137" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="8">客户设施区</text>';
+  amenityFacs.slice(0, 4).forEach(function(f, i) {
+    var fx = 50 + (i % 4) * 36;
+    html += '<text x="' + fx + '" y="132" fill="rgba(255,255,255,0.7)" font-size="12">' + f.config.icon + '</text>';
+  });
   
-  var parkWidth = 280;
-  for (var i = 0; i < Math.min(os.parkingSpots.customer, 10); i++) {
-    var px = 290 + (i % 5) * 55;
-    var py = 55 + Math.floor(i / 5) * 40;
-    var isUsed = i < occ.customer.used;
-    html += '<rect x="' + px + '" y="' + py + '" width="40" height="30" fill="' + (isUsed ? 'rgba(251,191,36,0.5)' : 'rgba(251,191,36,0.15)') + '" stroke="#fbbf24" stroke-width="1" rx="2"/>';
-    html += '<text x="' + (px + 20) + '" y="' + (py + 18) + '" text-anchor="middle" fill="' + (isUsed ? '#fff' : 'rgba(255,255,255,0.3)') + '" font-size="10">' + (i + 1) + '</text>';
+  html += '<rect x="24" y="168" width="180" height="228" fill="rgba(74,222,128,0.06)" stroke="#4ade80" stroke-width="2"/>';
+  html += '<text x="114" y="198" text-anchor="middle" fill="#4ade80" font-size="13" font-weight="bold">🏠 内部车库</text>';
+  html += '<line x1="44" y1="208" x2="184" y2="208" stroke="rgba(74,222,128,0.3)" stroke-width="1"/>';
+  html += '<text x="114" y="228" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">' + os.parkingSpots.internal + ' 个车位 · ' + occ.internal.used + ' 已租</text>';
+  var garageRows = Math.ceil(Math.min(os.parkingSpots.internal, 20) / 5);
+  for (var gi = 0; gi < Math.min(os.parkingSpots.internal, 20); gi++) {
+    var gx = 38 + (gi % 5) * 32;
+    var gy = 240 + Math.floor(gi / 5) * 28;
+    var gUsed = gi < occ.internal.used;
+    html += '<rect x="' + gx + '" y="' + gy + '" width="26" height="20" fill="' + (gUsed ? 'rgba(74,222,128,0.4)' : 'rgba(74,222,128,0.1)') + '" stroke="rgba(74,222,128,0.4)" stroke-width="1" rx="2"/>';
+    if (gUsed) html += '<text x="' + (gx + 13) + '" y="' + (gy + 14) + '" text-anchor="middle" fill="#fff" font-size="8">🚗</text>';
   }
   
-  html += '<rect x="280" y="155" width="145" height="65" fill="rgba(74,222,128,0.1)" stroke="#4ade80" stroke-width="2" rx="4"/>';
-  html += '<text x="352" y="192" text-anchor="middle" fill="#4ade80" font-size="11" font-weight="bold">内 部 车 库</text>';
-  html += '<text x="352" y="208" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="9">🏠 ' + os.parkingSpots.internal + ' 个 · ' + occ.internal.used + ' 已租</text>';
+  html += '<rect x="208" y="24" width="448" height="140" fill="rgba(251,191,36,0.06)" stroke="#fbbf24" stroke-width="2"/>';
+  html += '<text x="432" y="55" text-anchor="middle" fill="#fbbf24" font-size="13" font-weight="bold">🅿️ 顾客停车区</text>';
+  html += '<line x1="228" y1="65" x2="636" y2="65" stroke="rgba(251,191,36,0.3)" stroke-width="1"/>';
+  html += '<text x="432" y="82" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">' + os.parkingSpots.customer + ' 个车位 · ' + occ.customer.used + ' 已用</text>';
+  for (var pi = 0; pi < Math.min(os.parkingSpots.customer, 15); pi++) {
+    var ppx = 222 + (pi % 5) * 86;
+    var ppy = 92 + Math.floor(pi / 5) * 24;
+    var pUsed = pi < occ.customer.used;
+    html += '<rect x="' + ppx + '" y="' + ppy + '" width="78" height="18" fill="' + (pUsed ? 'rgba(251,191,36,0.35)' : 'rgba(251,191,36,0.08)') + '" stroke="rgba(251,191,36,0.4)" stroke-width="1" rx="3"/>';
+    html += '<text x="' + (ppx + 39) + '" y="' + (ppy + 13) + '" text-anchor="middle" fill="' + (pUsed ? '#fff' : 'rgba(255,255,255,0.25)') + '" font-size="8">' + (pUsed ? '🚗 P' + (pi+1) : 'P' + (pi+1)) + '</text>';
+  }
   
-  html += '<rect x="435" y="155" width="145" height="65" fill="rgba(168,85,247,0.1)" stroke="#a855f7" stroke-width="2" rx="4"/>';
-  html += '<text x="507" y="192" text-anchor="middle" fill="#a855f7" font-size="11" font-weight="bold">后 勤 区</text>';
-  html += '<text x="507" y="208" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="9">📦 维修 · 充电</text>';
+  html += '<rect x="208" y="168" width="224" height="228" fill="rgba(168,85,247,0.06)" stroke="#a855f7" stroke-width="2"/>';
+  html += '<text x="320" y="198" text-anchor="middle" fill="#a855f7" font-size="13" font-weight="bold">📦 后勤区</text>';
+  html += '<line x1="228" y1="208" x2="412" y2="208" stroke="rgba(168,85,247,0.3)" stroke-width="1"/>';
+  html += '<text x="320" y="228" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">维修 · 充电 · 仓储</text>';
+  var logiFacs = opFacs.filter(function(f){ return getFacilityZone(outletId, f.id) === 'logistics'; });
+  logiFacs.forEach(function(f, i) {
+    var lx = 228 + (i % 2) * 100;
+    var ly = 240 + Math.floor(i / 2) * 50;
+    html += '<rect x="' + lx + '" y="' + ly + '" width="90" height="40" fill="rgba(168,85,247,0.12)" stroke="rgba(168,85,247,0.4)" stroke-width="1" rx="4"/>';
+    html += '<text x="' + (lx + 45) + '" y="' + (ly + 16) + '" text-anchor="middle" font-size="14">' + f.config.icon + '</text>';
+    html += '<text x="' + (lx + 45) + '" y="' + (ly + 32) + '" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="7">' + f.config.name + '</text>';
+  });
+  if (logiFacs.length === 0) {
+    html += '<text x="320" y="270" text-anchor="middle" fill="rgba(255,255,255,0.2)" font-size="9">暂无设施</text>';
+  }
   
-  html += '<path d="M 260 130 L 280 130" stroke="rgba(255,255,255,0.2)" stroke-width="2" marker-end="url(#arrow)"/>';
-  html += '<path d="M 425 130 L 435 155" stroke="rgba(255,255,255,0.2)" stroke-width="2" stroke-dasharray="4"/>';
-  html += '<path d="M 425 130 L 435 155" stroke="rgba(255,255,255,0.2)" stroke-width="2" marker-end="url(#arrow)"/>';
+  html += '<rect x="436" y="168" width="220" height="228" fill="rgba(244,114,182,0.06)" stroke="#f472b6" stroke-width="2"/>';
+  html += '<text x="546" y="198" text-anchor="middle" fill="#f472b6" font-size="13" font-weight="bold">🛋️ 设施区</text>';
+  html += '<line x1="456" y1="208" x2="636" y2="208" stroke="rgba(244,114,182,0.3)" stroke-width="1"/>';
+  html += '<text x="546" y="228" text-anchor="middle" fill="rgba(255,255,255,0.5)" font-size="10">客户舒适 · 运营支持</text>';
+  var otherFacs = facilities.filter(function(f){ return getFacilityZone(outletId, f.id) !== 'logistics'; });
+  otherFacs.forEach(function(f, i) {
+    var fx = 448 + (i % 2) * 100;
+    var fy = 240 + Math.floor(i / 2) * 50;
+    html += '<rect x="' + fx + '" y="' + fy + '" width="90" height="40" fill="rgba(244,114,182,0.12)" stroke="rgba(244,114,182,0.4)" stroke-width="1" rx="4"/>';
+    html += '<text x="' + (fx + 45) + '" y="' + (fy + 16) + '" text-anchor="middle" font-size="14">' + f.config.icon + '</text>';
+    html += '<text x="' + (fx + 45) + '" y="' + (fy + 32) + '" text-anchor="middle" fill="rgba(255,255,255,0.6)" font-size="7">' + f.config.name + '</text>';
+  });
+  if (otherFacs.length === 0) {
+    html += '<text x="546" y="270" text-anchor="middle" fill="rgba(255,255,255,0.2)" font-size="9">暂无设施</text>';
+  }
   
-  html += '<defs><marker id="arrow" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" fill="rgba(255,255,255,0.3)"/></marker></defs>';
-  html += '</svg>';
+  html += '<rect x="110" y="140" width="40" height="28" fill="#0d1117" stroke="none"/>';
+  html += '<line x1="110" y1="140" x2="150" y2="140" stroke="#60a5fa" stroke-width="2" stroke-dasharray="6,3"/>';
+  html += '<text x="130" y="157" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="7">通道</text>';
   
-  html += '<div style="display:flex;gap:16px;margin-top:12px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.06);">';
-  html += '<div style="flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;color:#fbbf24;">' + occ.customer.used + '/' + occ.customer.total + '</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">顾客车位</div></div>';
-  html += '<div style="width:1px;background:rgba(255,255,255,0.1);"></div>';
-  html += '<div style="flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;color:#4ade80;">' + occ.internal.used + '/' + occ.internal.total + '</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">内部车库</div></div>';
-  html += '<div style="width:1px;background:rgba(255,255,255,0.1);"></div>';
-  html += '<div style="flex:1;text-align:center;"><div style="font-size:18px;font-weight:700;color:#60a5fa;">' + facilities.length + '</div><div style="font-size:9px;color:rgba(255,255,255,0.4);">已装设施</div></div>';
+  html += '<rect x="296" y="140" width="40" height="28" fill="#0d1117" stroke="none"/>';
+  html += '<line x1="296" y1="140" x2="336" y2="140" stroke="#fbbf24" stroke-width="2" stroke-dasharray="6,3"/>';
+  html += '<text x="316" y="157" text-anchor="middle" fill="rgba(255,255,255,0.3)" font-size="7">入口</text>';
+  
+  html += '<rect x="24" y="388" width="80" height="12" fill="#0d1117" stroke="none"/>';
+  html += '<line x1="24" y1="394" x2="104" y2="394" stroke="rgba(255,255,255,0.4)" stroke-width="3"/>';
+  html += '<text x="64" y="410" text-anchor="middle" fill="rgba(255,255,255,0.4)" font-size="8">大门 🚪</text>';
+  
+  html += '</svg></div></div>';
+  
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;">';
+  html += '<div style="background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#60a5fa;">🛎️</div><div style="font-size:10px;color:#fff;margin-top:2px;">接待大厅</div></div>';
+  html += '<div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#fbbf24;">' + occ.customer.used + '/' + occ.customer.total + '</div><div style="font-size:10px;color:#fff;margin-top:2px;">顾客车位</div></div>';
+  html += '<div style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#4ade80;">' + occ.internal.used + '/' + occ.internal.total + '</div><div style="font-size:10px;color:#fff;margin-top:2px;">内部车库</div></div>';
+  html += '<div style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#a855f7;">' + facilities.length + '</div><div style="font-size:10px;color:#fff;margin-top:2px;">已装设施</div></div>';
   html += '</div>';
-  html += '</div></div>';
-  
-  if (facilities.length > 0) {
-    html += '<div style="margin-bottom:14px;"><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:8px;">🛋️ 已安装设施</div>';
-    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
-    facilities.forEach(function(f) {
-      var zone = getFacilityZone(outletId, f.id);
-      var statusClass = f.disabled ? '⚠️' : f.broken ? '❌' : '✅';
-      html += '<div style="display:inline-flex;align-items:center;gap:6px;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);border-radius:20px;padding:6px 12px;font-size:11px;">' + statusClass + ' <span>' + f.config.icon + '</span> <span style="color:#fff;">' + f.config.name + '</span> <span style="color:rgba(255,255,255,0.3);font-size:9px;">' + getZoneName(zone) + '</span></div>';
-    });
-    html += '</div></div>';
-  }
   
   if (gameState.interiorDecorUnlocked && typeof renderDecorations === 'function') {
     html += renderDecorations(outletId);
