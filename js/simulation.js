@@ -183,6 +183,7 @@ function nextDay() {
   gameState.todayExpense = 0;
   gameState.outletOrderCounts = {};
   gameState.serviceStats.today = { insurance:0, wifi:0, gps:0, delivery:0, refuel:0, recharge:0, totalIncome:0 };
+  gameState._dayMatchedVehicles = {};
 
   processRentalCosts();
   processTransfers();
