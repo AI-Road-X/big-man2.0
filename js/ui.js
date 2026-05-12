@@ -1752,7 +1752,10 @@ function doRepayLoan(loanId) {
 }
 function doIPO() {
   var price=parseFloat(document.getElementById('ipoPrice').value)||50;
-  if(typeof executeIPO==='function')executeIPO(price);
+  if(typeof executeIPO==='function'){
+    var result=executeIPO(price);
+    if(result&&result.success===false){showToast(result.message||'IPO失败','error');return;}
+  }
   showToast('IPO成功！RENT已上市','success');
   addMessage('🎉 公司成功上市！股票代码 RENT，发行价 $'+price.toFixed(2),'good');
   updateUI();saveGame();renderFinanceModal();
@@ -1760,14 +1763,20 @@ function doIPO() {
 function doBuyStock(ticker) {
   var qty=parseInt(document.getElementById('stockQty_'+ticker).value)||0;
   if(qty<=0){showToast('请输入数量','error');return;}
-  if(typeof buyStock==='function')buyStock(ticker,qty);
+  if(typeof buyStock==='function'){
+    var result=buyStock(ticker,qty);
+    if(result&&!result.success){showToast(result.message||'买入失败','error');return;}
+  }
   showToast('买入成功','success');
   updateUI();saveGame();renderFinanceModal();
 }
 function doSellStock(ticker) {
   var qty=parseInt(document.getElementById('stockQty_'+ticker).value)||0;
   if(qty<=0){showToast('请输入数量','error');return;}
-  if(typeof sellStock==='function')sellStock(ticker,qty);
+  if(typeof sellStock==='function'){
+    var result=sellStock(ticker,qty);
+    if(result&&!result.success){showToast(result.message||'卖出失败','error');return;}
+  }
   showToast('卖出成功','success');
   updateUI();saveGame();renderFinanceModal();
 }
