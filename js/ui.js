@@ -1175,9 +1175,17 @@ function renderOrderHistory() {
   html += '<th style="text-align:right;padding:6px 8px;color:rgba(255,255,255,0.5);cursor:pointer;" onclick="sortOrders(\'income\')">收入'+sa('income')+'</th>';
   html += '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);">增值服务</th>';
   html += '<th style="text-align:left;padding:6px 8px;color:rgba(255,255,255,0.5);">网点</th>';
+  html += '<th style="text-align:center;padding:6px 8px;color:rgba(255,255,255,0.5);">评价</th>';
   html += '</tr></thead><tbody>';
   pageOrders.forEach(function(o){
     var svc = (o.services && o.services.length > 0) ? o.services.join(', ') : '—';
+    var review = (gameState.customerReviews || []).find(function(r){ return r.orderId === o.id; });
+    var reviewHtml = '—';
+    if (review) {
+      var stars = '';
+      for (var si = 1; si <= 5; si++) stars += si <= review.score ? '⭐' : '☆';
+      reviewHtml = '<span style="color:' + (review.score >= 4 ? '#4ade80' : review.score >= 3 ? '#fbbf24' : '#f87171') + ';">' + stars + '</span>';
+    }
     html += '<tr style="border-bottom:1px solid rgba(255,255,255,0.04);">';
     html += '<td style="padding:6px 8px;color:rgba(255,255,255,0.5);">D'+(o.acceptedDay||o.createdDay)+'</td>';
     html += '<td style="padding:6px 8px;color:rgba(255,255,255,0.7);">'+o.customerName+'</td>';
@@ -1186,6 +1194,7 @@ function renderOrderHistory() {
     html += '<td style="padding:6px 8px;text-align:right;color:#4ade80;">'+formatCurrency(o.actualIncome||o.totalIncome)+'</td>';
     html += '<td style="padding:6px 8px;color:rgba(255,255,255,0.5);font-size:10px;">'+svc+'</td>';
     html += '<td style="padding:6px 8px;color:rgba(255,255,255,0.5);">'+o.outletName+'</td>';
+    html += '<td style="padding:6px 8px;text-align:center;font-size:10px;">'+reviewHtml+'</td>';
     html += '</tr>';
   });
   html += '</tbody></table>';
@@ -1344,6 +1353,15 @@ function renderPnL() {
   var today = getPnL('today');
   var month = getPnL('month');
   var total = getPnL('total');
+  var td = gameState.financials && gameState.financials.todayDetail ? gameState.financials.todayDetail : {};
+  var todayAdCost = td.advertisingCost || 0;
+  var monthAdCost = 0;
+  if (gameState.financials && gameState.financials.dailyDetails) {
+    var days = Math.min(gameState.financials.dailyDetails.length, 30);
+    for (var i = gameState.financials.dailyDetails.length - days; i < gameState.financials.dailyDetails.length; i++) {
+      monthAdCost += gameState.financials.dailyDetails[i].advertisingCost || 0;
+    }
+  }
   var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">';
   [{label:'今日',data:today},{label:'本月(30天)',data:month},{label:'累计',data:total}].forEach(function(p){
     html += '<div style="background:rgba(255,255,255,0.04);border-radius:10px;padding:14px;">';
@@ -1353,6 +1371,9 @@ function renderPnL() {
     html += '<div style="font-size:11px;color:rgba(255,255,255,0.5);">净利润: <span style="color:'+(p.data.netProfit>=0?'#4ade80':'#f87171')+';font-weight:700;">'+formatCurrency(p.data.netProfit)+'</span></div>';
     html += '</div>';
   });
+  html += '</div>';
+  html += '<div style="margin-top:10px;background:rgba(255,255,255,0.04);border-radius:10px;padding:12px;">';
+  html += '<div style="font-size:11px;color:rgba(255,255,255,0.5);">📢 广告支出 — 今日: <span style="color:#f87171;">'+formatCurrency(todayAdCost)+'</span> / 近30天: <span style="color:#f87171;">'+formatCurrency(monthAdCost)+'</span></div>';
   html += '</div>';
   if (typeof gameState.financials !== 'undefined' && gameState.financials.dailyProfit.length > 0) {
     html += '<div style="margin-top:14px;"><div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">利润走势(近30天)</div>';
@@ -2158,4 +2179,194 @@ function renderDecorations(outletId) {
   });
   html += '</div></div>';
   return html;
+}
+
+function openReviewModal() {
+  document.getElementById('reviewModal').classList.add('active');
+  renderReviewModal();
+}
+function closeReviewModal() {
+  document.getElementById('reviewModal').classList.remove('active');
+}
+function renderReviewModal() {
+  var content = document.getElementById('reviewContent');
+  var todayAvg = getAverageRating(1);
+  var weekAvg = getAverageRating(7);
+  var monthAvg = getAverageRating(30);
+  var nps = gameState.npsScore || 50;
+  var impact = getReviewImpactOnOrders();
+  var recent = getRecentReviews(10);
+  var npsColor = nps >= 70 ? '#4ade80' : nps >= 50 ? '#fbbf24' : '#f87171';
+  var html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;">';
+  html += '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,0.4);">今日评分</div><div style="font-size:22px;font-weight:700;color:#f472b6;">' + (todayAvg > 0 ? todayAvg : '—') + '</div></div>';
+  html += '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,0.4);">近7天</div><div style="font-size:22px;font-weight:700;color:#60a5fa;">' + (weekAvg > 0 ? weekAvg : '—') + '</div></div>';
+  html += '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,0.4);">近30天</div><div style="font-size:22px;font-weight:700;color:#4ade80;">' + (monthAvg > 0 ? monthAvg : '—') + '</div></div>';
+  html += '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,0.4);">NPS净推荐值</div><div style="font-size:22px;font-weight:700;color:' + npsColor + ';">' + nps + '</div></div>';
+  html += '</div>';
+  html += '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px;margin-bottom:14px;">';
+  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;">📈 近7天评分趋势</div>';
+  html += '<canvas id="ratingTrendCanvas" width="600" height="180" style="width:100%;max-width:600px;height:180px;"></canvas>';
+  html += '</div>';
+  html += '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px;margin-bottom:14px;">';
+  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;">💬 最近评价</div>';
+  if (recent.length === 0) {
+    html += '<div style="text-align:center;padding:20px;color:rgba(255,255,255,0.3);font-size:12px;">暂无评价，完成订单后将自动生成</div>';
+  } else {
+    recent.forEach(function(r) {
+      var stars = '';
+      for (var i = 1; i <= 5; i++) stars += i <= r.score ? '⭐' : '☆';
+      var scoreColor = r.score >= 4 ? '#4ade80' : r.score >= 3 ? '#fbbf24' : '#f87171';
+      html += '<div style="background:rgba(255,255,255,0.03);border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">';
+      html += '<div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:11px;font-weight:600;color:#fff;">' + (r.customerName || '匿名') + '</span><span style="font-size:9px;color:rgba(255,255,255,0.3);">D' + r.day + '</span>' + (r.isReturnCustomer ? '<span style="font-size:8px;padding:1px 4px;background:rgba(74,222,128,0.15);color:#4ade80;border-radius:3px;">回头客</span>' : '') + '</div>';
+      html += '<div style="font-size:11px;color:rgba(255,255,255,0.6);">' + r.text + '</div></div>';
+      html += '<div style="text-align:right;min-width:80px;"><div style="font-size:12px;font-weight:700;color:' + scoreColor + ';">' + stars + '</div><div style="font-size:9px;color:rgba(255,255,255,0.3);">' + (r.vehicleName || '') + '</div></div>';
+      html += '</div>';
+    });
+  }
+  html += '</div>';
+  html += '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px;">';
+  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">📊 口碑影响</div>';
+  var impactColor = impact.bonus > 0 ? '#4ade80' : impact.bonus < 0 ? '#f87171' : '#fbbf24';
+  html += '<div style="font-size:13px;font-weight:700;color:' + impactColor + ';margin-bottom:6px;">' + impact.desc + '</div>';
+  html += '<div style="font-size:10px;color:rgba(255,255,255,0.4);line-height:1.6;">';
+  html += '• 评分4~5星客户有30%概率成为回头客<br>';
+  html += '• 近30天平均评分直接影响订单量<br>';
+  html += '• NPS > 70 为优秀，50~70 为良好，< 50 需改善<br>';
+  html += '• 提升车辆状况、员工士气、店铺设施可提高评分</div>';
+  html += '</div>';
+  content.innerHTML = html;
+  setTimeout(drawRatingTrendChart, 50);
+}
+
+function drawRatingTrendChart() {
+  var canvas = document.getElementById('ratingTrendCanvas');
+  if (!canvas) return;
+  var ctx = canvas.getContext('2d');
+  var trend = getRatingTrend(7);
+  var w = canvas.width, h = canvas.height;
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(255,255,255,0.03)';
+  ctx.fillRect(0, 0, w, h);
+  var padL = 40, padR = 20, padT = 20, padB = 30;
+  var chartW = w - padL - padR, chartH = h - padT - padB;
+  ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+  ctx.lineWidth = 1;
+  for (var i = 0; i <= 5; i++) {
+    var y = padT + chartH - (i / 5) * chartH;
+    ctx.beginPath(); ctx.moveTo(padL, y); ctx.lineTo(padL + chartW, y); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+    ctx.font = '10px JetBrains Mono';
+    ctx.textAlign = 'right';
+    ctx.fillText(i.toString(), padL - 6, y + 3);
+  }
+  var dataPoints = trend.filter(function(d){ return d.avg > 0; });
+  if (dataPoints.length < 2) {
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.font = '12px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText('数据不足，至少需要2天评分', w / 2, h / 2);
+    return;
+  }
+  var stepX = chartW / (trend.length - 1);
+  ctx.beginPath();
+  ctx.strokeStyle = '#f472b6';
+  ctx.lineWidth = 2;
+  var started = false;
+  trend.forEach(function(d, idx) {
+    var x = padL + idx * stepX;
+    var y = padT + chartH - (d.avg / 5) * chartH;
+    if (d.avg > 0) {
+      if (!started) { ctx.moveTo(x, y); started = true; }
+      else ctx.lineTo(x, y);
+    }
+  });
+  ctx.stroke();
+  trend.forEach(function(d, idx) {
+    if (d.avg <= 0) return;
+    var x = padL + idx * stepX;
+    var y = padT + chartH - (d.avg / 5) * chartH;
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fillStyle = '#f472b6';
+    ctx.fill();
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.font = '9px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText(d.avg.toFixed(1), x, y - 8);
+  });
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.font = '9px JetBrains Mono';
+  ctx.textAlign = 'center';
+  trend.forEach(function(d, idx) {
+    var x = padL + idx * stepX;
+    ctx.fillText('D' + d.day, x, h - 8);
+  });
+}
+
+function openAdModal() {
+  document.getElementById('adModal').classList.add('active');
+  renderAdModal();
+}
+function closeAdModal() {
+  document.getElementById('adModal').classList.remove('active');
+}
+function renderAdModal() {
+  var content = document.getElementById('adContent');
+  var activeCampaigns = getActiveCampaigns();
+  var adMult = getAdDemandMultiplier();
+  var dailySpend = gameState.advertising ? gameState.advertising.dailySpend : 0;
+  var html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;">';
+  html += '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,0.4);">投放中广告</div><div style="font-size:22px;font-weight:700;color:#f59e0b;">' + activeCampaigns.length + '</div></div>';
+  html += '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,0.4);">每日广告费</div><div style="font-size:22px;font-weight:700;color:#f87171;">' + formatCurrency(dailySpend) + '</div></div>';
+  html += '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:rgba(255,255,255,0.4);">需求加成</div><div style="font-size:22px;font-weight:700;color:#4ade80;">×' + adMult.toFixed(2) + '</div></div>';
+  html += '</div>';
+  if (activeCampaigns.length > 0) {
+    html += '<div style="background:rgba(74,222,128,0.06);border:1px solid rgba(74,222,128,0.15);border-radius:10px;padding:14px;margin-bottom:14px;">';
+    html += '<div style="font-size:12px;font-weight:700;color:#4ade80;margin-bottom:8px;">✅ 当前投放</div>';
+    activeCampaigns.forEach(function(c) {
+      html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.04);">';
+      html += '<div><span style="font-size:14px;">' + c.icon + '</span> <span style="font-size:11px;color:#fff;font-weight:600;">' + c.name + '</span> <span style="font-size:9px;color:rgba(255,255,255,0.4);">D' + c.startDay + '开始</span></div>';
+      html += '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:10px;color:#fbbf24;">' + formatCurrency(c.costPerDay) + '/天</span><span style="font-size:10px;color:#4ade80;">需求×' + c.effectMult.toFixed(2) + '</span>';
+      html += '<button style="padding:4px 10px;border:none;border-radius:4px;font-size:9px;font-weight:600;cursor:pointer;background:rgba(231,76,60,0.2);color:#f87171;" onclick="stopAdCampaign(\'' + c.type + '\',\'' + c.cityId + '\');renderAdModal();">停止</button></div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;">📢 选择广告投放</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px;">';
+  AD_TYPES.forEach(function(ad) {
+    var isActive = activeCampaigns.some(function(c){ return c.type === ad.id; });
+    var canAfford = gameState.cash >= ad.costPerDay;
+    html += '<div style="background:rgba(255,255,255,0.04);border:1px solid ' + (isActive ? 'rgba(74,222,128,0.3)' : 'rgba(255,255,255,0.08)') + ';border-radius:12px;padding:14px;' + (isActive ? 'box-shadow:0 0 12px rgba(74,222,128,0.1);' : '') + '">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+    html += '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:24px;">' + ad.icon + '</span><div><div style="font-size:13px;font-weight:700;color:#fff;">' + ad.name + '</div><div style="font-size:10px;color:rgba(255,255,255,0.4);">' + ad.desc + '</div></div></div>';
+    if (isActive) html += '<span style="font-size:9px;padding:2px 6px;background:rgba(74,222,128,0.2);color:#4ade80;border-radius:4px;font-weight:600;">投放中</span>';
+    html += '</div>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
+    html += '<span style="font-size:11px;color:rgba(255,255,255,0.5);">每日费用</span><span style="font-size:13px;font-weight:700;color:#fbbf24;">' + formatCurrency(ad.costPerDay) + '</span></div>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
+    html += '<span style="font-size:11px;color:rgba(255,255,255,0.5);">需求倍率</span><span style="font-size:13px;font-weight:700;color:#4ade80;">×' + ad.effectMult.toFixed(2) + '</span></div>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
+    html += '<span style="font-size:11px;color:rgba(255,255,255,0.5);">覆盖范围</span><span style="font-size:11px;color:rgba(255,255,255,0.7);">' + (ad.target === 'global' ? '🌍 全国' : '🏙️ 城市') + '</span></div>';
+    if (ad.minDays) {
+      html += '<div style="font-size:9px;color:rgba(255,255,255,0.4);margin-bottom:6px;">⚠️ 最少投放' + ad.minDays + '天</div>';
+    }
+    if (!isActive) {
+      html += '<button style="width:100%;padding:8px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;' + (canAfford ? 'background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;' : 'background:rgba(255,255,255,0.08);color:rgba(255,255,255,0.3);cursor:not-allowed;') + '" onclick="' + (canAfford ? 'startAdCampaign(\'' + ad.id + '\',\'home\');renderAdModal();' : '') + '">' + (canAfford ? '开始投放' : '资金不足') + '</button>';
+    } else {
+      html += '<button style="width:100%;padding:8px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;background:rgba(231,76,60,0.2);color:#f87171;" onclick="stopAdCampaign(\'' + ad.id + '\',\'home\');renderAdModal();">停止投放</button>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  var estimatedExtra = Math.round((adMult - 1) * 10);
+  html += '<div style="background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.06);border-radius:10px;padding:14px;">';
+  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">💡 广告效果预估</div>';
+  html += '<div style="font-size:11px;color:rgba(255,255,255,0.5);line-height:1.6;">';
+  html += '• 当前广告带来约 <span style="color:#4ade80;font-weight:700;">+' + estimatedExtra + '</span> 个额外客户/天<br>';
+  html += '• 多个广告效果叠加计算（乘法）<br>';
+  html += '• 对手监测到你的广告后可能采取反制措施<br>';
+  html += '• 明星代言覆盖所有城市，其余仅限本地</div>';
+  html += '</div>';
+  content.innerHTML = html;
 }

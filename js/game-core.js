@@ -79,6 +79,9 @@ var defaultGameState = {
   autoRecommendReservation: false,
   interiorDecorUnlocked: false,
   decorations: [],
+  customerReviews: [],
+  npsScore: 50,
+  advertising: { campaigns: [], dailySpend: 0 },
   ownedVehicles: [],
   pendingOrders: [],
   todayIncome: 0,
@@ -311,6 +314,9 @@ function loadGame() {
       if (gameState.autoRecommendReservation === undefined) gameState.autoRecommendReservation = false;
       if (gameState.interiorDecorUnlocked === undefined) gameState.interiorDecorUnlocked = false;
       if (!gameState.decorations) gameState.decorations = [];
+      if (!gameState.customerReviews) gameState.customerReviews = [];
+      if (gameState.npsScore === undefined) gameState.npsScore = 50;
+      if (!gameState.advertising) gameState.advertising = { campaigns: [], dailySpend: 0 };
       return true;
     }
   } catch(e) { console.error('加载失败:', e); }

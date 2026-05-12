@@ -350,6 +350,8 @@
       <button class="panel-btn service-pricing" onclick="openServicePricingModal()">🏷️ 定价</button>
       <button class="panel-btn" style="background:linear-gradient(135deg,#f1c40f,#f39c12);" onclick="openMilestoneModal()">🏆 里程碑</button>
       <button class="panel-btn" style="background:linear-gradient(135deg,#e74c3c,#c0392b);" onclick="openProgressionModal()">🎯 成长</button>
+      <button class="panel-btn" style="background:linear-gradient(135deg,#f472b6,#ec4899);" onclick="openReviewModal()">📊 评价</button>
+      <button class="panel-btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);" onclick="openAdModal()">📢 广告</button>
       <span style="width:1px;height:20px;background:rgba(255,255,255,0.1);margin:0 4px;"></span>
       <input id="cheatInput" type="text" placeholder="输入作弊码..." style="padding:4px 8px;background:rgba(255,255,255,0.06);border:1px solid rgba(255,255,255,0.15);border-radius:4px;color:rgba(255,255,255,0.7);font-family:'JetBrains Mono',monospace;font-size:9px;width:120px;outline:none;min-height:28px;" onkeydown="if(event.key==='Enter'){enterCheatCode(this.value);this.value='';}" />
     </div>
@@ -544,6 +546,26 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="reviewModal">
+    <div class="modal-container" style="max-width:800px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">📊</span> 客户评价</div>
+        <button class="close-btn" onclick="closeReviewModal()">✕</button>
+      </div>
+      <div class="vehicle-table-wrapper" id="reviewContent" style="padding:16px 22px;"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="adModal">
+    <div class="modal-container" style="max-width:800px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">📢</span> 广告营销</div>
+        <button class="close-btn" onclick="closeAdModal()">✕</button>
+      </div>
+      <div class="vehicle-table-wrapper" id="adContent" style="padding:16px 22px;"></div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="pricingModal">
     <div class="modal-container" style="max-width:600px;">
       <div class="modal-header">
@@ -580,6 +602,7 @@
   <script src="js/facilities.js"></script>
   <script src="js/milestones.js"></script>
   <script src="js/progression.js"></script>
+  <script src="js/reviews.js"></script>
   <script src="js/simulation.js"></script>
   <script src="js/scene3d.js"></script>
   <script src="js/ui.js"></script>
@@ -709,7 +732,7 @@
     }
 
     window.addEventListener('keydown', function(e){
-      if (e.key === 'Escape') { closeFleetModal(); closeOrdersModal(); closeDispatchModal(); closePricingModal(); closeEnergyModal(); closeServiceStatsModal(); closeMemberModal(); closeServicePricingModal(); closeOrderHistoryModal(); closeEmployeeModal(); closeTalentMarket(); closeFinanceModal(); closeMilestoneModal(); closeFacilityModal(); hideOutletPopup(); }
+      if (e.key === 'Escape') { closeFleetModal(); closeOrdersModal(); closeDispatchModal(); closePricingModal(); closeEnergyModal(); closeServiceStatsModal(); closeMemberModal(); closeServicePricingModal(); closeOrderHistoryModal(); closeEmployeeModal(); closeTalentMarket(); closeFinanceModal(); closeMilestoneModal(); closeFacilityModal(); closeReviewModal(); closeAdModal(); hideOutletPopup(); }
     });
 
     window.addEventListener('DOMContentLoaded', function(){

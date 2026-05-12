@@ -19,7 +19,7 @@ function initFinancialState() {
         rentalIncome: 0, serviceIncome: 0, vehicleSales: 0, investmentIncome: 0,
         wages: 0, maintenance: 0, energyCost: 0, loanInterest: 0, taxes: 0,
         vehiclePurchases: 0, stockPurchases: 0, stockSales: 0,
-        loanProceeds: 0, loanRepayments: 0
+        loanProceeds: 0, loanRepayments: 0, advertisingCost: 0
       }
     };
   }
@@ -30,7 +30,7 @@ function initFinancialState() {
       rentalIncome: 0, serviceIncome: 0, vehicleSales: 0, investmentIncome: 0,
       wages: 0, maintenance: 0, energyCost: 0, loanInterest: 0, taxes: 0,
       vehiclePurchases: 0, stockPurchases: 0, stockSales: 0,
-      loanProceeds: 0, loanRepayments: 0
+      loanProceeds: 0, loanRepayments: 0, advertisingCost: 0
     };
   }
   if (!gameState.loans) gameState.loans = [];
@@ -79,7 +79,7 @@ function recordDailyFinancials() {
     rentalIncome: 0, serviceIncome: 0, vehicleSales: 0, investmentIncome: 0,
     wages: 0, maintenance: 0, energyCost: 0, loanInterest: 0, taxes: 0,
     vehiclePurchases: 0, stockPurchases: 0, stockSales: 0,
-    loanProceeds: 0, loanRepayments: 0
+    loanProceeds: 0, loanRepayments: 0, advertisingCost: 0
   };
 }
 

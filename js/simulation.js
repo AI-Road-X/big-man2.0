@@ -11,6 +11,14 @@ function generateCustomers() {
       var hasTour = hasPreferredFacility(outlet.id, 'tourist');
       if (hasBiz || hasTour) base = Math.ceil(base * 1.2);
     }
+    if (typeof getAdDemandMultiplier === 'function') {
+      var adMult = getAdDemandMultiplier();
+      base = Math.ceil(base * adMult);
+    }
+    if (typeof getReviewImpactOnOrders === 'function') {
+      var reviewImpact = getReviewImpactOnOrders();
+      base = Math.ceil(base * (1 + reviewImpact.bonus));
+    }
     var count = Math.min(base, 12);
     for (var i = 0; i < count; i++) {
       var isBusiness = Math.random() < 0.45;
@@ -192,6 +200,9 @@ function nextDay() {
   }
 
   if (typeof processProgressionDaily === 'function') processProgressionDaily();
+
+  if (typeof processDailyReviews === 'function') processDailyReviews();
+  if (typeof processDailyAdvertising === 'function') processDailyAdvertising();
 
   updateUI(); saveGame();
 }
