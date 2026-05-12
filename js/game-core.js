@@ -323,6 +323,19 @@ function loadGame() {
   return false;
 }
 
+function migrateFixDuplicateOutlets() {
+  var seenOutletIds = {};
+  gameState.outlets = gameState.outlets.filter(function(o){
+    if (!o.owned) return true;
+    if (seenOutletIds[o.id]) {
+      console.warn('移除重复网点:', o.id);
+      return false;
+    }
+    seenOutletIds[o.id] = true;
+    return true;
+  });
+}
+
 function unlockOutlet(outletId) {
   var cfg = OUTLET_CONFIGS.find(function(c){ return c.id === outletId; });
   if (!cfg || gameState.cash < cfg.unlockCost) return;

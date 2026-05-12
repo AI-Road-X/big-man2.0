@@ -123,13 +123,30 @@ function matchVehicleForCustomer(customer) {
   var available = getAvailableVehiclesAtOutlet(customer.outletId);
   available = available.filter(function(v){ return !gameState._dayMatchedVehicles[v.id]; });
   if (available.length === 0) return null;
+  
   var eventEffects = getEventEffects();
   var today = gameState.currentDay;
-  var scored = available.map(function(v){
+  
+  var typePrefScores = {};
+  available.forEach(function(v){
     var pref = customer.preferences[v.type] || 1;
     if (eventEffects.fuelDemandMultiplier && eventEffects.fuelDemandMultiplier[v.fuelType]) {
       pref *= eventEffects.fuelDemandMultiplier[v.fuelType];
     }
+    typePrefScores[v.id] = pref;
+  });
+  
+  var highPref = available.filter(function(v){ return typePrefScores[v.id] >= 0.8; });
+  var midPref = available.filter(function(v){ return typePrefScores[v.id] >= 0.4 && typePrefScores[v.id] < 0.8; });
+  var lowPref = available.filter(function(v){ return typePrefScores[v.id] < 0.4; });
+  
+  var pool = highPref.length > 0 ? highPref : (midPref.length > 0 ? midPref : lowPref);
+  
+  var scored = pool.map(function(v){
+    var lastRented = gameState._vehicleRentHistory[v.id] || 0;
+    var daysSince = Math.max(0, today - lastRented);
+    var cooldownBonus = daysSince * 15;
+    var prefBonus = typePrefScores[v.id] * 8;
     var effectiveRate = getEffectiveDailyRate(v);
     if (customer.memberId) {
       var member = gameState.members.find(function(m){ return m.id === customer.memberId; });
@@ -138,16 +155,17 @@ function matchVehicleForCustomer(customer) {
         effectiveRate = Math.round(effectiveRate * levelInfo.discount);
       }
     }
-    var lastRented = gameState._vehicleRentHistory[v.id] || 0;
-    var daysSince = Math.max(0, today - lastRented);
-    var rentPenalty = daysSince <= 0 ? 10 : daysSince < 3 ? 5 : daysSince < 7 ? 2 : 0;
-    var randomFactor = 0.8 + Math.random() * 0.4;
-    return { vehicle: v, score: pref * (1000 / Math.max(effectiveRate, 1)) * randomFactor - rentPenalty, effectiveRate: effectiveRate };
+    var ratePenalty = Math.max(0, (effectiveRate - 200) / 20);
+    
+    return { vehicle: v, score: cooldownBonus + prefBonus - ratePenalty + (Math.random() * 30), effectiveRate: effectiveRate };
   });
+  
   scored.sort(function(a,b){ return b.score - a.score; });
-  var topN = Math.min(3, scored.length);
-  var pickIdx = Math.floor(Math.random() * topN);
+  
+  var pickRange = Math.min(Math.ceil(scored.length / 2), 5);
+  var pickIdx = Math.floor(Math.random() * pickRange);
   var chosen = scored[pickIdx];
+  
   gameState._vehicleRentHistory[chosen.vehicle.id] = today;
   gameState._dayMatchedVehicles[chosen.vehicle.id] = true;
   return chosen;

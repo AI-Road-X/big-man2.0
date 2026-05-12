@@ -201,8 +201,9 @@ function switchTab(tab) {
     infoBar.style.display = 'none';
     if (marketSubTabs) marketSubTabs.style.display = 'none';
     updateTableHeader([
-      {label:'车型',field:'name'},{label:'车牌',field:'name'},{label:'类型',field:'type'},
-      {label:'网点',field:'outlet'},{label:'状态',field:'status'},{label:'日租金',field:'rate'},{label:'操作',field:'name'}
+      {label:'车型信息',field:'name'},{label:'车牌',field:'plate'},{label:'类型',field:'type'},
+      {label:'购车成本',field:'cost'},{label:'车龄/里程',field:'age'},{label:'保值率',field:'residual'},
+      {label:'日租金',field:'rate'},{label:'累计利润',field:'profit'},{label:'利润率',field:'margin'},{label:'网点',field:'outlet'},{label:'状态',field:'status'},{label:'操作',field:'action'}
     ], true);
     renderMyFleet();
   } else if (tab === 'market') {
@@ -394,10 +395,10 @@ function renderUsedCarMarket(filteredList) {
 }
 
 function refreshUsedCarMarket() {
-  gameState.usedCarMarketList = generateUsedCarListing(20);
+  gameState.usedCarMarketList = generateUsedCarListing(100);
   updateVehicleCounts();
   switchMarketSubTab('used');
-  addMessage('二手车市场已刷新，共 <span class="msg-highlight">20</span> 辆车', 'warn');
+  addMessage('二手车市场已刷新，共 <span class="msg-highlight">100</span> 辆车', 'warn');
   saveGame();
 }
 
@@ -509,10 +510,34 @@ function clearBatchSelection() {
   var saEl = document.getElementById('selectAllCheckbox');
   if (saEl) { saEl.checked = false; saEl.indeterminate = false; }
 }
+function getVehicleTotalProfit(vehicleId) {
+  var totalProfit = 0;
+  if (gameState.completedOrders) {
+    gameState.completedOrders.forEach(function(o){
+      if (o.vehicleId === vehicleId && o.netIncome) totalProfit += o.netIncome;
+    });
+  }
+  if (totalProfit === 0) {
+    var v = gameState.ownedVehicles.find(function(v){ return v.id === vehicleId; });
+    if (v) {
+      var daysOwned = Math.max(1, gameState.currentDay - (v.purchaseDay || gameState.currentDay));
+      var estRentDays = Math.floor(daysOwned * 0.5);
+      totalProfit = Math.round(estRentDays * getEffectiveDailyRate(v) * 0.55);
+    }
+  }
+  return totalProfit;
+}
+function getVehicleProfitMargin(vehicleId) {
+  var v = gameState.ownedVehicles.find(function(v){ return v.id === vehicleId; });
+  if (!v) return 0;
+  var cost = v.purchasePrice || v.estimatedValue || 1;
+  var profit = getVehicleTotalProfit(vehicleId);
+  return Math.round(profit / cost * 1000) / 10;
+}
 function renderMyFleet() {
   var tbody = document.getElementById('vehicleTableBody');
   if (gameState.ownedVehicles.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">🚗</div><div class="text">暂无车辆，前往市场购买吧！</div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="12"><div class="empty-state"><div class="icon">🚗</div><div class="text">暂无车辆，前往市场购买吧！</div></div></td></tr>';
     return;
   }
   var sorted = gameState.ownedVehicles.slice();
@@ -520,8 +545,20 @@ function renderMyFleet() {
     var va, vb;
     switch (myFleetSort.field) {
       case 'name': va = a.brand + a.model; vb = b.brand + b.model; break;
+      case 'plate': va = a.licensePlate || ''; vb = b.licensePlate || ''; break;
       case 'type': va = a.type; vb = b.type; break;
-      case 'rate': va = a.dailyRate; vb = b.dailyRate; break;
+      case 'cost': va = a.purchasePrice || 0; vb = b.purchasePrice || 0; break;
+      case 'age': va = a.age || (gameState.currentDay - (a.purchaseDay || gameState.currentDay)); vb = b.age || (gameState.currentDay - (b.purchaseDay || gameState.currentDay)); break;
+      case 'residual': va = a.residualValue || 0.5; vb = b.residualValue || 0.5; break;
+      case 'rate': va = getEffectiveDailyRate(a); vb = getEffectiveDailyRate(b); break;
+      case 'profit':
+        var pa = typeof getVehicleTotalProfit === 'function' ? getVehicleTotalProfit(a.id) : 0;
+        var pb = typeof getVehicleTotalProfit === 'function' ? getVehicleTotalProfit(b.id) : 0;
+        va = pa; vb = pb; break;
+      case 'margin':
+        var ma = typeof getVehicleProfitMargin === 'function' ? getVehicleProfitMargin(a.id) : 0;
+        var mb = typeof getVehicleProfitMargin === 'function' ? getVehicleProfitMargin(b.id) : 0;
+        va = ma; vb = mb; break;
       case 'outlet': va = a.outletId; vb = b.outletId; break;
       case 'status':
         va = (a.rentedUntil && a.rentedUntil >= gameState.currentDay) ? 1 : isInTransit(a.id) ? 2 : 0;
@@ -560,14 +597,27 @@ function renderMyFleet() {
 
     var canDispatch = !inTransit && !(v.rentedUntil && v.rentedUntil >= gameState.currentDay) && ownedOutlets.some(function(o){ return o.id !== v.outletId; });
 
+    var totalProfit = getVehicleTotalProfit(v.id);
+    var profitMargin = getVehicleProfitMargin(v.id);
+    var marginColor = profitMargin > 50 ? '#22c55e' : profitMargin >= 20 ? '#eab308' : '#ef4444';
+    var costDisplay = v.isNew ? formatCurrency(v.purchasePrice || currentValue) : formatCurrency(v.estimatedValue || currentValue);
+    var ageDisplay = v.isNew ? '新车 · D' + (v.purchaseDay || gameState.currentDay) + '购入' : (v.age || '?') + '年车龄 · ' + (v.mileage || 0).toLocaleString() + 'km';
+    var residualInfo = typeof getResidualValueInfo === 'function' ? getResidualValueInfo(v.residualValue || (v.isNew ? 1.0 : 0.6)) : { percentage: Math.round((v.residualValue || 0.6) * 100), level: '-', color: '#94a3b8' };
+    var residualBarColor = residualInfo.color || '#94a3b8';
+
     var row = document.createElement('tr');
     row.innerHTML =
-      '<td><div class="vehicle-info"><span class="vehicle-name">' + v.brand + ' ' + v.model + '</span><span class="vehicle-brand">' + v.year + '款 · ' + (v.isNew ? '新车' : v.mileage.toLocaleString() + 'km') + ' · 估值' + formatCurrency(currentValue) + '</span></div></td>' +
-      '<td><span class="license-plate">' + v.licensePlate + '</span></td>' +
+      '<td><div class="vehicle-info"><span class="vehicle-name">' + v.brand + ' ' + v.model + '</span><span class="vehicle-brand">' + v.year + '款</span></div></td>' +
+      '<td><span class="license-plate">' + (v.licensePlate || '-') + '</span></td>' +
       '<td><span class="tag tag-type">' + typeInfo.text + '</span> <span class="tag tag-fuel">' + fuelInfo.icon + ' ' + fuelInfo.text + '</span>' + (!v.isNew && v.condition ? ' <span class="condition-tag condition-' + v.condition.charAt(0) + '">' + v.condition + '</span>' : '') + '</td>' +
+      '<td><span style="font-size:12px;font-weight:600;color:#1e293b;">' + costDisplay + '</span></td>' +
+      '<td><span style="font-size:11px;color:#475569;">' + ageDisplay + '</span></td>' +
+      '<td><div style="display:flex;align-items:center;gap:4px;"><div style="flex:1;height:14px;background:#e2e8f0;border-radius:3px;overflow:hidden;min-width:40px;"><div style="height:100%;width:' + residualInfo.percentage + '%;background:' + residualBarColor + ';border-radius:3px;"></div></div><span style="font-size:9px;color:' + residualBarColor + ';font-weight:600;white-space:nowrap;">' + residualInfo.percentage + '%</span></div><div style="font-size:9px;color:#94a3b8;">' + residualInfo.level + '</div></td>' +
+      '<td><span class="daily-rate">' + formatCurrency(getEffectiveDailyRate(v)) + '/天</span><br><span style="font-size:10px;color:#94a3b8;">倍率 ' + getRateMultiplier(v.type).toFixed(1) + 'x</span></td>' +
+      '<td><span style="font-size:12px;font-weight:700;color:#1e293b;">' + formatCurrency(totalProfit) + '</span></td>' +
+      '<td><span style="font-size:12px;font-weight:700;color:' + marginColor + ';">' + profitMargin + '%</span></td>' +
       '<td><span style="font-size:11px;color:#64748b;">' + outletLabel + '</span></td>' +
       '<td>' + statusHtml + '</td>' +
-      '<td><span class="daily-rate">' + formatCurrency(getEffectiveDailyRate(v)) + '/天</span><br><span style="font-size:10px;color:#94a3b8;">倍率 ' + getRateMultiplier(v.type).toFixed(1) + 'x</span></td>' +
       '<td><button class="action-btn btn-sell" onclick="sellVehicle(\'' + v.id + '\')" style="margin-bottom:4px;">出售 ' + formatCurrency(sellPrice) + '</button>' + (canDispatch ? '<button class="action-btn btn-dispatch" onclick="openDispatchModal(\'' + v.id + '\')">调度</button>' : '') + '</td>';
     fragment.appendChild(row);
   });
@@ -579,8 +629,9 @@ function sortMyFleet(field) {
   if (myFleetSort.field === field) myFleetSort.asc = !myFleetSort.asc;
   else { myFleetSort.field = field; myFleetSort.asc = true; }
   updateTableHeader([
-    {label:'车型',field:'name'},{label:'车牌',field:'name'},{label:'类型',field:'type'},
-    {label:'网点',field:'outlet'},{label:'状态',field:'status'},{label:'日租金',field:'rate'},{label:'操作',field:'name'}
+    {label:'车型信息',field:'name'},{label:'车牌',field:'plate'},{label:'类型',field:'type'},
+    {label:'购车成本',field:'cost'},{label:'车龄/里程',field:'age'},{label:'保值率',field:'residual'},
+    {label:'日租金',field:'rate'},{label:'累计利润',field:'profit'},{label:'利润率',field:'margin'},{label:'网点',field:'outlet'},{label:'状态',field:'status'},{label:'操作',field:'action'}
   ], true);
   renderMyFleet();
 }
@@ -1779,7 +1830,7 @@ function renderPnL() {
   html += _finRow('营业利润', tOp, mOp, ttOp, 'color:#1e293b;font-size:13px;', 'font-size:13px;', true, 0);
   html += '</tbody></table></div>';
   if (typeof gameState.financials !== 'undefined' && gameState.financials.dailyProfit.length > 0) {
-    html += '<div style="margin-top:14px;"><div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">利润走势(近30天)</div>';
+    html += '<div style="margin-top:14px;"><div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px;">利润走势(近30天)</div>';
     html += '<canvas id="profitChartCanvas" width="560" height="160" style="width:100%;max-width:560px;height:160px;"></canvas></div>';
     setTimeout(drawProfitChart, 50);
   }
@@ -1827,7 +1878,7 @@ function renderAchievementsTab() {
   var prog = typeof getAchievementProgress === 'function' ? getAchievementProgress() : {total:0,unlocked:0,claimed:0};
   var html = '<div style="display:flex;gap:12px;margin-bottom:14px;align-items:center;">';
   html += '<div style="font-size:24px;font-weight:700;color:#fbbf24;">' + prog.unlocked + '/' + prog.total + '</div>';
-  html += '<div><div style="font-size:11px;color:#fff;">成就解锁</div><div style="font-size:9px;color:#94a3b8;">已领取 ' + prog.claimed + ' 个奖励</div></div>';
+  html += '<div><div style="font-size:11px;color:#1e293b;">成就解锁</div><div style="font-size:9px;color:#94a3b8;">已领取 ' + prog.claimed + ' 个奖励</div></div>';
   html += '<div style="flex:1;height:6px;background:rgba(226,232,240,1);border-radius:3px;overflow:hidden;"><div style="width:' + (prog.total>0?Math.round(prog.unlocked/prog.total*100):0) + '%;height:100%;background:linear-gradient(90deg,#fbbf24,#f59e0b);border-radius:3px;"></div></div>';
   html += '</div>';
   var cats = typeof ACHIEVEMENT_CATEGORIES !== 'undefined' ? ACHIEVEMENT_CATEGORIES : {};
@@ -1845,7 +1896,7 @@ function renderAchievementsTab() {
       if (claimed) html += '<span style="font-size:8px;color:#4ade80;">已领取</span>';
       else if (unlocked) html += '<button style="padding:2px 8px;border:none;border-radius:4px;font-size:8px;font-weight:700;cursor:pointer;background:' + cat.color + ';color:#fff;" onclick="claimAchievement(\'' + a.id + '\');renderProgressionModal();">领取</button>';
       html += '</div>';
-      html += '<div style="font-size:11px;font-weight:600;color:#fff;">' + a.name + '</div>';
+      html += '<div style="font-size:11px;font-weight:600;color:#1e293b;">' + a.name + '</div>';
       html += '<div style="font-size:9px;color:#94a3b8;">' + a.desc + '</div>';
       if (a.reward.cash) html += '<div style="font-size:8px;color:#4ade80;margin-top:2px;">奖励: ' + formatCurrency(a.reward.cash) + '</div>';
       if (a.reward.reputation) html += '<div style="font-size:8px;color:#fbbf24;">声誉+' + a.reward.reputation + '</div>';
@@ -1879,7 +1930,7 @@ function renderTechTreeTab() {
       var locked = !researched && !researching && !canResearch;
       html += '<div style="background:' + (researched ? branch.color + '20' : 'rgba(241,245,249,0.8)') + ';border:1px solid ' + (researched ? branch.color + '60' : researching ? '#3b82f6' : 'rgba(203,213,225,0.8)') + ';border-radius:8px;padding:10px;min-width:140px;' + (locked ? 'opacity:0.4;' : '') + '">';
       if (idx > 0) html += '<div style="font-size:8px;color:#cbd5e1;margin-bottom:2px;">↑ 前置</div>';
-      html += '<div style="font-size:11px;font-weight:700;color:#fff;">' + tech.name + '</div>';
+      html += '<div style="font-size:11px;font-weight:700;color:#1e293b;">' + tech.name + '</div>';
       html += '<div style="font-size:9px;color:#64748b;margin:2px 0;">' + tech.desc + '</div>';
       html += '<div style="font-size:8px;color:#94a3b8;">费用 ' + formatCurrency(tech.cost) + ' · ' + tech.researchDays + '天</div>';
       if (researched) html += '<div style="font-size:9px;color:#4ade80;font-weight:700;margin-top:4px;">✓ 已完成</div>';
@@ -1895,7 +1946,7 @@ function renderTechTreeTab() {
 
 function renderRivalsTab() {
   var rivals = gameState.rivals || [];
-  var html = '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;">⚔️ 竞争对手</div>';
+  var html = '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;">⚔️ 竞争对手</div>';
   html += '<div style="font-size:10px;color:#64748b;margin-bottom:14px;">竞争对手每周成长，抢夺市场份额。保持优势！</div>';
   rivals.forEach(function(r) {
     var info = typeof getRivalInfo === 'function' ? getRivalInfo(r.id) : null;
@@ -1903,13 +1954,13 @@ function renderRivalsTab() {
     var strengthPct = Math.round(r.strength * 100);
     html += '<div style="background:rgba(248,250,252,1);border:1px solid ' + info.color + '30;border-radius:10px;padding:14px;margin-bottom:8px;">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
-    html += '<div><span style="font-size:16px;">' + info.icon + '</span> <span style="font-size:13px;font-weight:700;color:#fff;">' + info.name + '</span> <span style="font-size:9px;color:#94a3b8;">(' + info.style + ')</span></div>';
+    html += '<div><span style="font-size:16px;">' + info.icon + '</span> <span style="font-size:13px;font-weight:700;color:#1e293b;">' + info.name + '</span> <span style="font-size:9px;color:#94a3b8;">(' + info.style + ')</span></div>';
     html += '<span style="font-size:10px;color:' + info.color + ';font-weight:700;">实力 ' + strengthPct + '%</span>';
     html += '</div>';
     html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
-    html += '<div style="text-align:center;"><div style="font-size:14px;font-weight:700;color:#fff;">' + r.vehicles + '</div><div style="font-size:9px;color:#94a3b8;">车辆</div></div>';
-    html += '<div style="text-align:center;"><div style="font-size:14px;font-weight:700;color:#fff;">' + Math.round(r.marketShare * 100) + '%</div><div style="font-size:9px;color:#94a3b8;">市场份额</div></div>';
-    html += '<div style="text-align:center;"><div style="font-size:14px;font-weight:700;color:#fff;">' + r.reputation + '</div><div style="font-size:9px;color:#94a3b8;">声誉</div></div>';
+    html += '<div style="text-align:center;"><div style="font-size:14px;font-weight:700;color:#1e293b;">' + r.vehicles + '</div><div style="font-size:9px;color:#94a3b8;">车辆</div></div>';
+    html += '<div style="text-align:center;"><div style="font-size:14px;font-weight:700;color:#1e293b;">' + Math.round(r.marketShare * 100) + '%</div><div style="font-size:9px;color:#94a3b8;">市场份额</div></div>';
+    html += '<div style="text-align:center;"><div style="font-size:14px;font-weight:700;color:#1e293b;">' + r.reputation + '</div><div style="font-size:9px;color:#94a3b8;">声誉</div></div>';
     html += '</div>';
     html += '<div style="margin-top:8px;height:4px;background:rgba(226,232,240,1);border-radius:2px;overflow:hidden;"><div style="width:' + strengthPct + '%;height:100%;background:' + info.color + ';border-radius:2px;"></div></div>';
     html += '</div>';
@@ -1923,7 +1974,7 @@ function renderRivalsTab() {
 }
 
 function renderDailyTab() {
-  var html = '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;">📋 每日挑战</div>';
+  var html = '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;">📋 每日挑战</div>';
   var ch = gameState.dailyChallenge;
   if (!ch) {
     html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px;">今日暂无挑战</div>';
@@ -1931,7 +1982,7 @@ function renderDailyTab() {
     var pct = ch.target > 0 ? Math.min(100, Math.round(ch.progress / ch.target * 100)) : 0;
     html += '<div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);border-radius:10px;padding:14px;">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
-    html += '<div style="font-size:12px;font-weight:700;color:#fff;">' + ch.desc + '</div>';
+    html += '<div style="font-size:12px;font-weight:700;color:#1e293b;">' + ch.desc + '</div>';
     html += '<span style="font-size:9px;padding:2px 8px;border-radius:4px;background:' + (ch.completed ? 'rgba(74,222,128,0.2);color:#4ade80' : 'rgba(251,191,36,0.2);color:#fbbf24') + ';">' + (ch.completed ? '已完成' : '进行中') + '</span>';
     html += '</div>';
     html += '<div style="height:8px;background:rgba(226,232,240,1);border-radius:4px;overflow:hidden;margin-bottom:6px;"><div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,#4ade80,#22c55e);border-radius:4px;"></div></div>';
@@ -1949,7 +2000,7 @@ function renderDailyTab() {
     html += '<div style="font-size:13px;font-weight:700;color:#f472b6;margin-bottom:6px;">' + evt.icon + ' ' + evt.name + '</div>';
     html += '<div style="font-size:11px;color:#475569;margin-bottom:10px;">' + evt.desc + '</div>';
     evt.choices.forEach(function(c, i) {
-      html += '<button style="display:block;width:100%;text-align:left;padding:8px 12px;margin-bottom:4px;border:1px solid rgba(203,213,225,1);border-radius:6px;background:rgba(248,250,252,1);color:#fff;font-size:10px;cursor:pointer;" onclick="resolveStoryEvent(' + i + ');renderProgressionModal();">' + c.text + (c.cost > 0 ? ' <span style="color:#f87171;">(-' + formatCurrency(c.cost) + ')</span>' : '') + '</button>';
+      html += '<button style="display:block;width:100%;text-align:left;padding:8px 12px;margin-bottom:4px;border:1px solid rgba(203,213,225,1);border-radius:6px;background:rgba(248,250,252,1);color:#1e293b;font-size:10px;cursor:pointer;" onclick="resolveStoryEvent(' + i + ');renderProgressionModal();">' + c.text + (c.cost > 0 ? ' <span style="color:#f87171;">(-' + formatCurrency(c.cost) + ')</span>' : '') + '</button>';
     });
     html += '<button style="margin-top:4px;padding:4px 8px;border:none;border-radius:4px;font-size:9px;cursor:pointer;background:rgba(241,245,249,1);color:#94a3b8;" onclick="dismissStoryEvent();renderProgressionModal();">忽略</button>';
     html += '</div>';
@@ -1971,7 +2022,7 @@ function renderPrestigeTab() {
   html += '<div style="font-size:10px;color:#94a3b8;margin-bottom:8px;">预计获得: <span style="color:#a855f7;font-weight:700;">' + points + '</span> 声望点数</div>';
   html += '<button style="padding:8px 20px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;background:' + (canP ? 'linear-gradient(135deg,#a855f7,#7c3aed)' : 'rgba(226,232,240,1)') + ';color:' + (canP ? '#fff' : '#94a3b8') + ';" onclick="if(confirm(' + "'" + '确定要声望重生吗？这将重置大部分游戏进度！' + "'" + ')){doPrestige();renderProgressionModal();}" ' + (!canP ? 'disabled' : '') + '>🔄 声望重生</button>';
   html += '</div>';
-  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">✨ 声望天赋</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px;">✨ 声望天赋</div>';
   var perks = typeof PRESTIGE_PERKS !== 'undefined' ? PRESTIGE_PERKS : [];
   html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">';
   perks.forEach(function(perk) {
@@ -1980,7 +2031,7 @@ function renderPrestigeTab() {
     var requiresMet = !perk.requires || perk.requires.every(function(r){ return (gameState.prestigePerks||[]).indexOf(r)!==-1; });
     var locked = !owned && !requiresMet;
     html += '<div style="background:' + (owned ? 'rgba(168,85,247,0.15)' : 'rgba(241,245,249,0.8)') + ';border:1px solid ' + (owned ? 'rgba(168,85,247,0.4)' : 'rgba(203,213,225,0.8)') + ';border-radius:8px;padding:10px;' + (locked ? 'opacity:0.4;' : '') + '">';
-    html += '<div style="font-size:11px;font-weight:700;color:#fff;">' + perk.name + '</div>';
+    html += '<div style="font-size:11px;font-weight:700;color:#1e293b;">' + perk.name + '</div>';
     html += '<div style="font-size:9px;color:#64748b;margin:2px 0;">' + perk.desc + '</div>';
     html += '<div style="font-size:8px;color:#a855f7;">费用: ' + perk.cost + ' 点</div>';
     if (owned) html += '<div style="font-size:9px;color:#4ade80;font-weight:700;margin-top:4px;">✓ 已解锁</div>';
@@ -2175,7 +2226,7 @@ function renderLoans() {
   var existingDebt = loans.reduce(function(s,l){ return s + l.remainingAmount; }, 0);
   var available = Math.max(0, maxLoan - existingDebt);
   var html = '<div style="background:rgba(248,250,252,1);border-radius:10px;padding:14px;margin-bottom:14px;">';
-  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">🏦 申请贷款</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px;">🏦 申请贷款</div>';
   html += '<div style="font-size:11px;color:#64748b;margin-bottom:6px;">可贷额度: '+formatCurrency(available)+' (总资产50% - 已贷)</div>';
   html += '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
   html += '<input type="number" id="loanAmount" min="10000" step="10000" value="100000" style="width:120px;padding:6px 10px;background:rgba(226,232,240,0.8);border:1px solid rgba(203,213,225,1);border-radius:6px;color:#1e293b;font-size:12px;min-height:36px;">';
@@ -2210,7 +2261,7 @@ function renderStocks() {
   var html = '';
   if (!st.isPublic) {
     html += '<div style="background:rgba(248,250,252,1);border-radius:10px;padding:16px;margin-bottom:14px;">';
-    html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">🏢 IPO上市</div>';
+    html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px;">🏢 IPO上市</div>';
     html += '<div style="font-size:11px;color:#64748b;margin-bottom:6px;">上市条件：现金 > $50M 且 累计营收 > $5M</div>';
     var eligible = typeof checkIPOEligibility === 'function' && checkIPOEligibility();
     html += '<div style="font-size:11px;color:'+(eligible?'#4ade80':'#f87171')+';">当前状态：'+(eligible?'✓ 满足条件':'✕ 不满足条件')+'</div>';
@@ -2223,12 +2274,12 @@ function renderStocks() {
     html += '</div>';
   } else {
     html += '<div style="background:rgba(248,250,252,1);border-radius:10px;padding:14px;margin-bottom:14px;">';
-    html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">📈 RENT 股票</div>';
+    html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px;">📈 RENT 股票</div>';
     html += '<div style="font-size:11px;color:#475569;">当前股价: <span style="color:#4ade80;font-weight:700;">$'+(st.sharePrice||0).toFixed(2)+'</span> · 持有: '+st.playerShares+'股(锁定) · 流通: '+st.publicShares+'股</div>';
     html += '</div>';
   }
   html += '<div style="background:rgba(248,250,252,1);border-radius:10px;padding:14px;">';
-  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">📊 虚拟股票市场</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px;">📊 虚拟股票市场</div>';
   var vStocks = typeof VIRTUAL_STOCKS !== 'undefined' ? VIRTUAL_STOCKS : [];
   var lastPrices = {};
   if (st.stockHistory && st.stockHistory.length > 0) {
@@ -2238,7 +2289,7 @@ function renderStocks() {
   vStocks.forEach(function(vs){
     var price = lastPrices[vs.ticker] || vs.basePrice;
     html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(226,232,240,0.6);">';
-    html += '<div><span style="color:#fff;font-weight:600;">'+vs.ticker+'</span> <span style="color:#64748b;font-size:10px;">'+vs.name+'</span></div>';
+    html += '<div><span style="color:#1e293b;font-weight:600;">'+vs.ticker+'</span> <span style="color:#64748b;font-size:10px;">'+vs.name+'</span></div>';
     html += '<div style="display:flex;gap:6px;align-items:center;">';
     html += '<span style="color:#4ade80;font-weight:700;">$'+price.toFixed(2)+'</span>';
     html += '<input type="number" id="stockQty_'+vs.ticker+'" min="1" value="10" style="width:60px;padding:4px 6px;background:rgba(226,232,240,0.8);border:1px solid rgba(203,213,225,1);border-radius:4px;color:#1e293b;font-size:10px;min-height:30px;">';
@@ -2250,7 +2301,7 @@ function renderStocks() {
   var portfolio = st.portfolio || [];
   if (portfolio.length > 0) {
     html += '<div style="background:rgba(248,250,252,1);border-radius:10px;padding:14px;margin-top:10px;">';
-    html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">💼 我的持仓</div>';
+    html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px;">💼 我的持仓</div>';
     portfolio.forEach(function(p){
       var curPrice = lastPrices[p.ticker] || 0;
       var val = Math.round(p.shares * curPrice);
@@ -2359,7 +2410,7 @@ function renderFacilityModal() {
   html += '<div style="padding:8px 14px;background:rgba(248,250,252,1);border-radius:8px;"><span style="color:#64748b;">收入加成</span> <span style="color:#fbbf24;font-weight:700;">+'+incBonus+'%</span></div>';
   html += '<div style="padding:8px 14px;background:rgba(248,250,252,1);border-radius:8px;"><span style="color:#64748b;">日维护费</span> <span style="color:#f87171;font-weight:700;">'+formatCurrency(maintCost)+'</span></div>';
   html += '</div>';
-  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;">已安装设施</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;">已安装设施</div>';
   var facilities = typeof getOutletFacilities === 'function' ? getOutletFacilities(outletId) : [];
   if (facilities.length === 0) {
     html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px;">暂无设施，从下方购买</div>';
@@ -2372,14 +2423,14 @@ function renderFacilityModal() {
       html += '<div style="background:rgba(248,250,252,1);border:1px solid rgba(203,213,225,0.8);border-radius:10px;padding:12px;">';
       html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">';
       html += '<span style="font-size:14px;">'+f.config.icon+'</span>'+statusTag+'</div>';
-      html += '<div style="font-size:12px;font-weight:600;color:#fff;">'+f.config.name+'</div>';
+      html += '<div style="font-size:12px;font-weight:600;color:#1e293b;">'+f.config.name+'</div>';
       html += '<div style="font-size:9px;color:#94a3b8;margin-top:2px;">满意度+'+f.config.satisfactionBonus+' · 收入+'+f.config.incomeBonusPercent+'% · 维护$'+f.config.dailyMaintenance+'/天</div>';
       html += '<button style="margin-top:6px;padding:4px 10px;border:none;border-radius:4px;font-size:9px;cursor:pointer;'+toggleColor+'" onclick="toggleFacility('+outletId+',\''+f.id+'\');renderFacilityModal();">'+toggleLabel+'</button>';
       html += '</div>';
     });
     html += '</div>';
   }
-  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;">可购买设施</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;">可购买设施</div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">';
   facilitiesConfig.forEach(function(fc){
     var owned = os.facilities && os.facilities.indexOf(fc.id) !== -1;
@@ -2388,7 +2439,7 @@ function renderFacilityModal() {
     var levelOk = os.level >= fc.baseLevel;
     html += '<div style="background:rgba(241,245,249,0.8);border:1px solid '+(levelOk?'rgba(203,213,225,0.8)':'rgba(226,232,240,0.6)')+';border-radius:10px;padding:12px;'+(levelOk?'':'opacity:0.5;')+'">';
     html += '<div style="font-size:14px;margin-bottom:2px;">'+fc.icon+'</div>';
-    html += '<div style="font-size:12px;font-weight:600;color:#fff;">'+fc.name+'</div>';
+    html += '<div style="font-size:12px;font-weight:600;color:#1e293b;">'+fc.name+'</div>';
     html += '<div style="font-size:9px;color:#94a3b8;margin-top:2px;">需要Lv.'+fc.baseLevel+' · 费用 '+formatCurrency(fc.cost)+'</div>';
     html += '<div style="font-size:9px;color:#94a3b8;">满意度+'+fc.satisfactionBonus+' · 收入+'+fc.incomeBonusPercent+'% · 维护$'+fc.dailyMaintenance+'/天</div>';
     if (levelOk) {
@@ -2404,14 +2455,14 @@ function renderFacilityModal() {
   var incomeReport = typeof getFacilityIncomeReport === 'function' ? getFacilityIncomeReport() : {};
   var reportKeys = Object.keys(incomeReport);
   if (reportKeys.length > 0) {
-    html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;margin-top:16px;">📊 设施收入报告</div>';
+    html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;margin-top:16px;">📊 设施收入报告</div>';
     html += '<div style="background:rgba(241,245,249,0.8);border-radius:10px;padding:12px;">';
     html += '<table style="width:100%;border-collapse:collapse;">';
     html += '<tr style="border-bottom:1px solid rgba(203,213,225,0.8);"><th style="text-align:left;padding:6px 8px;font-size:9px;color:#94a3b8;">设施</th><th style="text-align:left;padding:6px 8px;font-size:9px;color:#94a3b8;">服务费</th><th style="text-align:left;padding:6px 8px;font-size:9px;color:#94a3b8;">覆盖网点</th></tr>';
     reportKeys.forEach(function(fid){
       var r = incomeReport[fid];
       var fee = FACILITY_SERVICE_FEES[fid] || 0;
-      html += '<tr style="border-bottom:1px solid rgba(226,232,240,0.6);"><td style="padding:6px 8px;font-size:11px;color:#fff;">'+r.icon+' '+r.name+'</td><td style="padding:6px 8px;font-size:11px;color:#4ade80;">+$'+fee+'/次</td><td style="padding:6px 8px;font-size:11px;color:#64748b;">'+r.outlets.length+'个网点</td></tr>';
+      html += '<tr style="border-bottom:1px solid rgba(226,232,240,0.6);"><td style="padding:6px 8px;font-size:11px;color:#1e293b;">'+r.icon+' '+r.name+'</td><td style="padding:6px 8px;font-size:11px;color:#4ade80;">+$'+fee+'/次</td><td style="padding:6px 8px;font-size:11px;color:#64748b;">'+r.outlets.length+'个网点</td></tr>';
     });
     html += '</table></div>';
   }
@@ -2465,7 +2516,7 @@ function renderLayoutOverview(outletId, os) {
   var amenityFacs = facilities.filter(function(f){ return f.config.category === 'amenity'; });
   var opFacs = facilities.filter(function(f){ return f.config.category === 'operational'; });
   
-  var html = '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:12px;">📐 店铺平面图</div>';
+  var html = '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:12px;">📐 店铺平面图</div>';
   html += '<div style="background:#0d1117;border:3px solid rgba(203,213,225,1);border-radius:12px;overflow:hidden;">';
   
   html += '<svg width="100%" viewBox="0 0 680 420" style="display:block;font-family:\'JetBrains Mono\',monospace;">';
@@ -2560,10 +2611,10 @@ function renderLayoutOverview(outletId, os) {
   html += '</svg></div></div>';
   
   html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:10px;">';
-  html += '<div style="background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#60a5fa;">🛎️</div><div style="font-size:10px;color:#fff;margin-top:2px;">接待大厅</div></div>';
-  html += '<div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#fbbf24;">' + occ.customer.used + '/' + occ.customer.total + '</div><div style="font-size:10px;color:#fff;margin-top:2px;">顾客车位</div></div>';
-  html += '<div style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#4ade80;">' + occ.internal.used + '/' + occ.internal.total + '</div><div style="font-size:10px;color:#fff;margin-top:2px;">内部车库</div></div>';
-  html += '<div style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#a855f7;">' + facilities.length + '</div><div style="font-size:10px;color:#fff;margin-top:2px;">已装设施</div></div>';
+  html += '<div style="background:rgba(96,165,250,0.1);border:1px solid rgba(96,165,250,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#60a5fa;">🛎️</div><div style="font-size:10px;color:#64748b;margin-top:2px;">接待大厅</div></div>';
+  html += '<div style="background:rgba(251,191,36,0.1);border:1px solid rgba(251,191,36,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#fbbf24;">' + occ.customer.used + '/' + occ.customer.total + '</div><div style="font-size:10px;color:#64748b;margin-top:2px;">顾客车位</div></div>';
+  html += '<div style="background:rgba(74,222,128,0.1);border:1px solid rgba(74,222,128,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#4ade80;">' + occ.internal.used + '/' + occ.internal.total + '</div><div style="font-size:10px;color:#64748b;margin-top:2px;">内部车库</div></div>';
+  html += '<div style="background:rgba(168,85,247,0.1);border:1px solid rgba(168,85,247,0.2);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:16px;font-weight:700;color:#a855f7;">' + facilities.length + '</div><div style="font-size:10px;color:#64748b;margin-top:2px;">已装设施</div></div>';
   html += '</div>';
   
   if (gameState.interiorDecorUnlocked && typeof renderDecorations === 'function') {
@@ -2572,7 +2623,7 @@ function renderLayoutOverview(outletId, os) {
   return html;
 }
 function renderLayoutParking(outletId, os) {
-  var html = '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;">🅿️ 停车位管理</div>';
+  var html = '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">🅿️ 停车位管理</div>';
   var occ = getParkingOccupancy(outletId);
   var dailyRent = getDailyParkingRent(outletId);
   var pressure = getParkingPressureLevel(outletId);
@@ -2581,17 +2632,17 @@ function renderLayoutParking(outletId, os) {
   html += '<div style="background:rgba(248,250,252,1);border-radius:10px;padding:14px;"><div style="font-size:11px;color:#64748b;margin-bottom:6px;">内部车库</div><div style="font-size:24px;font-weight:700;color:#4ade80;">' + os.parkingSpots.internal + '</div><div style="font-size:9px;color:#94a3b8;">当前 / 最大 ' + PARKING_CONFIG.internal.max + '</div><div style="font-size:10px;color:#64748b;margin-top:8px;">已用 ' + occ.internal.used + ' / 可用 ' + occ.internal.available + '</div></div>';
   html += '<div style="background:rgba(248,250,252,1);border-radius:10px;padding:14px;"><div style="font-size:11px;color:#64748b;margin-bottom:6px;">日租金</div><div style="font-size:24px;font-weight:700;color:#f87171;">' + formatCurrency(dailyRent) + '</div><div style="font-size:9px;color:#94a3b8;">每车位 +' + PARKING_CONFIG.customer.dailyRent + '元/天</div></div>';
   html += '</div>';
-  html += '<div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:8px;">扩建停车场</div>';
+  html += '<div style="font-size:12px;font-weight:600;color:#1e293b;margin-bottom:8px;">扩建停车场</div>';
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">';
   var canUpgradeCustomer = os.parkingSpots.customer < PARKING_CONFIG.customer.max && gameState.cash >= PARKING_CONFIG.customer.upgradeCost;
   var canUpgradeInternal = os.parkingSpots.internal < PARKING_CONFIG.internal.max && gameState.cash >= PARKING_CONFIG.internal.upgradeCost;
   html += '<div style="background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);border-radius:10px;padding:14px;"><div style="font-size:12px;font-weight:600;color:#fbbf24;margin-bottom:4px;">🚗 顾客停车区</div><div style="font-size:10px;color:#64748b;margin-bottom:8px;">扩建 +' + PARKING_CONFIG.customer.perUpgrade + '个车位 (当前' + os.parkingSpots.customer + '/' + PARKING_CONFIG.customer.max + ')</div><button style="width:100%;padding:8px;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;" onclick="upgradeParkingSpot(' + outletId + ',\'customer\');renderInternalLayoutModal();" ' + (!canUpgradeCustomer ? 'disabled' : '') + '>' + formatCurrency(PARKING_CONFIG.customer.upgradeCost) + ' 元</button></div>';
   html += '<div style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);border-radius:10px;padding:14px;"><div style="font-size:12px;font-weight:600;color:#4ade80;margin-bottom:4px;">🏠 内部车库</div><div style="font-size:10px;color:#64748b;margin-bottom:8px;">扩建 +' + PARKING_CONFIG.internal.perUpgrade + '个车位 (当前' + os.parkingSpots.internal + '/' + PARKING_CONFIG.internal.max + ')</div><button style="width:100%;padding:8px;border:none;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer;background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;" onclick="upgradeParkingSpot(' + outletId + ',\'internal\');renderInternalLayoutModal();" ' + (!canUpgradeInternal ? 'disabled' : '') + '>' + formatCurrency(PARKING_CONFIG.internal.upgradeCost) + ' 元</button></div>';
   html += '</div>';
-  html += '<div style="background:rgba(248,250,252,1);border-radius:10px;padding:14px;margin-bottom:14px;"><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:8px;">📝 车位预约设置</div>';
-  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(226,232,240,0.8);"><div><div style="font-size:11px;color:#fff;">自动推荐预约停车</div><div style="font-size:9px;color:#94a3b8;">额外+50元/单，优先预留车位</div></div><label style="position:relative;display:inline-block;width:44px;height:24px;"><input type="checkbox" id="autoReservationToggle" style="opacity:0;width:0;height:0;" ' + (gameState.autoRecommendReservation ? 'checked' : '') + ' onchange="setAutoRecommendReservation(this.checked);"><span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:' + (gameState.autoRecommendReservation ? '#3b82f6' : '#ccc') + ';transition:.3s;border-radius:24px;"></span><span style="position:absolute;content:"";height:18px;width:18px;left:' + (gameState.autoRecommendReservation ? '22px' : '3px') + ';bottom:3px;background-color:white;transition:.3s;border-radius:50%;"></span></label></div>';
+  html += '<div style="background:rgba(248,250,252,1);border-radius:10px;padding:14px;margin-bottom:14px;"><div style="font-size:12px;font-weight:600;color:#1e293b;margin-bottom:8px;">📝 车位预约设置</div>';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(226,232,240,0.8);"><div><div style="font-size:11px;color:#1e293b;">自动推荐预约停车</div><div style="font-size:9px;color:#94a3b8;">额外+50元/单，优先预留车位</div></div><label style="position:relative;display:inline-block;width:44px;height:24px;"><input type="checkbox" id="autoReservationToggle" style="opacity:0;width:0;height:0;" ' + (gameState.autoRecommendReservation ? 'checked' : '') + ' onchange="setAutoRecommendReservation(this.checked);"><span style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background-color:' + (gameState.autoRecommendReservation ? '#3b82f6' : '#ccc') + ';transition:.3s;border-radius:24px;"></span><span style="position:absolute;content:"";height:18px;width:18px;left:' + (gameState.autoRecommendReservation ? '22px' : '3px') + ';bottom:3px;background-color:white;transition:.3s;border-radius:50%;"></span></label></div>';
   html += '</div>';
-  html += '<div style="background:rgba(248,250,252,1);border-radius:10px;padding:14px;"><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:8px;">📊 车位压力</div>';
+  html += '<div style="background:rgba(248,250,252,1);border-radius:10px;padding:14px;"><div style="font-size:12px;font-weight:600;color:#1e293b;margin-bottom:8px;">📊 车位压力</div>';
   if (pressure >= 0.9) {
     html += '<div style="padding:10px;background:rgba(248,113,113,0.1);border-radius:8px;border:1px solid rgba(248,113,113,0.3);"><div style="font-size:11px;color:#f87171;font-weight:600;margin-bottom:4px;">⚠️ 车位紧张！</div><div style="font-size:10px;color:#475569;">已连续' + (os.parkingPressureDays || 0) + '天超90%</div><div style="font-size:10px;color:#475569;">建议扩建或开启预约停车</div></div>';
   } else if (pressure >= 0.7) {
@@ -2603,7 +2654,7 @@ function renderLayoutParking(outletId, os) {
   return html;
 }
 function renderLayoutFacilities(outletId, os, category) {
-  var html = '<div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;">' + (category === 'amenity' ? '🛋️ 客户舒适设施' : '⚙️ 运营设施') + '</div>';
+  var html = '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">' + (category === 'amenity' ? '🛋️ 客户舒适设施' : '⚙️ 运营设施') + '</div>';
   var owned = os.facilities || [];
   var ownedInCategory = owned.map(function(fid) {
     var cfg = getFacilityConfig(fid);
@@ -2620,7 +2671,7 @@ function renderLayoutFacilities(outletId, os, category) {
       var zone = getFacilityZone(outletId, f.id);
       var eff = getOperationalFacilityEffectiveness(outletId, f.id);
       var staffReq = f.config.requiredStaff ? '<div style="font-size:9px;color:' + (eff >= 1 ? '#4ade80' : '#fbbf24') + ';">员工效果:' + Math.round(eff * 100) + '%</div>' : '';
-      html += '<div style="background:rgba(248,250,252,1);border:1px solid rgba(203,213,225,0.8);border-radius:10px;padding:12px;"><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:20px;">' + f.config.icon + '</span><span style="font-size:9px;padding:2px 6px;border-radius:4px;background:' + (f.disabled ? 'rgba(226,232,240,1)' : f.broken ? 'rgba(248,113,113,0.2)' : 'rgba(74,222,128,0.2)') + ';color:' + (f.disabled ? '#64748b' : f.broken ? '#f87171' : '#4ade80') + ';">' + (f.disabled ? '已停用' : f.broken ? '故障中' : '运行中') + '</span></div><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:4px;">' + f.config.name + '</div><div style="font-size:9px;color:#94a3b8;">所在区域: ' + getZoneName(zone) + '</div>' + staffReq + '<div style="font-size:9px;color:#94a3b8;">满意度+' + f.config.satisfactionBonus + ' · 收入+' + f.config.incomeBonusPercent + '%</div><button style="margin-top:6px;padding:4px 8px;border:none;border-radius:4px;font-size:9px;cursor:pointer;background:' + (f.disabled ? 'linear-gradient(135deg,#27ae60,#2ecc71)' : 'rgba(231,76,60,0.2)') + ';color:' + (f.disabled ? '#fff' : '#e74c3c') + ';" onclick="toggleFacility(' + outletId + ',\'' + f.id + '\');renderInternalLayoutModal();">' + (f.disabled ? '启用' : '停用') + '</button></div>';
+      html += '<div style="background:rgba(248,250,252,1);border:1px solid rgba(203,213,225,0.8);border-radius:10px;padding:12px;"><div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:20px;">' + f.config.icon + '</span><span style="font-size:9px;padding:2px 6px;border-radius:4px;background:' + (f.disabled ? 'rgba(226,232,240,1)' : f.broken ? 'rgba(248,113,113,0.2)' : 'rgba(74,222,128,0.2)') + ';color:' + (f.disabled ? '#64748b' : f.broken ? '#f87171' : '#4ade80') + ';">' + (f.disabled ? '已停用' : f.broken ? '故障中' : '运行中') + '</span></div><div style="font-size:12px;font-weight:600;color:#1e293b;margin-bottom:4px;">' + f.config.name + '</div><div style="font-size:9px;color:#94a3b8;">所在区域: ' + getZoneName(zone) + '</div>' + staffReq + '<div style="font-size:9px;color:#94a3b8;">满意度+' + f.config.satisfactionBonus + ' · 收入+' + f.config.incomeBonusPercent + '%</div><button style="margin-top:6px;padding:4px 8px;border:none;border-radius:4px;font-size:9px;cursor:pointer;background:' + (f.disabled ? 'linear-gradient(135deg,#27ae60,#2ecc71)' : 'rgba(231,76,60,0.2)') + ';color:' + (f.disabled ? '#fff' : '#e74c3c') + ';" onclick="toggleFacility(' + outletId + ',\'' + f.id + '\');renderInternalLayoutModal();">' + (f.disabled ? '启用' : '停用') + '</button></div>';
     });
     html += '</div></div>';
   }
@@ -2630,7 +2681,7 @@ function renderLayoutFacilities(outletId, os, category) {
     if (owned.indexOf(fc.id) !== -1) return;
     var canBuy = typeof canPurchaseFacility === 'function' ? canPurchaseFacility(outletId, fc.id) : {ok: false};
     var levelOk = os.level >= fc.baseLevel;
-    html += '<div style="background:rgba(241,245,249,0.8);border:1px solid ' + (levelOk ? 'rgba(203,213,225,0.8)' : 'rgba(226,232,240,0.6)') + ';border-radius:10px;padding:12px;' + (levelOk ? '' : 'opacity:0.5;') + '><div style="font-size:20px;margin-bottom:4px;">' + fc.icon + '</div><div style="font-size:12px;font-weight:600;color:#fff;margin-bottom:4px;">' + fc.name + '</div>';
+    html += '<div style="background:rgba(241,245,249,0.8);border:1px solid ' + (levelOk ? 'rgba(203,213,225,0.8)' : 'rgba(226,232,240,0.6)') + ';border-radius:10px;padding:12px;' + (levelOk ? '' : 'opacity:0.5;') + '><div style="font-size:20px;margin-bottom:4px;">' + fc.icon + '</div><div style="font-size:12px;font-weight:600;color:#1e293b;margin-bottom:4px;">' + fc.name + '</div>';
     html += '<div style="font-size:9px;color:#94a3b8;margin-bottom:2px;">需要Lv.' + fc.baseLevel + ' · 费用 ' + formatCurrency(fc.cost) + '</div>';
     if (fc.requiredStaff) html += '<div style="font-size:9px;color:#a855f7;margin-bottom:2px;">需要:' + (fc.requiredStaff === 'car_washer' ? '洗车工' : '维修技师') + '</div>';
     if (fc.effect) html += '<div style="font-size:9px;color:#64748b;margin-bottom:4px;">效果:' + (fc.effect === 'cleanliness' ? '自动清洗' : fc.effect === 'repair' ? '维修折扣' : fc.effect === 'morale' ? '士气维护' : fc.effect === 'order_capacity' ? '订单+20%' : fc.effect === 'ev_charge' ? '充电加成' : fc.effect) + '</div>';
@@ -2649,7 +2700,7 @@ function renderLayoutZones(outletId, os) {
   var facilities = typeof getOutletFacilities === 'function' ? getOutletFacilities(outletId) : [];
   var zoneBonus = typeof getZoneEfficiencyBonus === 'function' ? getZoneEfficiencyBonus(outletId) : 0;
   
-  var html = '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:8px;">📐 设施布局编辑</div>';
+  var html = '<div style="margin-bottom:14px;"><div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:8px;">📐 设施布局编辑</div>';
   html += '<div style="font-size:11px;color:#64748b;margin-bottom:12px;">将设施放置在不同区域可获得效率加成</div>';
   
   html += '<div style="position:relative;background:rgba(241,245,249,0.5);border:2px solid rgba(203,213,225,1);border-radius:12px;padding:16px;min-height:200px;margin-bottom:14px;">';
@@ -2693,12 +2744,12 @@ function renderLayoutZones(outletId, os) {
     return html;
   }
   
-  html += '<div style="font-size:11px;font-weight:600;color:#fff;margin-bottom:8px;">⚙️ 拖动设施到区域</div>';
+  html += '<div style="font-size:11px;font-weight:600;color:#1e293b;margin-bottom:8px;">⚙️ 拖动设施到区域</div>';
   html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
   facilities.forEach(function(f) {
     var currentZone = getFacilityZone(outletId, f.id);
     html += '<div style="background:rgba(248,250,252,1);border:1px solid rgba(203,213,225,1);border-radius:8px;padding:10px;min-width:140px;">';
-    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;"><span style="font-size:18px;">' + f.config.icon + '</span><span style="font-size:11px;color:#fff;">' + f.config.name + '</span></div>';
+    html += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:8px;"><span style="font-size:18px;">' + f.config.icon + '</span><span style="font-size:11px;color:#1e293b;">' + f.config.name + '</span></div>';
     html += '<div style="display:flex;gap:4px;">';
     ['reception', 'parking', 'logistics'].forEach(function(zone) {
       var selected = currentZone === zone;
@@ -2715,7 +2766,7 @@ function renderLayoutZones(outletId, os) {
   return html;
 }
 function renderDecorations(outletId) {
-  var html = '<div style="margin-top:14px;"><div style="font-size:13px;font-weight:700;color:#fff;margin-bottom:10px;">🌿 室内装饰 <span style="font-size:10px;color:#f1c40f;">(旗舰店铺解锁)</span></div>';
+  var html = '<div style="margin-top:14px;"><div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">🌿 室内装饰 <span style="font-size:10px;color:#f1c40f;">(旗舰店铺解锁)</span></div>';
   var DECORATIONS = [
     { id: 'plant', name: '绿植', cost: 5000, satisfactionBonus: 2, icon: '🪴' },
     { id: 'aquarium', name: '鱼缸', cost: 8000, satisfactionBonus: 3, icon: '🐠' },
@@ -2734,7 +2785,7 @@ function renderDecorations(outletId) {
   html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
   DECORATIONS.forEach(function(d) {
     var owned = ownedDecos.some(function(od){ return od.id === d.id; });
-    html += '<div style="background:rgba(241,245,249,0.8);border:1px solid rgba(203,213,225,0.8);border-radius:8px;padding:12px;text-align:center;' + (owned ? 'opacity:0.5;' : '') + '"><div style="font-size:24px;margin-bottom:4px;">' + d.icon + '</div><div style="font-size:11px;font-weight:600;color:#fff;">' + d.name + '</div><div style="font-size:9px;color:#94a3b8;">满意度+' + d.satisfactionBonus + '</div>';
+    html += '<div style="background:rgba(241,245,249,0.8);border:1px solid rgba(203,213,225,0.8);border-radius:8px;padding:12px;text-align:center;' + (owned ? 'opacity:0.5;' : '') + '"><div style="font-size:24px;margin-bottom:4px;">' + d.icon + '</div><div style="font-size:11px;font-weight:600;color:#1e293b;">' + d.name + '</div><div style="font-size:9px;color:#94a3b8;">满意度+' + d.satisfactionBonus + '</div>';
     if (!owned) {
       html += '<button style="margin-top:6px;padding:6px;border:none;border-radius:4px;font-size:9px;font-weight:600;cursor:pointer;background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;width:100%;" onclick="purchaseDecoration(' + outletId + ',\'' + d.id + '\');renderInternalLayoutModal();">' + formatCurrency(d.cost) + '</button>';
     } else {
@@ -2769,11 +2820,11 @@ function renderReviewModal() {
   html += '<div style="background:rgba(248,250,252,1);border:1px solid rgba(226,232,240,0.8);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">NPS净推荐值</div><div style="font-size:22px;font-weight:700;color:' + npsColor + ';">' + nps + '</div></div>';
   html += '</div>';
   html += '<div style="background:rgba(248,250,252,1);border:1px solid rgba(226,232,240,0.8);border-radius:10px;padding:14px;margin-bottom:14px;">';
-  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;">📈 近7天评分趋势</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;">📈 近7天评分趋势</div>';
   html += '<canvas id="ratingTrendCanvas" width="600" height="180" style="width:100%;max-width:600px;height:180px;"></canvas>';
   html += '</div>';
   html += '<div style="background:rgba(248,250,252,1);border:1px solid rgba(226,232,240,0.8);border-radius:10px;padding:14px;margin-bottom:14px;">';
-  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;">💬 最近评价</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;">💬 最近评价</div>';
   if (recent.length === 0) {
     html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px;">暂无评价，完成订单后将自动生成</div>';
   } else {
@@ -2782,7 +2833,7 @@ function renderReviewModal() {
       for (var i = 1; i <= 5; i++) stars += i <= r.score ? '⭐' : '☆';
       var scoreColor = r.score >= 4 ? '#4ade80' : r.score >= 3 ? '#fbbf24' : '#f87171';
       html += '<div style="background:rgba(241,245,249,0.8);border-radius:8px;padding:10px 12px;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;">';
-      html += '<div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:11px;font-weight:600;color:#fff;">' + (r.customerName || '匿名') + '</span><span style="font-size:9px;color:#94a3b8;">D' + r.day + '</span>' + (r.isReturnCustomer ? '<span style="font-size:8px;padding:1px 4px;background:rgba(74,222,128,0.15);color:#4ade80;border-radius:3px;">回头客</span>' : '') + '</div>';
+      html += '<div style="flex:1;"><div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;"><span style="font-size:11px;font-weight:600;color:#1e293b;">' + (r.customerName || '匿名') + '</span><span style="font-size:9px;color:#94a3b8;">D' + r.day + '</span>' + (r.isReturnCustomer ? '<span style="font-size:8px;padding:1px 4px;background:rgba(74,222,128,0.15);color:#4ade80;border-radius:3px;">回头客</span>' : '') + '</div>';
       html += '<div style="font-size:11px;color:#475569;">' + r.text + '</div></div>';
       html += '<div style="text-align:right;min-width:80px;"><div style="font-size:12px;font-weight:700;color:' + scoreColor + ';">' + stars + '</div><div style="font-size:9px;color:#94a3b8;">' + (r.vehicleName || '') + '</div></div>';
       html += '</div>';
@@ -2790,7 +2841,7 @@ function renderReviewModal() {
   }
   html += '</div>';
   html += '<div style="background:rgba(248,250,252,1);border:1px solid rgba(226,232,240,0.8);border-radius:10px;padding:14px;">';
-  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">📊 口碑影响</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px;">📊 口碑影响</div>';
   var impactColor = impact.bonus > 0 ? '#4ade80' : impact.bonus < 0 ? '#f87171' : '#fbbf24';
   html += '<div style="font-size:13px;font-weight:700;color:' + impactColor + ';margin-bottom:6px;">' + impact.desc + '</div>';
   html += '<div style="font-size:10px;color:#94a3b8;line-height:1.6;">';
@@ -2890,21 +2941,21 @@ function renderAdModal() {
     html += '<div style="font-size:12px;font-weight:700;color:#4ade80;margin-bottom:8px;">✅ 当前投放</div>';
     activeCampaigns.forEach(function(c) {
       html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(226,232,240,0.6);">';
-      html += '<div><span style="font-size:14px;">' + c.icon + '</span> <span style="font-size:11px;color:#fff;font-weight:600;">' + c.name + '</span> <span style="font-size:9px;color:#94a3b8;">D' + c.startDay + '开始</span></div>';
+      html += '<div><span style="font-size:14px;">' + c.icon + '</span> <span style="font-size:11px;color:#1e293b;font-weight:600;">' + c.name + '</span> <span style="font-size:9px;color:#94a3b8;">D' + c.startDay + '开始</span></div>';
       html += '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:10px;color:#fbbf24;">' + formatCurrency(c.costPerDay) + '/天</span><span style="font-size:10px;color:#4ade80;">需求×' + c.effectMult.toFixed(2) + '</span>';
       html += '<button style="padding:4px 10px;border:none;border-radius:4px;font-size:9px;font-weight:600;cursor:pointer;background:rgba(231,76,60,0.2);color:#f87171;" onclick="stopAdCampaign(\'' + c.type + '\',\'' + c.cityId + '\');renderAdModal();">停止</button></div>';
       html += '</div>';
     });
     html += '</div>';
   }
-  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:10px;">📢 选择广告投放</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;">📢 选择广告投放</div>';
   html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px;">';
   AD_TYPES.forEach(function(ad) {
     var isActive = activeCampaigns.some(function(c){ return c.type === ad.id; });
     var canAfford = gameState.cash >= ad.costPerDay;
     html += '<div style="background:rgba(248,250,252,1);border:1px solid ' + (isActive ? 'rgba(74,222,128,0.3)' : 'rgba(203,213,225,0.8)') + ';border-radius:12px;padding:14px;' + (isActive ? 'box-shadow:0 0 12px rgba(74,222,128,0.1);' : '') + '">';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">';
-    html += '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:24px;">' + ad.icon + '</span><div><div style="font-size:13px;font-weight:700;color:#fff;">' + ad.name + '</div><div style="font-size:10px;color:#94a3b8;">' + ad.desc + '</div></div></div>';
+    html += '<div style="display:flex;align-items:center;gap:8px;"><span style="font-size:24px;">' + ad.icon + '</span><div><div style="font-size:13px;font-weight:700;color:#1e293b;">' + ad.name + '</div><div style="font-size:10px;color:#94a3b8;">' + ad.desc + '</div></div></div>';
     if (isActive) html += '<span style="font-size:9px;padding:2px 6px;background:rgba(74,222,128,0.2);color:#4ade80;border-radius:4px;font-weight:600;">投放中</span>';
     html += '</div>';
     html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
@@ -2926,7 +2977,7 @@ function renderAdModal() {
   html += '</div>';
   var estimatedExtra = Math.round((adMult - 1) * 10);
   html += '<div style="background:rgba(248,250,252,1);border:1px solid rgba(226,232,240,0.8);border-radius:10px;padding:14px;">';
-  html += '<div style="font-size:12px;font-weight:700;color:#fff;margin-bottom:8px;">💡 广告效果预估</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px;">💡 广告效果预估</div>';
   html += '<div style="font-size:11px;color:#64748b;line-height:1.6;">';
   html += '• 当前广告带来约 <span style="color:#4ade80;font-weight:700;">+' + estimatedExtra + '</span> 个额外客户/天<br>';
   html += '• 多个广告效果叠加计算（乘法）<br>';
