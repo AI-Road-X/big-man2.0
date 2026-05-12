@@ -3,23 +3,47 @@ function generateCustomers() {
   var eventEffects = getEventEffects();
   gameState.outlets.filter(function(o){ return o.owned; }).forEach(function(outlet){
     var cfg = OUTLET_CONFIGS[outlet.id];
-    var mult = CITY_SIZE_MULTIPLIERS[cfg.citySize] || 1;
-    var demandMult = eventEffects.demandMultiplier || 1;
-    var base = Math.floor(Math.random() * 10 * mult * demandMult) + 1;
+
+    var baseCount = Math.floor((CITY_SIZE_MULTIPLIERS[cfg.citySize] || 1) * 8);
+
+    var os = getOutletState(outlet.id);
+    baseCount = Math.floor(baseCount * (1 + (os.level - 1) * 0.2));
+
+    var availVehicles = getAvailableVehiclesAtOutlet(outlet.id);
+    var availCount = availVehicles.length;
+    var vehicleMult = availCount <= 5 ? 0.5 : availCount <= 15 ? 0.8 : availCount <= 30 ? 1.0 : availCount <= 50 ? 1.2 : 1.5;
+    baseCount = Math.floor(baseCount * vehicleMult);
+
+    var rep = gameState.reputation || 50;
+    var repMult = rep < 40 ? 0.6 : rep < 60 ? 0.8 : rep < 80 ? 1.0 : rep < 90 ? 1.2 : 1.5;
+    baseCount = Math.floor(baseCount * repMult);
+
+    if (typeof getAdDemandMultiplier === 'function') {
+      baseCount = Math.ceil(baseCount * getAdDemandMultiplier());
+    }
+
+    if (typeof getReviewImpactOnOrders === 'function') {
+      var reviewImpact = getReviewImpactOnOrders();
+      baseCount = Math.ceil(baseCount * (1 + reviewImpact.bonus));
+    }
+
     if (typeof hasPreferredFacility === 'function') {
       var hasBiz = hasPreferredFacility(outlet.id, 'business');
       var hasTour = hasPreferredFacility(outlet.id, 'tourist');
-      if (hasBiz || hasTour) base = Math.ceil(base * 1.2);
+      if (hasBiz || hasTour) baseCount = Math.ceil(baseCount * 1.2);
     }
-    if (typeof getAdDemandMultiplier === 'function') {
-      var adMult = getAdDemandMultiplier();
-      base = Math.ceil(base * adMult);
-    }
-    if (typeof getReviewImpactOnOrders === 'function') {
-      var reviewImpact = getReviewImpactOnOrders();
-      base = Math.ceil(base * (1 + reviewImpact.bonus));
-    }
-    var count = Math.min(base, 12);
+
+    var memberCount = gameState.members.length || 0;
+    var memberMult = memberCount <= 20 ? 1.0 : memberCount <= 50 ? 1.1 : memberCount <= 100 ? 1.2 : memberCount <= 200 ? 1.3 : 1.4;
+    baseCount = Math.ceil(baseCount * memberMult);
+
+    var dayOfWeek = gameState.currentDay % 7;
+    var weekendBoost = (dayOfWeek === 0 || dayOfWeek === 6) ? 1.15 : 1.0;
+
+    var seasonVar = 0.85 + Math.random() * 0.3;
+    baseCount = Math.max(1, Math.round(baseCount * weekendBoost * seasonVar));
+
+    var count = Math.min(baseCount, availCount + 5);
     for (var i = 0; i < count; i++) {
       var isBusiness = Math.random() < 0.45;
       var type = isBusiness ? 'business' : 'tourist';
@@ -182,7 +206,30 @@ function nextDay() {
 
   var customers = generateCustomers();
   var date = getGameDate();
-  addMessage('📅 ' + formatDate(date) + ' ' + getWeekDay(date) + ' — 到店客户 <span class="msg-highlight">' + customers.length + '</span> 人', 'good');
+  var factorParts = [];
+  var firstOutlet = gameState.outlets.find(function(o){ return o.owned; });
+  if (firstOutlet) {
+    var fcfg = OUTLET_CONFIGS[firstOutlet.id];
+    var baseVal = Math.floor((CITY_SIZE_MULTIPLIERS[fcfg.citySize] || 1) * 8);
+    var fos = getOutletState(firstOutlet.id);
+    baseVal = Math.floor(baseVal * (1 + (fos.level - 1) * 0.2));
+    factorParts.push('基础:' + baseVal);
+    var favail = getAvailableVehiclesAtOutlet(firstOutlet.id).length;
+    var fvm = favail <= 5 ? 0.5 : favail <= 15 ? 0.8 : favail <= 30 ? 1.0 : favail <= 50 ? 1.2 : 1.5;
+    factorParts.push('车辆' + fvm.toFixed(1) + '×');
+    var frep = gameState.reputation || 50;
+    var frm = frep < 40 ? 0.6 : frep < 60 ? 0.8 : frep < 80 ? 1.0 : frep < 90 ? 1.2 : 1.5;
+    factorParts.push('声誉' + frm.toFixed(1) + '×');
+    if (typeof getAdDemandMultiplier === 'function') {
+      var fam = getAdDemandMultiplier();
+      if (fam !== 1) factorParts.push('广告' + fam.toFixed(2) + '×');
+    }
+    var fmc = gameState.members.length || 0;
+    var fmm = fmc <= 20 ? 1.0 : fmc <= 50 ? 1.1 : fmc <= 100 ? 1.2 : fmc <= 200 ? 1.3 : 1.4;
+    if (fmm !== 1.0) factorParts.push('会员' + fmm.toFixed(1) + '×');
+  }
+  var factorStr = factorParts.length > 0 ? ' (' + factorParts.join(' × ') + ')' : '';
+  addMessage('📅 ' + formatDate(date) + ' ' + getWeekDay(date) + ' — 到店客户 <span class="msg-highlight">' + customers.length + '</span> 人' + factorStr, 'good');
 
   var newOrders = [];
   customers.forEach(function(customer){
