@@ -262,6 +262,19 @@ var MARKET_CATALOG = {
       { id: 'suv', name: '豪华SUV', icon: '🚙', vehicleIds: ['OS009','OS018','OS024','OS028','OS032','OS035','OS038'] },
       { id: 'exclusive', name: '顶级臻藏', icon: '💎', vehicleIds: ['OS026','OS028','OS029','OS039','OS040','OS041','OS042','OS043','OS044','OS045'] }
     ]
+  },
+  [MARKET_TYPES.USED_CAR]: {
+    name: '二手车市场',
+    icon: '🔧',
+    desc: '性价比之选，车况各异',
+    subcategories: [
+      { id: 'all', name: '全部', icon: '📋', typeFilter: null },
+      { id: 'economy', name: '经济型', icon: '💰', typeFilter: [VEHICLE_TYPES.COMPACT, VEHICLE_TYPES.HATCHBACK] },
+      { id: 'family', name: '家用型', icon: '👨‍👩‍👧', typeFilter: [VEHICLE_TYPES.SEDAN, VEHICLE_TYPES.MINI_SUV] },
+      { id: 'suv', name: 'SUV/越野', icon: '🚙', typeFilter: [VEHICLE_TYPES.SUV, VEHICLE_TYPES.LARGE_SUV, VEHICLE_TYPES.PICKUP] },
+      { id: 'business', name: '商务型', icon: '💼', typeFilter: [VEHICLE_TYPES.MPV, VEHICLE_TYPES.MPV_LARGE, VEHICLE_TYPES.VAN] },
+      { id: 'luxury', name: '豪华型', icon: '👑', typeFilter: [VEHICLE_TYPES.LUXURY, VEHICLE_TYPES.SPORTS, VEHICLE_TYPES.SUPERCAR, VEHICLE_TYPES.COUPE] }
+    ]
   }
 };
 

@@ -192,13 +192,10 @@ function switchMarketSubTab(sub) {
 function renderSubCategoryBar(marketSub) {
   var container = document.getElementById('subCategoryBar');
   if (!container) return;
-  if (marketSub === 'used') {
-    container.style.display = 'none';
-    container.innerHTML = '';
-    return;
-  }
-  var marketType = marketSub === 'local' ? MARKET_TYPES.LOCAL_DEALER : MARKET_TYPES.OVERSEAS;
-  var catalog = MARKET_CATALOG[marketType];
+  var catalog;
+  if (marketSub === 'local') catalog = MARKET_CATALOG[MARKET_TYPES.LOCAL_DEALER];
+  else if (marketSub === 'overseas') catalog = MARKET_CATALOG[MARKET_TYPES.OVERSEAS];
+  else if (marketSub === 'used') catalog = MARKET_CATALOG[MARKET_TYPES.USED_CAR];
   if (!catalog || !catalog.subcategories) {
     container.style.display = 'none';
     container.innerHTML = '';
@@ -210,7 +207,12 @@ function renderSubCategoryBar(marketSub) {
     var btn = document.createElement('button');
     btn.className = 'sub-cat-btn' + (cat.id === currentSubCategory ? ' active' : '');
     btn.dataset.cat = cat.id;
-    btn.innerHTML = cat.icon + ' ' + cat.name + '<span class="sub-cat-count">' + (cat.id === 'all' ? getVehiclesByMarket(marketType).length : cat.vehicleIds.length) + '辆</span>';
+    var count = 0;
+    if (cat.typeFilter && marketSub === 'used') count = gameState.usedCarMarketList.filter(function(v){ return cat.typeFilter.indexOf(v.type) !== -1; }).length;
+    else if (cat.vehicleIds) count = cat.vehicleIds.length;
+    else if (marketSub === 'used') count = gameState.usedCarMarketList.length;
+    else count = getVehiclesByMarket(marketSub === 'local' ? MARKET_TYPES.LOCAL_DEALER : MARKET_TYPES.OVERSEAS).length;
+    btn.innerHTML = cat.icon + ' ' + cat.name + '<span class="sub-cat-count">' + count + '辆</span>';
     btn.onclick = function(){ switchSubCategory(cat.id); };
     container.appendChild(btn);
   });
@@ -219,9 +221,20 @@ function renderSubCategoryBar(marketSub) {
 function switchSubCategory(catId) {
   currentSubCategory = catId;
   document.querySelectorAll('.sub-cat-btn').forEach(function(b){ b.classList.toggle('active', b.dataset.cat === catId); });
-  var marketType = currentMarketSub === 'local' ? MARKET_TYPES.LOCAL_DEALER : MARKET_TYPES.OVERSEAS;
-  var marketKey = currentMarketSub;
-  renderFilteredMarketVehicles(marketType, marketKey);
+  if (currentMarketSub === 'used') {
+    var catalog = MARKET_CATALOG[MARKET_TYPES.USED_CAR];
+    var cat = null;
+    if (catalog && catalog.subcategories) cat = catalog.subcategories.find(function(c){ return c.id === catId; });
+    if (catId === 'all' || !cat || !cat.typeFilter) { renderUsedCarMarket(); }
+    else {
+      var filtered = gameState.usedCarMarketList.filter(function(v){ return cat.typeFilter.indexOf(v.type) !== -1; });
+      renderUsedCarMarket(filtered);
+    }
+  } else {
+    var marketType = currentMarketSub === 'local' ? MARKET_TYPES.LOCAL_DEALER : MARKET_TYPES.OVERSEAS;
+    var marketKey = currentMarketSub;
+    renderFilteredMarketVehicles(marketType, marketKey);
+  }
 }
 
 function renderFilteredMarketVehicles(marketType, marketKey) {
@@ -276,14 +289,15 @@ function renderBuyButton(vehicleId, price, marketType, canAfford, hasCapacity) {
   return '<div><select class="outlet-select" id="outletSelect_' + vehicleId + '">' + outletOptions + '</select><button class="action-btn btn-buy" onclick="buyVehicle(\'' + vehicleId + '\',\'' + marketType + '\')" style="margin-top:4px;">购买</button></div>';
 }
 
-function renderUsedCarMarket() {
+function renderUsedCarMarket(filteredList) {
   var tbody = document.getElementById('vehicleTableBody');
-  if (gameState.usedCarMarketList.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">🚗</div><div class="text">点击「刷新市场」浏览二手车</div></div></td></tr>';
+  var vehicles = filteredList || gameState.usedCarMarketList;
+  if (vehicles.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">🚗</div><div class="text">' + (filteredList ? '该分类下暂无二手车' : '点击「刷新市场」浏览二手车') + '</div></div></td></tr>';
     return;
   }
   tbody.innerHTML = '';
-  gameState.usedCarMarketList.forEach(function(v){
+  vehicles.forEach(function(v){
     var fuelInfo = getFuelTypeInfo(v.fuelType);
     var typeInfo = getVehicleTypeInfo(v.type);
     var residualInfo = getResidualValueInfo(v.residualValue);

@@ -119,10 +119,11 @@ function generateEasterEggOrder() {
 }
 
 function matchVehicleForCustomer(customer) {
+  if (!gameState._dayMatchedVehicles) gameState._dayMatchedVehicles = {};
   var available = getAvailableVehiclesAtOutlet(customer.outletId);
+  available = available.filter(function(v){ return !gameState._dayMatchedVehicles[v.id]; });
   if (available.length === 0) return null;
   var eventEffects = getEventEffects();
-  if (!gameState._vehicleRentHistory) gameState._vehicleRentHistory = {};
   var today = gameState.currentDay;
   var scored = available.map(function(v){
     var pref = customer.preferences[v.type] || 1;
@@ -148,6 +149,7 @@ function matchVehicleForCustomer(customer) {
   var pickIdx = Math.floor(Math.random() * topN);
   var chosen = scored[pickIdx];
   gameState._vehicleRentHistory[chosen.vehicle.id] = today;
+  gameState._dayMatchedVehicles[chosen.vehicle.id] = true;
   return chosen;
 }
 

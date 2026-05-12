@@ -326,6 +326,7 @@ function loadGame() {
 function unlockOutlet(outletId) {
   var cfg = OUTLET_CONFIGS.find(function(c){ return c.id === outletId; });
   if (!cfg || gameState.cash < cfg.unlockCost) return;
+  if (gameState.outlets.some(function(o){ return o.id === outletId && o.owned; })) { addMessage('该网点已解锁', 'warn'); return; }
   gameState.cash -= cfg.unlockCost;
   gameState.outlets.push({ id: outletId, level: 1, owned: true, facilities: [], disabledFacilities: [], brokenFacilities: {}, upgradeProgress: {profitableDays:0,maxProfit:0} });
   addMessage('解锁新网点：' + cfg.name + '（' + cfg.cityLabel + '）', 'good');
