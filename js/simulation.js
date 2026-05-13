@@ -127,6 +127,7 @@ function generateEasterEggOrder() {
 
 function matchVehicleForCustomer(customer) {
   if (!gameState._dayMatchedVehicles) gameState._dayMatchedVehicles = {};
+  if (!gameState._vehicleRentHistory) gameState._vehicleRentHistory = {};
   var available = getAvailableVehiclesAtOutlet(customer.outletId);
   available = available.filter(function(v){ return !gameState._dayMatchedVehicles[v.id]; });
   if (available.length === 0) return null;
@@ -184,6 +185,7 @@ function nextDay() {
   gameState.outletOrderCounts = {};
   gameState.serviceStats.today = { insurance:0, wifi:0, gps:0, delivery:0, refuel:0, recharge:0, totalIncome:0 };
   gameState._dayMatchedVehicles = {};
+  if (!gameState._vehicleRentHistory) gameState._vehicleRentHistory = {};
 
   processRentalCosts();
   processTransfers();
