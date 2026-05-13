@@ -66,6 +66,28 @@ function updateUI() {
     elecStEl.textContent = '🔋库存 ' + en.batteryStorage + '/' + en.maxBatteryCapacity;
     elecStEl.style.color = batPct > 50 ? '#60a5fa' : batPct > 20 ? '#fbbf24' : '#f87171';
   }
+  var challengeEl = document.getElementById('challengeDisplay');
+  if (challengeEl) {
+    var ch = gameState.dailyChallenge;
+    if (ch && !ch.claimed) {
+      challengeEl.style.display = 'flex';
+      var progressPct = ch.target > 0 ? Math.min(100, Math.round(ch.progress / ch.target * 100)) : (ch.progress >= 1 ? 100 : 0);
+      var statusColor = ch.completed ? '#22c55e' : '#3b82f6';
+      var statusText = ch.completed ? '✅ 已完成' : '进行中 ' + progressPct + '%';
+      var streakInfo = (gameState.challengeStreak || 0) > 0 ? ' | 🔥连续' + gameState.challengeStreak + '天' : '';
+      challengeEl.innerHTML = '<span style="color:#f59e0b;font-weight:700;">🎯</span> <span style="font-size:11px;color:#1e293b;">' + ch.desc + '</span>' +
+        '<span style="margin-left:auto;font-size:10px;padding:2px 8px;border-radius:4px;background:' + (ch.completed ? 'rgba(34,197,94,0.1)' : 'rgba(59,130,246,0.1)') + ';color:' + statusColor + ';font-weight:600;cursor:' + (ch.completed ? 'pointer' : 'default') + ';" ' + (ch.completed ? 'onclick="claimChallengeReward();"' : '') + '>' + statusText + '</span>' +
+        '<span style="font-size:9px;color:#94a3b8;margin-left:4px;">$' + formatCurrency(ch.rewardCash) + ' +' + ch.rewardRep + '★' + streakInfo + '</span>';
+    } else { challengeEl.style.display = 'none'; }
+  }
+  var loyaltyEl = document.getElementById('loyaltyDisplay');
+  if (loyaltyEl) {
+    var loy = gameState.customerLoyalty;
+    if (loy) {
+      loyaltyEl.style.display = 'flex';
+      loyaltyEl.innerHTML = '<span style="color:#a78bfa;font-weight:700;">💜</span> 回头客率:<strong style="color:#7c3aed;">' + (loy.returnRate || 0) + '%</strong> | 投诉:<strong style="color:' + (loy.complaints > 5 ? '#ef4444' : '#94a3b8') + ';">' + (loy.complaints || 0) + '</strong> | 推荐:<strong style="color:#22c55e;">' + (loy.referralCount || 0) + '</strong>';
+    } else { loyaltyEl.style.display = 'none'; }
+  }
 }
 
 function addMessage(text, type) {
@@ -203,6 +225,7 @@ function switchTab(tab) {
     updateTableHeader([
       {label:'车型信息',field:'name'},{label:'车牌',field:'plate'},{label:'类型',field:'type'},
       {label:'购车成本',field:'cost'},{label:'车龄/里程',field:'age'},{label:'保值率',field:'residual'},
+      {label:'🔧车况',field:'condition'},
       {label:'日租金',field:'rate'},{label:'累计利润',field:'profit'},{label:'利润率',field:'margin'},{label:'网点',field:'outlet'},{label:'状态',field:'status'},{label:'操作',field:'action'}
     ], true);
     renderMyFleet();
@@ -218,7 +241,7 @@ function switchTab(tab) {
   } else if (tab === 'outlets') {
     infoBar.style.display = 'none';
     if (marketSubTabs) marketSubTabs.style.display = 'none';
-    updateTableHeader(['网点名称','状态','等级','车位','今日订单','升级费用','操作']);
+    updateTableHeader(['网点名称','状态','等级','车位','今日订单','升级费用','操作','自动管理']);
     renderOutlets();
   } else if (tab === 'pricing') {
     infoBar.style.display = 'none';
@@ -537,7 +560,7 @@ function getVehicleProfitMargin(vehicleId) {
 function renderMyFleet() {
   var tbody = document.getElementById('vehicleTableBody');
   if (gameState.ownedVehicles.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="12"><div class="empty-state"><div class="icon">🚗</div><div class="text">暂无车辆，前往市场购买吧！</div></div></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="13"><div class="empty-state"><div class="icon">🚗</div><div class="text">暂无车辆，前往市场购买吧！</div></div></td></tr>';
     return;
   }
 
@@ -551,7 +574,7 @@ function renderMyFleet() {
 
   var toolbarRow = document.createElement('tr');
   var filterStatus = window._fleetFilter || 'all';
-  toolbarRow.innerHTML = '<td colspan="12"><div style="padding:10px 12px;background:linear-gradient(135deg,rgba(34,197,94,0.05),rgba(59,130,246,0.05));border-radius:10px;border:1px solid rgba(203,213,225,0.4);margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+  toolbarRow.innerHTML = '<td colspan="13"><div style="padding:10px 12px;background:linear-gradient(135deg,rgba(34,197,94,0.05),rgba(59,130,246,0.05));border-radius:10px;border:1px solid rgba(203,213,225,0.4);margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
     '<span style="font-size:11px;font-weight:700;color:#1e293b;">🔍 筛选:</span>' +
     '<button style="padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid ' + (filterStatus==='all'?'#3b82f6':'rgba(203,213,225,1)') + ';background:' + (filterStatus==='all'?'rgba(59,130,246,0.1)':'transparent') + ';color:' + (filterStatus==='all'?'#3b82f6':'#64748b') + ';" onclick="_fleetFilter=\'all\';renderMyFleet();">全部(' + totalV + ')</button>' +
     '<button style="padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid ' + (filterStatus==='available'?'#22c55e':'rgba(203,213,225,1)') + ';background:' + (filterStatus==='available'?'rgba(34,197,94,0.1)':'transparent') + ';color:' + (filterStatus==='available'?'#22c55e':'#64748b') + ';" onclick="_fleetFilter=\'available\';renderMyFleet();">✅ 可用(' + availV + ')</button>' +
@@ -582,6 +605,10 @@ function renderMyFleet() {
         var mb = typeof getVehicleProfitMargin === 'function' ? getVehicleProfitMargin(b.id) : 0;
         va = ma; vb = mb; break;
       case 'outlet': va = a.outletId; vb = b.outletId; break;
+      case 'condition':
+        var ca = typeof getVehicleCondition === 'function' ? getVehicleCondition(a) : (a.condition || 100);
+        var cb = typeof getVehicleCondition === 'function' ? getVehicleCondition(b) : (b.condition || 100);
+        va = ca; vb = cb; break;
       case 'status':
         va = (a.rentedUntil && a.rentedUntil >= gameState.currentDay) ? 1 : isInTransit(a.id) ? 2 : 0;
         vb = (b.rentedUntil && b.rentedUntil >= gameState.currentDay) ? 1 : isInTransit(b.id) ? 2 : 0;
@@ -632,6 +659,16 @@ function renderMyFleet() {
     var residualInfo = typeof getResidualValueInfo === 'function' ? getResidualValueInfo(v.residualValue || (v.isNew ? 1.0 : 0.6)) : { percentage: Math.round((v.residualValue || 0.6) * 100), level: '-', color: '#94a3b8' };
     var residualBarColor = residualInfo.color || '#94a3b8';
 
+    var resWarn = residualInfo.percentage < 20 ? '<div style="margin-top:2px;padding:2px 6px;background:rgba(239,68,68,0.08);border-radius:4px;font-size:9px;color:#ef4444;font-weight:600;">⚠️ 保值率过低·建议售出</div>' : (residualInfo.percentage < 30 ? '<div style="margin-top:2px;font-size:9px;color:#f59e0b;">⚡ 保值率偏低</div>' : '');
+
+    var vehicleCond = typeof getVehicleCondition === 'function' ? getVehicleCondition(v) : (v.condition || 100);
+    var condLabel = typeof getConditionLabel === 'function' ? getConditionLabel(vehicleCond) : { text: '' + vehicleCond + '%', color: '#22c55e' };
+    var condPenalty = typeof getConditionPenaltyMultiplier === 'function' ? getConditionPenaltyMultiplier(v) : null;
+    var condWarnHtml = '';
+    if (vehicleCond < 20) condWarnHtml = '<span style="color:#ef4444;font-weight:700;">⚠️ 故障风险!</span>';
+    else if (vehicleCond < 50) condWarnHtml = '<span style="color:#f59e0b;font-size:9px;">需保养</span>';
+    var canMaintain = !inTransit && !(v.rentedUntil && v.rentedUntil >= gameState.currentDay);
+
     var row = document.createElement('tr');
     row.innerHTML =
       '<td><div class="vehicle-info"><span class="vehicle-name">' + v.brand + ' ' + v.model + '</span><span class="vehicle-brand">' + v.year + '款</span></div></td>' +
@@ -639,7 +676,8 @@ function renderMyFleet() {
       '<td><span class="tag tag-type">' + typeInfo.text + '</span> <span class="tag tag-fuel">' + fuelInfo.icon + ' ' + fuelInfo.text + '</span>' + (!v.isNew && v.condition ? ' <span class="condition-tag condition-' + v.condition.charAt(0) + '">' + v.condition + '</span>' : '') + '</td>' +
       '<td><span style="font-size:12px;font-weight:600;color:#1e293b;">' + costDisplay + '</span></td>' +
       '<td><span style="font-size:11px;color:#475569;">' + ageDisplay + '</span></td>' +
-      '<td><div style="display:flex;align-items:center;gap:4px;"><div style="flex:1;height:14px;background:#e2e8f0;border-radius:3px;overflow:hidden;min-width:40px;"><div style="height:100%;width:' + residualInfo.percentage + '%;background:' + residualBarColor + ';border-radius:3px;"></div></div><span style="font-size:9px;color:' + residualBarColor + ';font-weight:600;white-space:nowrap;">' + residualInfo.percentage + '%</span></div><div style="font-size:9px;color:#94a3b8;">' + residualInfo.level + '</div></td>' +
+      '<td><div style="display:flex;align-items:center;gap:4px;"><div style="flex:1;height:14px;background:#e2e8f0;border-radius:3px;overflow:hidden;min-width:40px;"><div style="height:100%;width:' + residualInfo.percentage + '%;background:' + residualBarColor + ';border-radius:3px;"></div></div><span style="font-size:9px;color:' + residualBarColor + ';font-weight:600;white-space:nowrap;">' + residualInfo.percentage + '%</span></div>' + resWarn + '</td>' +
+      '<td><div style="display:flex;align-items:center;gap:4px;"><div style="flex:1;height:14px;background:#e2e8f0;border-radius:3px;overflow:hidden;min-width:35px;"><div style="height:100%;width:' + vehicleCond + '%;background:' + condLabel.color + ';border-radius:3px;"></div></div><span style="font-size:9px;color:' + condLabel.color + ';font-weight:600;">' + vehicleCond + '%</span></div>' + (condPenalty && condPenalty.fuelMult > 1 ? '<br><span style="font-size:8px;color:#ef4444;">油耗+' + Math.round((condPenalty.fuelMult-1)*100) + '%</span>' : '') + condWarnHtml + (canMaintain && vehicleCond < 100 ? '<br><button style="margin-top:2px;padding:1px 6px;border:none;border-radius:3px;font-size:9px;cursor:pointer;background:linear-gradient(135deg,#059669,#10b981);color:#fff;" onclick="maintainVehicle(\'' + v.id + '\');renderMyFleet();">🔧保养</button>' : '') + '</td>' +
       '<td><span class="daily-rate">' + formatCurrency(getEffectiveDailyRate(v)) + '/天</span><br><span style="font-size:10px;color:#94a3b8;">倍率 ' + getRateMultiplier(v.type).toFixed(1) + 'x</span></td>' +
       '<td><span style="font-size:12px;font-weight:700;color:#1e293b;">' + formatCurrency(totalProfit) + '</span></td>' +
       '<td><span style="font-size:12px;font-weight:700;color:' + marginColor + ';">' + profitMargin + '%</span></td>' +
@@ -658,6 +696,7 @@ function sortMyFleet(field) {
   updateTableHeader([
     {label:'车型信息',field:'name'},{label:'车牌',field:'plate'},{label:'类型',field:'type'},
     {label:'购车成本',field:'cost'},{label:'车龄/里程',field:'age'},{label:'保值率',field:'residual'},
+    {label:'🔧车况',field:'condition'},
     {label:'日租金',field:'rate'},{label:'累计利润',field:'profit'},{label:'利润率',field:'margin'},{label:'网点',field:'outlet'},{label:'状态',field:'status'},{label:'操作',field:'action'}
   ], true);
   renderMyFleet();
@@ -688,6 +727,8 @@ function renderVehicleStatus() {
     '<div class="status-card"><div class="status-label">平均日租金</div><div class="status-value" style="color:#a78bfa;">' + formatCurrency(avgRate) + '</div></div>' +
     '<div class="status-card"><div class="status-label">车队总值</div><div class="status-value" style="color:#22c55e;">' + formatCurrency(totalValue) + '</div></div>' +
     '<div class="status-card"><div class="status-label">累计利润率</div><div class="status-value" style="color:' + (avgMargin >= 30 ? '#22c55e' : avgMargin >= 10 ? '#f59e0b' : '#ef4444') + ';">' + avgMargin + '%</div></div>' +
+    (function(){ var avgCond = total > 0 ? Math.round(gameState.ownedVehicles.reduce(function(s,v){ return s + (v.condition||100); }, 0) / total) : 100; var lowCondCount = gameState.ownedVehicles.filter(function(v){ return (v.condition||100) < 30; }).length; return '<div class="status-card"><div class="status-label">🔧平均车况</div><div class="status-value" style="color:' + (avgCond >= 80 ? '#22c55e' : avgCond >= 50 ? '#3b82f6' : avgCond >= 20 ? '#f59e0b' : '#ef4444') + ';">' + avgCond + '%' + (lowCondCount > 0 ? ' <span style="font-size:9px;color:#ef4444;">(' + lowCondCount + '辆危险)</span>' : '') + '</div></div>'; })() +
+    (function(){ var loy = gameState.customerLoyalty; if (!loy) return ''; return '<div class="status-card"><div class="status-label">💜回头客率</div><div class="status-value" style="color:#7c3aed;">' + (loy.returnRate || 0) + '%</div></div>'; })() +
     '</div></td>';
   tbody.appendChild(statsRow);
 
@@ -731,12 +772,15 @@ function renderVehicleStatus() {
     var typeRented = typeVehicles.filter(function(v){ return v.rentedUntil && v.rentedUntil >= gameState.currentDay; }).length;
     var typeAvgRate = typeVehicles.length > 0 ? Math.round(typeVehicles.reduce(function(s,v){ return s + getEffectiveDailyRate(v); }, 0) / typeVehicles.length) : 0;
     var typeUtil = count > 0 ? Math.round(typeRented / count * 100) : 0;
+    var typeAvgResidual = count > 0 ? Math.round(typeVehicles.reduce(function(s,v){ return s + (v.residualValue || (v.isNew ? 1 : 0.6)); }, 0) / count * 100) : 60;
+    var resWarnColor = typeAvgResidual < 20 ? '#ef4444' : typeAvgResidual < 30 ? '#f59e0b' : '#94a3b8';
+    var resWarnText = typeAvgResidual < 20 ? ' ⚠️偏低·建议售出' : typeAvgResidual < 30 ? ' ⚡注意' : '';
     var row = document.createElement('tr');
     row.innerHTML =
       '<td><span class="tag tag-type">' + type + '</span></td>' +
       '<td>' + count + ' 辆</td>' +
-      '<td>✅' + typeAvailable + ' 📋' + typeRented + ' <span style="font-size:9px;color:' + (typeUtil >= 70 ? '#22c55e' : typeUtil >= 40 ? '#f59e0b' : '#94a3b8') + ';">(' + typeUtil + '%)</span></td>' +
-      '<td>—</td><td>—</td>' +
+      '<td>可用 <b style="color:#22c55e;">' + typeAvailable + '</b> / 租出 <b style="color:#f59e0b;">' + typeRented + '</b> <span style="font-size:9px;color:' + (typeUtil >= 70 ? '#22c55e' : typeUtil >= 40 ? '#f59e0b' : '#94a3b8') + ';">(利用率' + typeUtil + '%)</span></td>' +
+      '<td>—</td><td><span style="font-size:11px;color:' + resWarnColor + ';font-weight:600;">保值' + typeAvgResidual + '%' + resWarnText + '</span></td>' +
       '<td>均价 ' + formatCurrency(typeAvgRate) + '/天</td>' +
       '<td><span style="font-size:10px;color:#94a3b8;">倍率 ' + getRateMultiplier(type).toFixed(1) + 'x</span></td>';
     tbody.appendChild(row);
@@ -744,7 +788,7 @@ function renderVehicleStatus() {
 
   if (gameState.activeEvents.length > 0) {
     var eventRow = document.createElement('tr');
-    eventRow.innerHTML = '<td colspan="7" style="padding:12px;"><div style="font-size:11px;color:#fbbf24;font-weight:600;margin-bottom:6px;">⚡ 当前活跃事件</div>' +
+    eventRow.innerHTML = '<td colspan="8" style="padding:12px;"><div style="font-size:11px;color:#fbbf24;font-weight:600;margin-bottom:6px;">⚡ 当前活跃事件</div>' +
       gameState.activeEvents.map(function(e){
         var remain = e.endDay - gameState.currentDay;
         return '<div style="font-size:10px;color:#475569;padding:3px 0;">' + e.icon + ' ' + e.name + ' — ' + e.desc + '（剩余' + remain + '天）</div>';
@@ -756,6 +800,8 @@ function renderVehicleStatus() {
 function renderOutlets() {
   var tbody = document.getElementById('vehicleTableBody');
   tbody.innerHTML = '';
+  var managerCount = (gameState.employees || []).filter(function(e){ return e.role === '店长'; }).length;
+  var ownedOutletCount = gameState.outlets.filter(function(o){ return o.owned; }).length;
   OUTLET_CONFIGS.forEach(function(cfg){
     var os = getOutletState(cfg.id);
     var isOwned = os && os.owned;
@@ -763,6 +809,8 @@ function renderOutlets() {
     var cap = lvl ? lvl.capacity : 20;
     var vehCount = isOwned ? getVehiclesAtOutlet(cfg.id).length : 0;
     var nextLevel = isOwned ? OUTLET_LEVELS.find(function(l){ return l.level === os.level + 1; }) : null;
+    var requiredManagersForUnlock = Math.max(1, ownedOutletCount);
+    var canUnlockByManager = managerCount >= requiredManagersForUnlock || isOwned;
     var row = document.createElement('tr');
     row.innerHTML =
       '<td><div class="vehicle-info"><span class="vehicle-name">' + (isOwned ? '🏢' : '🔒') + ' ' + cfg.name + '</span><span class="vehicle-brand">' + cfg.cityLabel + '</span></div></td>' +
@@ -773,9 +821,22 @@ function renderOutlets() {
       '<td>' + (nextLevel ? formatCurrency(nextLevel.upgradeCost) : (isOwned ? '已满级' : formatCurrency(cfg.unlockCost))) + '</td>' +
       '<td>' + (isOwned
         ? (nextLevel ? '<button class="action-btn btn-buy" onclick="upgradeOutlet(' + cfg.id + ')" ' + (gameState.cash < nextLevel.upgradeCost ? 'disabled' : '') + '>升级 Lv.' + nextLevel.level + '</button>' : '<span style="color:#94a3b8;font-size:11px;">已满级</span>')
-        : '<button class="action-btn btn-buy" onclick="unlockOutlet(' + cfg.id + ')" ' + (gameState.cash < cfg.unlockCost ? 'disabled' : '') + '>🔓 解锁</button>') + '</td>';
+        : (!canUnlockByManager
+          ? '<button class="action-btn btn-buy" disabled title="需要' + requiredManagersForUnlock + '名店长（当前' + managerCount + '名）">🔓 需店长(' + managerCount + '/' + requiredManagersForUnlock + ')</button>'
+          : '<button class="action-btn btn-buy" onclick="unlockOutlet(' + cfg.id + ')" ' + (gameState.cash < cfg.unlockCost ? 'disabled' : '') + '>🔓 解锁</button>')) + '</td>' +
+      '<td>' + (isOwned ? '<div><label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:10px;color:#64748b;"><input type="checkbox" ' + (os.autoManageEnabled ? 'checked' : '') + ' onchange="toggleAutoManage(' + cfg.id + ');renderOutlets();" style="cursor:pointer;"> 自动管理</label>' +
+        (os.autoManageEnabled ? '<div style="margin-top:3px;font-size:9px;display:flex;align-items:center;gap:2px;"><span>利润门槛:</span><input type="number" value="' + (os.autoProfitThreshold || 100) + '" min="0" max="5000" step="50" style="width:55px;padding:1px 3px;border:1px solid #cbd5e1;border-radius:3px;font-size:9px;" onchange="setAutoProfitThreshold(' + cfg.id + ',this.value);"><span style="color:#94a3b8;">$</span></div>' : '') + '</div>' : '-') + '</td>';
     tbody.appendChild(row);
   });
+  if (!isOwned || ownedOutletCount > 1) {
+    var tipRow = document.createElement('tr');
+    tipRow.innerHTML = '<td colspan="8"><div style="padding:10px;background:rgba(245,158,11,0.06);border-radius:8px;font-size:10px;color:#92400e;line-height:1.7;">' +
+      '<div style="font-weight:700;color:#b45309;margin-bottom:4px;">👔 网点解锁规则</div>' +
+      '• 每个新网点需要 <strong>1名店长</strong> 管理（当前：' + managerCount + ' 名店长 / ' + ownedOutletCount + ' 个已开网点）<br>' +
+      '• 第2个网点需1名店长，第3个需2名...以此类推<br>' +
+      '• 店长可在「人才市场」招聘，建议优先招聘店长再扩张网点</div></td>';
+    tbody.appendChild(tipRow);
+  }
 }
 
 function renderPricing() {
@@ -1044,6 +1105,29 @@ function renderOrders() {
     var typeLabel = order.customerType === 'business' ? '商务客户' : '旅游客户';
     var netClass = order.netIncome >= 0 ? 'msg-highlight' : 'msg-bad';
     var isEgg = order.isEasterEgg;
+
+    var memberInfo = null;
+    if (order.memberId && gameState.members) {
+      memberInfo = gameState.members.find(function(m){ return m.id === order.memberId; });
+    }
+    var memberBadge = '';
+    if (memberInfo) {
+      var levelInfo = typeof getMemberLevelInfo === 'function' ? getMemberLevelInfo(memberInfo.level || 1) : { name:'会员', color:'#94a3b8', discount:1.0 };
+      memberBadge = '<span style="font-size:9px;padding:1px 7px;background:linear-gradient(135deg,' + levelInfo.color + '22,' + levelInfo.color + '11);color:' + levelInfo.color + ';border-radius:4px;font-weight:700;margin-left:6px;border:1px solid ' + levelInfo.color + '33;">💎 ' + levelInfo.name + '</span>';
+    } else {
+      memberBadge = '<span style="font-size:9px;color:#94a3b8;margin-left:6px;">非会员</span>';
+    }
+
+    var baseRent = Math.round((order.dailyRate || 0) * (order.rentalDays || 1));
+    var fuelTotal = Math.round((order.fuelCostPerDay || 0) * (order.rentalDays || 1));
+    var maintTotal = Math.round((order.maintenanceCostPerDay || 0) * (order.rentalDays || 1));
+    var costBreakdownHtml = '<div style="margin-top:5px;padding:8px 10px;background:rgba(241,245,249,1);border-radius:8px;font-size:10px;line-height:1.8;">' +
+      '<div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">基础租金 (' + formatCurrency(order.dailyRate||0) + '×' + (order.rentalDays||1) + '天)</span><span style="color:#1e293b;font-weight:600;">' + formatCurrency(baseRent) + '</span></div>' +
+      '<div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">燃油成本</span><span style="color:#ef4444;">-' + formatCurrency(fuelTotal) + '</span></div>' +
+      '<div style="display:flex;justify-content:space-between;"><span style="color:#94a3b8;">维护成本</span><span style="color:#f59e0b;">-' + formatCurrency(maintTotal) + '</span></div>' +
+      '<div style="border-top:1px dashed rgba(203,213,225,0.8);margin:4px 0;padding-top:4px;display:flex;justify-content:space-between;"><span style="font-weight:600;color:#1e293b;">净利润</span><span style="font-weight:700;color:' + (order.netIncome >= 0 ? '#22c55e' : '#ef4444') + ';">' + formatCurrency(order.netIncome) + '</span></div>' +
+      '</div>';
+
     var card = document.createElement('div');
     card.className = 'order-card';
     if (isEgg) {
@@ -1052,8 +1136,9 @@ function renderOrders() {
     var eggBadge = isEgg ? '<span style="font-size:9px;padding:2px 8px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#fff;border-radius:4px;font-weight:700;margin-left:6px;animation:pulse-egg 1.5s infinite;">🎁 彩蛋</span>' : '';
     var eggDescHtml = isEgg ? '<div style="margin-top:4px;padding:4px 8px;background:rgba(245,158,11,0.1);border-radius:6px;font-size:10px;color:#b45309;font-weight:600;">📌 ' + (order.eggDesc || '') + '</div>' : '';
     card.innerHTML =
-      '<div class="order-top"><div class="order-customer"><div class="order-avatar ' + typeClass + '">' + (isEgg ? '🌟' : typeIcon) + '</div><div class="order-customer-info"><span class="order-customer-name" style="' + (isEgg ? 'color:#b45309;font-weight:800;' : '') + '">' + order.customerName + eggBadge + '</span><span class="order-customer-type">' + typeLabel + ' · ' + order.outletName + (isEgg ? ' · <strong style="color:#f59e0b;">' + (order.eggScenario || '') + '</strong>' : '') + '</span></div></div><span class="order-price" style="' + (isEgg ? 'color:#d97706;font-size:16px;' : '') + '">' + formatCurrency(order.totalIncome) + (isEgg ? '<br><span style="font-size:10px;color:#f59e0b;font-weight:700;">×' + (order.eggBonus || 1) + ' 超额奖励</span>' : '') + '</span></div>' +
-      '<div class="order-details"><div class="order-detail-item"><div class="order-detail-label">租用车型</div><div class="order-detail-value">' + order.vehicleName + '</div></div><div class="order-detail-item"><div class="order-detail-label">租期</div><div class="order-detail-value">' + order.rentalDays + ' 天</div></div><div class="order-detail-item"><div class="order-detail-label">净利润</div><div class="order-detail-value ' + netClass + '">' + formatCurrency(order.netIncome) + '</div></div></div>' +
+      '<div class="order-top"><div class="order-customer"><div class="order-avatar ' + typeClass + '">' + (isEgg ? '🌟' : typeIcon) + '</div><div class="order-customer-info"><span class="order-customer-name" style="' + (isEgg ? 'color:#b45309;font-weight:800;' : '') + '">' + order.customerName + eggBadge + '</span>' + memberBadge + '<br><span class="order-customer-type">' + typeLabel + ' · ' + order.outletName + (isEgg ? ' · <strong style="color:#f59e0b;">' + (order.eggScenario || '') + '</strong>' : '') + '</span></div></div><span class="order-price" style="' + (isEgg ? 'color:#d97706;font-size:16px;' : '') + '">' + formatCurrency(order.totalIncome) + (isEgg ? '<br><span style="font-size:10px;color:#f59e0b;font-weight:700;">×' + (order.eggBonus || 1) + ' 超额奖励</span>' : '') + '</span></div>' +
+      '<div class="order-details"><div class="order-detail-item"><div class="order-detail-label">租用车型</div><div class="order-detail-value">' + order.vehicleName + '</div></div><div class="order-detail-item"><div class="order-detail-label">租期</div><div class="order-detail-value">' + order.rentalDays + ' 天</div></div><div class="order-detail-item"><div class="order-detail-label">总成本/净利</div><div class="order-detail-value">' + formatCurrency(order.totalCost || 0) + ' / <strong style="color:' + (order.netIncome >= 0 ? '#22c55e' : '#ef4444') + ';">' + formatCurrency(order.netIncome) + '</strong></div></div></div>' +
+      costBreakdownHtml +
       eggDescHtml +
       '<div class="order-actions"><button class="action-btn btn-accept" onclick="acceptOrder(\'' + order.id + '\')" style="' + (isEgg ? 'background:linear-gradient(135deg,#f59e0b,#fbbf24);' : '') + '">✓ 接单</button><button class="action-btn btn-reject" onclick="rejectOrder(\'' + order.id + '\')">✕ 拒绝</button></div>';
     fragment.appendChild(card);

@@ -298,19 +298,28 @@ function loadGame() {
       if (!gameState.consecutiveProfitDays) gameState.consecutiveProfitDays = 0;
       if (!gameState.lastQuarterDay) gameState.lastQuarterDay = 0;
       if (!gameState.hostileTakeoverRisk) gameState.hostileTakeoverRisk = 0;
-      gameState.outlets.forEach(function(o){
-        if (!o.facilities) o.facilities = [];
-        if (!o.disabledFacilities) o.disabledFacilities = [];
-        if (!o.brokenFacilities) o.brokenFacilities = {};
-        if (!o.upgradeProgress) o.upgradeProgress = {profitableDays:0,maxProfit:0};
-        if (!o.parkingSpots) o.parkingSpots = { customer: PARKING_CONFIG.customer.base, internal: PARKING_CONFIG.internal.base };
-        if (!o.parkingUpgradeLevel) o.parkingUpgradeLevel = { customer: 0, internal: 0 };
-        if (!o.facilityZones) o.facilityZones = {};
-        if (o.occupiedCustomerSpots === undefined) o.occupiedCustomerSpots = 0;
-        if (o.reservedSpots === undefined) o.reservedSpots = 0;
-        if (o.parkingPressureDays === undefined) o.parkingPressureDays = 0;
-        if (o.lastReservationRec === undefined) o.lastReservationRec = false;
-      });
+  if (!gameState.dailyChallenge) gameState.dailyChallenge = null;
+  if (!gameState.challengeStreak) gameState.challengeStreak = 0;
+  if (!gameState.autoManage) gameState.autoManage = {};
+  if (!gameState.customerLoyalty) gameState.customerLoyalty = { returnRate: 0, totalReturns: 0, totalNewCustomers: 0, complaints: 0, referralCount: 0 };
+  gameState.outlets.forEach(function(o){
+    if (!o.facilities) o.facilities = [];
+    if (!o.disabledFacilities) o.disabledFacilities = [];
+    if (!o.brokenFacilities) o.brokenFacilities = {};
+    if (!o.upgradeProgress) o.upgradeProgress = {profitableDays:0,maxProfit:0};
+    if (!o.parkingSpots) o.parkingSpots = { customer: PARKING_CONFIG.customer.base, internal: PARKING_CONFIG.internal.base };
+    if (!o.parkingUpgradeLevel) o.parkingUpgradeLevel = { customer: 0, internal: 0 };
+    if (!o.facilityZones) o.facilityZones = {};
+    if (o.occupiedCustomerSpots === undefined) o.occupiedCustomerSpots = 0;
+    if (o.reservedSpots === undefined) o.reservedSpots = 0;
+    if (o.parkingPressureDays === undefined) o.parkingPressureDays = 0;
+    if (o.lastReservationRec === undefined) o.lastReservationRec = false;
+    if (o.autoManageEnabled === undefined) o.autoManageEnabled = false;
+    if (o.autoProfitThreshold === undefined) o.autoProfitThreshold = 100;
+  });
+  gameState.ownedVehicles.forEach(function(v){
+    if (v.condition === undefined) v.condition = 100;
+  });
       if (gameState.autoRecommendReservation === undefined) gameState.autoRecommendReservation = false;
       if (gameState.interiorDecorUnlocked === undefined) gameState.interiorDecorUnlocked = false;
       if (!gameState.decorations) gameState.decorations = [];
@@ -340,9 +349,25 @@ function unlockOutlet(outletId) {
   var cfg = OUTLET_CONFIGS.find(function(c){ return c.id === outletId; });
   if (!cfg || gameState.cash < cfg.unlockCost) return;
   if (gameState.outlets.some(function(o){ return o.id === outletId && o.owned; })) { addMessage('该网点已解锁', 'warn'); return; }
+  var hasManager = gameState.employees && gameState.employees.some(function(e){ return e.role === '店长'; });
+  if (!hasManager) {
+    addMessage('⚠️ 解锁新网点需要先招聘一名【店长】！请前往人才市场', 'bad');
+    showToast('需要店长才能解锁新网点', 'error');
+    updateUI(); saveGame();
+    return;
+  }
+  var managerCount = (gameState.employees || []).filter(function(e){ return e.role === '店长'; }).length;
+  var ownedOutletCount = gameState.outlets.filter(function(o){ return o.owned; }).length;
+  var requiredManagers = Math.max(1, ownedOutletCount);
+  if (managerCount < requiredManagers) {
+    addMessage('⚠️ 当前拥有 ' + managerCount + ' 名店长，解锁第 ' + (ownedOutletCount + 1) + ' 个网点至少需要 ' + requiredManagers + ' 名店长', 'bad');
+    showToast('店长不足（需' + requiredManagers + '名）', 'error');
+    updateUI(); saveGame();
+    return;
+  }
   gameState.cash -= cfg.unlockCost;
   gameState.outlets.push({ id: outletId, level: 1, owned: true, facilities: [], disabledFacilities: [], brokenFacilities: {}, upgradeProgress: {profitableDays:0,maxProfit:0} });
-  addMessage('解锁新网点：' + cfg.name + '（' + cfg.cityLabel + '）', 'good');
+  addMessage('🏢 解锁新网点：' + cfg.name + '（' + cfg.cityLabel + '）', 'good');
   if (typeof createOutletBuildings === 'function') createOutletBuildings();
   updateUI(); saveGame();
 }
@@ -424,6 +449,306 @@ function upgradeParkingSpot(outletId, spotType) {
   addMessage('🅿️ ' + OUTLET_CONFIGS.find(function(c){ return c.id === outletId; }).name + ' 扩建' + spotLabel + '至 ' + os.parkingSpots[spotType] + ' 个，花费 ' + formatCurrency(cfg.upgradeCost), 'good');
   updateUI(); saveGame();
   return { ok: true };
+}
+
+function getVehicleCondition(vehicle) {
+  if (vehicle.condition === undefined) vehicle.condition = 100;
+  return vehicle.condition;
+}
+
+function getConditionLabel(cond) {
+  if (cond >= 80) return { text: '优秀', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' };
+  if (cond >= 50) return { text: '良好', color: '#3b82f6', bg: 'rgba(59,130,246,0.1)' };
+  if (cond >= 20) return { text: '一般', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' };
+  return { text: '较差', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' };
+}
+
+function getConditionPenaltyMultiplier(vehicle) {
+  var cond = getVehicleCondition(vehicle);
+  if (cond < 20) return { fuelMult: 1.2, satisfactionPenalty: 0.85, acceptPenalty: 0.9, breakdownRisk: true };
+  if (cond < 50) return { fuelMult: 1.15, satisfactionPenalty: 0.9, acceptPenalty: 0.95, breakdownRisk: false };
+  if (cond < 80) return { fuelMult: 1.08, satisfactionPenalty: 0.95, acceptPenalty: 0.98, breakdownRisk: false };
+  return { fuelMult: 1.0, satisfactionPenalty: 1.0, acceptPenalty: 1.0, breakdownRisk: false };
+}
+
+function maintainVehicle(vehicleId) {
+  var vehicle = gameState.ownedVehicles.find(function(v){ return v.id === vehicleId; });
+  if (!vehicle) return { ok: false, reason: '车辆不存在' };
+  if (isInTransit(vehicleId)) return { ok: false, reason: '车辆正在调度中' };
+  var cond = getVehicleCondition(vehicle);
+  if (cond >= 100) return { ok: false, reason: '车况已满，无需保养' };
+  var purchasePrice = vehicle.purchasePrice || vehicle.estimatedValue || 200000;
+  var cost = Math.round(purchasePrice * 0.02 * (1 - cond / 100));
+  cost = Math.max(200, cost);
+  if (gameState.cash < cost) return { ok: false, reason: '资金不足，需要 ' + formatCurrency(cost) };
+  gameState.cash -= cost;
+  gameState.todayExpense += cost;
+  var restoreAmount = Math.min(30, 100 - cond);
+  vehicle.condition = Math.min(100, cond + restoreAmount);
+  gameState._todayMaintainCount = (gameState._todayMaintainCount || 0) + 1;
+  var newLabel = getConditionLabel(vehicle.condition);
+  addMessage('🔧 保养 ' + vehicle.brand + ' ' + vehicle.model + '（' + vehicle.licensePlate + '），花费 ' + formatCurrency(cost) + '，车况 → ' + newLabel.text + '(' + vehicle.condition + '%)', 'good');
+  updateUI(); saveGame();
+  return { ok: true, cost: cost, restored: restoreAmount, newCondition: vehicle.condition };
+}
+
+function degradeAllVehicles() {
+  gameState.ownedVehicles.forEach(function(v){
+    if (v.condition === undefined) v.condition = 100;
+    if (v.rentedUntil && v.rentedUntil >= gameState.currentDay) {
+      v.condition = Math.max(0, v.condition - Math.round(Math.random() * 3 + 1));
+    } else {
+      v.condition = Math.max(0, v.condition - Math.round(Math.random() * 1 + 0.3));
+    }
+    v.condition = Math.max(0, v.condition);
+  });
+}
+
+var DAILY_CHALLENGES = [
+  { id:'orders_3', name:'完成订单', desc:'今日目标：完成3个订单', type:'orders', target:3, rewardMin:200, rewardMax:800, repMin:1, repMax:2 },
+  { id:'orders_5', name:'高效运营', desc:'今日目标：完成5个订单', type:'orders', target:5, rewardMin:500, rewardMax:1500, repMin:1, repMax:2 },
+  { id:'orders_8', name:'超级效率', desc:'今日目标：完成8个订单', type:'orders', target:8, rewardMin:1000, rewardMax:2000, repMin:2, repMax:3 },
+  { id:'income_3000', name:'稳定收入', desc:'今日目标：收入超过$3000', type:'income', target:3000, rewardMin:300, rewardMax:1000, repMin:1, repMax:2 },
+  { id:'income_5000', name:'业绩达标', desc:'今日目标：收入超过$5000', type:'income', target:5000, rewardMin:500, rewardMax:1500, repMin:1, repMax:3 },
+  { id:'income_8000', name:'高收入日', desc:'今日目标：收入超过$8000', type:'income', target:8000, rewardMin:800, rewardMax:2000, repMin:2, repMax:3 },
+  { id:'income_12000', name:'财富巅峰', desc:'今日目标：收入超过$12000', type:'income', target:12000, rewardMin:1200, rewardMax:2000, repMin:2, repMax:3 },
+  { id:'suv_all', name:'SUV专精', desc:'今日目标：出租所有SUV', type:'vehicleType', targetType:'SUV', target:-1, rewardMin:400, rewardMax:1200, repMin:1, repMax:2 },
+  { id:'sedan_all', name:'轿车专精', desc:'今日目标：出租所有轿车', type:'vehicleType', targetType:'轿车', target:-1, rewardMin:300, rewardMax:1000, repMin:1, repMax:2 },
+  { id:'zero_reject', name:'完美服务', desc:'今日目标：零拒绝', type:'zeroReject', target:0, rewardMin:600, rewardMax:1800, repMin:2, repMax:3 },
+  { id:'profit_2000', name:'盈利专家', desc:'今日目标：净利润超$2000', type:'profit', target:2000, rewardMin:400, rewardMax:1200, repMin:1, repMax:2 },
+  { id:'profit_5000', name:'利润之王', desc:'今日目标：净利润超$5000', type:'profit', target:5000, rewardMin:800, rewardMax:2000, repMin:2, repMax:3 },
+  { id:'maintain_3', name:'勤于保养', desc:'今日目标：保养3辆车', type:'maintain', target:3, rewardMin:300, rewardMax:900, repMin:1, repMax:2 },
+  { id:'no_breakdown', name:'安全运营', desc:'今日目标：无车辆故障风险（车况均≥30%）', type:'noBreakdown', target:30, rewardMin:500, rewardMax:1500, repMin:1, repMax:2 },
+  { id:'utilization_70', name:'高效利用', desc:'今日目标：车队利用率≥70%', type:'utilization', target:70, rewardMin:400, rewardMax:1200, repMin:1, repMax:2 },
+  { id:'utilization_90', name:'满负荷运转', desc:'今日目标：车队利用率≥90%', type:'utilization', target:90, rewardMin:1000, rewardMax:2500, repMin:2, repMax:3 },
+  { id:'new_member_2', name:'会员增长', desc:'今日目标：获得2名新会员', type:'newMember', target:2, rewardMin:300, rewardMax:800, repMin:1, repMax:2 },
+  { id:'review_avg4', name:'口碑之星', desc:'今日目标：平均评价≥4星', type:'reviewScore', target:4, rewardMin:500, rewardMax:1500, repMin:1, repMax:3 },
+  { id:'outlet_orders_5', name:'多网点运营', desc:'今日目标：各网点共完成5单', type:'totalOutletOrders', target:5, rewardMin:400, rewardMax:1200, repMin:1, repMax:2 },
+  { id:'vip_orders_2', name:'VIP服务', desc:'今日目标：完成2笔会员订单', type:'vipOrders', target:2, rewardMin:350, rewardMax:1000, repMin:1, repMax:2 },
+  { id:'fleet_10', name:'规模扩张', desc:'今日目标：拥有10辆以上可用车', type:'availableFleet', target:10, rewardMin:300, rewardMax:800, repMin:1, repMax:1 }
+];
+
+function generateDailyChallenge() {
+  var challenge = DAILY_CHALLENGES[Math.floor(Math.random() * DAILY_CHALLENGES.length)];
+  gameState.dailyChallenge = {
+    id: challenge.id,
+    name: challenge.name,
+    desc: challenge.desc,
+    type: challenge.type,
+    targetType: challenge.targetType || null,
+    target: challenge.target,
+    progress: 0,
+    completed: false,
+    claimed: false,
+    rewardCash: Math.floor(Math.random() * (challenge.rewardMax - challenge.rewardMin + 1)) + challenge.rewardMin,
+    rewardRep: Math.floor(Math.random() * (challenge.repMax - challenge.repMin + 1)) + challenge.repMin
+  };
+  return gameState.dailyChallenge;
+}
+
+function checkChallengeProgress() {
+  var ch = gameState.dailyChallenge;
+  if (!ch || ch.completed || ch.claimed) return;
+  switch(ch.type) {
+    case 'orders':
+      ch.progress = (gameState.outletOrderCounts ? Object.values(gameState.outletOrderCounts).reduce(function(s,v){return s+v;},0) : 0);
+      break;
+    case 'income':
+      ch.progress = gameState.todayIncome || 0;
+      break;
+    case 'profit':
+      ch.progress = Math.max(0, (gameState.todayIncome || 0) - (gameState.todayExpense || 0));
+      break;
+    case 'vehicleType': {
+      var targetVehicles = gameState.ownedVehicles.filter(function(v){ return v.type === ch.targetType; });
+      var rentedCount = targetVehicles.filter(function(v){ return v.rentedUntil && v.rentedUntil >= gameState.currentDay; }).length;
+      ch.progress = rentedCount;
+      ch.target = targetVehicles.length;
+      break;
+    }
+    case 'zeroReject':
+      ch.progress = 1;
+      break;
+    case 'maintain':
+      ch.progress = gameState._todayMaintainCount || 0;
+      break;
+    case 'noBreakdown': {
+      var lowCond = gameState.ownedVehicles.filter(function(v){ return (v.condition||100) < ch.target; }).length;
+      ch.progress = lowCond === 0 ? 1 : 0;
+      break;
+    }
+    case 'utilization': {
+      var total = gameState.ownedVehicles.length;
+      var rented = total > 0 ? gameState.ownedVehicles.filter(function(v){ return v.rentedUntil && v.rentedUntil >= gameState.currentDay; }).length : 0;
+      var utilRate = total > 0 ? Math.round(rented / total * 100) : 0;
+      ch.progress = utilRate;
+      break;
+    }
+    case 'newMember':
+      ch.progress = gameState._todayNewMembers || 0;
+      break;
+    case 'reviewScore': {
+      var todayReviews = (gameState.customerReviews || []).filter(function(r){ return r.day === gameState.currentDay; });
+      var avg = todayReviews.length > 0 ? todayReviews.reduce(function(s,r){return s+r.score;},0) / todayReviews.length : 0;
+      ch.progress = avg;
+      break;
+    }
+    case 'totalOutletOrders':
+      ch.progress = (gameState.outletOrderCounts ? Object.values(gameState.outletOrderCounts).reduce(function(s,v){return s+v;},0) : 0);
+      break;
+    case 'vipOrders':
+      ch.progress = gameState._todayVipOrders || 0;
+      break;
+    case 'availableFleet':
+      ch.progress = gameState.ownedVehicles.filter(function(v){ return (!v.rentedUntil || v.rentedUntil < gameState.currentDay) && !isInTransit(v.id); }).length;
+      break;
+  }
+  if (ch.type !== 'zeroReject' && ch.type !== 'noBreakdown') {
+    if (ch.progress >= ch.target && !ch.completed) {
+      ch.completed = true;
+    }
+  } else {
+    if (ch.progress >= 1 && !ch.completed) {
+      ch.completed = true;
+    }
+  }
+}
+
+function claimChallengeReward() {
+  var ch = gameState.dailyChallenge;
+  if (!ch || !ch.completed || ch.claimed) return { ok: false, reason: '无可领取奖励' };
+  var streak = gameState.challengeStreak || 0;
+  var multiplier = streak >= 6 ? 3 : streak >= 4 ? 2 : streak >= 2 ? 1.5 : 1;
+  var cashReward = Math.round(ch.rewardCash * multiplier);
+  var repReward = Math.min(3, Math.round(ch.rewardRep * (multiplier > 1 ? multiplier * 0.5 + 0.5 : 1)));
+  gameState.cash += cashReward;
+  gameState.todayIncome += cashReward;
+  addReputation(repReward);
+  ch.claimed = true;
+  addMessage('🎯 挑战完成！' + ch.desc + ' — 奖金 ' + formatCurrency(cashReward) + (multiplier > 1 ? '（连续' + streak + '天 ×' + multiplier.toFixed(1) + '）' : '') + '，声誉 +' + repReward, 'good');
+  updateUI(); saveGame();
+  return { ok: true, cash: cashReward, rep: repReward, multiplier: multiplier };
+}
+
+function toggleAutoManage(outletId) {
+  var os = getOutletState(outletId);
+  if (!os) return;
+  os.autoManageEnabled = !os.autoManageEnabled;
+  addMessage(os.autoManageEnabled ? '🤖 ' + OUTLET_CONFIGS.find(function(c){ return c.id === outletId; }).name + ' 自动管理已开启' : '🤖 ' + OUTLET_CONFIGS.find(function(c){ return c.id === outletId; }).name + ' 自动管理已关闭', 'warn');
+  saveGame();
+  return os.autoManageEnabled;
+}
+
+function setAutoProfitThreshold(outletId, value) {
+  var os = getOutletState(outletId);
+  if (!os) return;
+  os.autoProfitThreshold = Math.max(0, parseInt(value) || 100);
+  saveGame();
+}
+
+function processAutoManagement() {
+  var managedOutlets = gameState.outlets.filter(function(o){ return o.owned && o.autoManageEnabled; });
+  if (managedOutlets.length === 0) return;
+  var autoAccepted = 0;
+  var autoRejected = 0;
+  var autoMaintained = 0;
+  var autoDispatched = 0;
+  managedOutlets.forEach(function(outlet){
+    var threshold = outlet.autoProfitThreshold || 100;
+    var ordersToProcess = gameState.pendingOrders.filter(function(o){ return o.outletId === outlet.id; });
+    ordersToProcess.forEach(function(order){
+      if ((order.netIncome || 0) >= threshold) {
+        try { acceptOrder(order.id); autoAccepted++; } catch(e) {}
+      } else {
+        try { rejectOrder(order.id); autoRejected++; } catch(e) {}
+      }
+    });
+    var vehiclesAtOutlet = getVehiclesAtOutlet(outlet.id);
+    vehiclesAtOutlet.forEach(function(v){
+      var cond = getVehicleCondition(v);
+      if (cond < 60 && cond > 0 && !(v.rentedUntil && v.rentedUntil >= gameState.currentDay) && !isInTransit(v.id)) {
+        var result = maintainVehicle(v.id);
+        if (result.ok) autoMaintained++;
+      }
+    });
+    var availableHere = vehiclesAtOutlet.filter(function(v){ return (!v.rentedUntil || v.rentedUntil < gameState.currentDay) && !isInTransit(v.id); }).length;
+    var capacity = getOutletCapacity(outlet.id);
+    if (availableHere < capacity * 0.3 && gameState.outlets.filter(function(o){ return o.owned && o.id !== outlet.id; }).length > 0) {
+      var otherOutlets = gameState.outlets.filter(function(o){ return o.owned && o.id !== outlet.id; });
+      otherOutlets.forEach(function(otherO){
+        var otherAvailable = getVehiclesAtOutlet(otherO.id).filter(function(vv){ return (!vv.rentedUntil || vv.rentedUntil < gameState.currentDay) && !isInTransit(vv.id); }).length;
+        var otherCap = getOutletCapacity(otherO.id);
+        if (otherAvailable > otherCap * 0.5) {
+          var spareVehicles = getVehiclesAtOutlet(otherO.id).filter(function(vv){ return (!vv.rentedUntil || vv.rentedUntil < gameState.currentDay) && !isInTransit(vv.id); }).slice(0, 2);
+          spareVehicles.forEach(function(sv){
+            var dist = getDistanceBetweenOutlets(otherO.id, outlet.id);
+            if (dist > 0 && gameState.cash >= dist * 100) {
+              gameState.cash -= Math.round(dist * 100);
+              gameState.transfers.push({ vehicleId: sv.id, fromOutletId: otherO.id, toOutletId: outlet.id, daysRemaining: Math.max(1, Math.ceil(dist / 25)), cost: Math.round(dist * 100) });
+              autoDispatched++;
+            }
+          });
+        }
+      });
+    }
+  });
+  if (autoAccepted > 0 || autoRejected > 0 || autoMaintained > 0 || autoDispatched > 0) {
+    var msgParts = [];
+    if (autoAccepted > 0) msgParts.push('自动接单 ' + autoAccepted);
+    if (autoRejected > 0) msgParts.push('自动拒单 ' + autoRejected);
+    if (autoMaintained > 0) msgParts.push('自动保养 ' + autoMaintained);
+    if (autoDispatched > 0) msgParts.push('自动调度 ' + autoDispatched);
+    addMessage('🤖 自动管理：' + msgParts.join(' / '), 'warn');
+  }
+}
+
+function processCustomerLoyalty() {
+  var loyalty = gameState.customerLoyalty;
+  if (!loyalty) gameState.customerLoyalty = { returnRate: 0, totalReturns: 0, totalNewCustomers: 0, complaints: 0, referralCount: 0 };
+  loyalty = gameState.customerLoyalty;
+  var yesterdayOrders = (gameState.orderHistory || []).filter(function(o){ return o.acceptedDay === gameState.currentDay - 1; });
+  var returningCustomers = 0;
+  yesterdayOrders.forEach(function(order){
+    if (order.memberId) {
+      var member = gameState.members.find(function(m){ return m.id === order.memberId; });
+      if (member && member.totalTrips > 1) returningCustomers++;
+    }
+  });
+  loyalty.totalReturns += returningCustomers;
+  var totalCustomers = yesterdayOrders.length || 1;
+  loyalty.returnRate = Math.round(returningCustomers / totalCustomers * 100);
+  if (Math.random() < loyalty.returnRate / 100 * 0.3) {
+    loyalty.referralCount++;
+    loyalty.totalNewCustomers++;
+  }
+}
+
+function applyCustomerComplaints(customerName, rejectedCount) {
+  var loyalty = gameState.customerLoyalty;
+  if (!loyalty) gameState.customerLoyalty = { returnRate: 0, totalReturns: 0, totalNewCustomers: 0, complaints: 0, referralCount: 0 };
+  loyalty = gameState.customerLoyalty;
+  if (rejectedCount >= 3) {
+    loyalty.complaints++;
+    var penalty = Math.min(5, rejectedCount);
+    addReputation(-penalty);
+    addMessage('😠 客户投诉：' + customerName + ' 被拒绝' + rejectedCount + '次，声誉 -' + penalty, 'bad');
+    return { complained: true, penalty: penalty };
+  }
+  return { complained: false, penalty: 0 };
+}
+
+function calculateVipTip(memberLevel, orderIncome) {
+  if (memberLevel >= 4) {
+    var tipRate = 0.05 + Math.random() * 0.10;
+    return Math.round(orderIncome * tipRate);
+  }
+  if (memberLevel >= 3) {
+    if (Math.random() < 0.3) {
+      var tipRate = 0.03 + Math.random() * 0.07;
+      return Math.round(orderIncome * tipRate);
+    }
+  }
+  return 0;
 }
 
 function getParkingOccupancy(outletId) {

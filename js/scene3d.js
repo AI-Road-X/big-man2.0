@@ -11,43 +11,83 @@ var exteriorSavedState = null;
 
 function init3D() {
   var container = document.getElementById('canvas-container');
-  scene = new THREE.Scene();
-  scene.background = new THREE.Color(0x1a2a1a);
-  scene.fog = new THREE.Fog(0x1a2a1a, 120, 250);
+  if (!container) {
+    console.warn('3D容器未找到，跳过初始化');
+    return false;
+  }
 
-  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
-  camera.position.set(80, 100, 80);
-  camera.lookAt(0, 0, 0);
+  try {
+    if (typeof THREE === 'undefined') {
+      throw new Error('Three.js 库未加载');
+    }
 
-  renderer = new THREE.WebGLRenderer({ antialias: true });
-  renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
-  renderer.shadowMap.enabled = true;
-  renderer.shadowMap.type = THREE.BasicShadowMap;
-  container.appendChild(renderer.domElement);
+    scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a2a1a);
+    scene.fog = new THREE.Fog(0x1a2a1a, 120, 250);
 
-  controls = new THREE.OrbitControls(camera, renderer.domElement);
-  controls.enableDamping = true;
-  controls.dampingFactor = 0.05;
-  controls.minDistance = 40;
-  controls.maxDistance = 250;
-  controls.maxPolarAngle = Math.PI / 2.5;
-  controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+    camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+    camera.position.set(80, 100, 80);
+    camera.lookAt(0, 0, 0);
 
-  raycaster = new THREE.Raycaster();
-  mouse = new THREE.Vector2();
+    renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, failIfMajorPerformanceCaveat: false });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.5));
+    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.BasicShadowMap;
+    container.appendChild(renderer.domElement);
 
-  createLighting();
-  createGround();
-  createRoads();
-  createOutletBuildings();
-  createRoadVehicles();
+    var gl = renderer.getContext();
+    if (!gl) {
+      throw new Error('WebGL 上下文创建失败');
+    }
+    var glInfo = renderer.info;
 
-  renderer.domElement.addEventListener('click', onCanvasClick);
-  renderer.domElement.addEventListener('touchend', onCanvasTouchEnd);
-  window.addEventListener('resize', onWindowResize);
-  setTimeout(function(){ document.getElementById('loading-screen').classList.add('hidden'); }, 800);
-  animate();
+    controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.05;
+    controls.minDistance = 40;
+    controls.maxDistance = 250;
+    controls.maxPolarAngle = Math.PI / 2.5;
+    controls.touches = { ONE: THREE.TOUCH.ROTATE, TWO: THREE.TOUCH.DOLLY_PAN };
+
+    raycaster = new THREE.Raycaster();
+    mouse = new THREE.Vector2();
+
+    createLighting();
+    createGround();
+    createRoads();
+    createOutletBuildings();
+    createRoadVehicles();
+
+    renderer.domElement.addEventListener('click', onCanvasClick);
+    renderer.domElement.addEventListener('touchend', onCanvasTouchEnd);
+    window.addEventListener('resize', onWindowResize);
+
+    renderer.domElement.addEventListener('webglcontextlost', function(event) {
+      event.preventDefault();
+      console.warn('WebGL 上下文丢失，尝试恢复...');
+      showFallbackView();
+    }, false);
+
+    renderer.domElement.addEventListener('webglcontextrestored', function() {
+      console.log('WebGL 上下文已恢复');
+    }, false);
+
+    setTimeout(function(){ document.getElementById('loading-screen').classList.add('hidden'); }, 800);
+    animate();
+    return true;
+  } catch (e) {
+    console.error('3D 初始化失败:', e.message);
+    showFallbackView();
+    return false;
+  }
+}
+
+function showFallbackView() {
+  var container = document.getElementById('canvas-container');
+  if (!container) return;
+  container.innerHTML = '<div style="width:100%;height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#1a2a1a;color:#aaa;font-family:sans-serif;"><h3 style="color:#fbbf24;margin-bottom:10px;">🚗 租车管理系统</h3><p style="font-size:14px;">3D视图不可用 - 使用2D平面图模式</p><div id="fallback-2d" style="margin-top:20px;"></div></div>';
+  window.is3DFallback = true;
 }
 
 function createLighting() {
@@ -330,12 +370,14 @@ function enterInterior(outletId) {
   createInteriorDecorations(os);
   scene.add(interiorGroup);
 
-  camera.position.set(0, 12, 18);
-  camera.lookAt(0, 1, 0);
-  controls.target.set(0, 1, 0);
-  controls.minDistance = 5;
-  controls.maxDistance = 35;
-  controls.maxPolarAngle = Math.PI / 2.1;
+  camera.position.set(0, 18, 26);
+  camera.lookAt(0, 1.5, 0);
+  controls.target.set(0, 1.5, 0);
+  controls.minDistance = 8;
+  controls.maxDistance = 50;
+  controls.maxPolarAngle = Math.PI / 2.05;
+  controls.minPolarAngle = Math.PI / 8;
+  controls.enablePan = true;
   controls.update();
 
   var btn = document.getElementById('exitInteriorBtn');
@@ -390,9 +432,12 @@ function createInteriorRoom(outletId, os) {
 
   for (var ti = 0; ti < roomW; ti += 2) {
     for (var tj = 0; tj < roomD; tj += 2) {
+      var tileColor = ((Math.floor(ti / 2) + Math.floor(tj / 2)) % 2 === 0) ? 0x4a4540 : 0x3a3530;
+      if (level >= 4) tileColor = ((Math.floor(ti / 2) + Math.floor(tj / 2)) % 2 === 0) ? 0x383330 : 0x2a2825;
+      if (level >= 5) tileColor = ((Math.floor(ti / 2) + Math.floor(tj / 2)) % 2 === 0) ? 0x282520 : 0x1a1815;
       var tileBorder = new THREE.Mesh(
         new THREE.PlaneGeometry(1.95, 1.95),
-        new THREE.MeshStandardMaterial({ color: ((ti + tj) % 4 === 0) ? 0x4a4540 : 0x3a3530, roughness: 0.5 })
+        new THREE.MeshStandardMaterial({ color: tileColor, roughness: 0.5 })
       );
       tileBorder.rotation.x = -Math.PI / 2;
       tileBorder.position.set(-roomW / 2 + 1 + ti, 0.005, -roomD / 2 + 1 + tj);
@@ -400,8 +445,72 @@ function createInteriorRoom(outletId, os) {
     }
   }
 
+  var gridLineMat = new THREE.LineBasicMaterial({ color: 0x555555, transparent: true, opacity: 0.3 });
+  for (var gi = -roomW / 2; gi <= roomW / 2; gi += 4) {
+    var points = [new THREE.Vector3(gi, 0.01, -roomD / 2), new THREE.Vector3(gi, 0.01, roomD / 2)];
+    var lineGeo = new THREE.BufferGeometry().setFromPoints(points);
+    var line = new THREE.Line(lineGeo, gridLineMat);
+    interiorGroup.add(line);
+  }
+  for (var gj = -roomD / 2; gj <= roomD / 2; gj += 4) {
+    var points2 = [new THREE.Vector3(-roomW / 2, 0.01, gj), new THREE.Vector3(roomW / 2, 0.01, gj)];
+    var lineGeo2 = new THREE.BufferGeometry().setFromPoints(points2);
+    var line2 = new THREE.Line(lineGeo2, gridLineMat);
+    interiorGroup.add(line2);
+  }
+
+  var parkingSpotMat = new THREE.MeshStandardMaterial({
+    color: 0x2a4a8a, transparent: true, opacity: 0.25, roughness: 0.6
+  });
+  var spotOutlineMat = new THREE.MeshBasicMaterial({
+    color: 0x4a90e2, transparent: true, opacity: 0.5
+  });
+  var vehicleCount = 4;
+  var spotStartX = 2;
+  var spotSpacing = 3.5;
+  for (var si = 0; si < vehicleCount; si++) {
+    var spotBase = new THREE.Mesh(new THREE.PlaneGeometry(2.8, 1.8), parkingSpotMat);
+    spotBase.rotation.x = -Math.PI / 2;
+    spotBase.position.set(spotStartX + si * spotSpacing, 0.008, 5);
+    interiorGroup.add(spotBase);
+
+    var spotLeft = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 1.8), spotOutlineMat);
+    spotLeft.position.set(spotStartX + si * spotSpacing - 1.4, 0.015, 5);
+    interiorGroup.add(spotLeft);
+    var spotRight = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.02, 1.8), spotOutlineMat);
+    spotRight.position.set(spotStartX + si * spotSpacing + 1.4, 0.015, 5);
+    interiorGroup.add(spotRight);
+    var spotFront = new THREE.Mesh(new THREE.BoxGeometry(2.8, 0.02, 0.05), spotOutlineMat);
+    spotFront.position.set(spotStartX + si * spotSpacing, 0.015, 5.9);
+    interiorGroup.add(spotFront);
+
+    var spotNum = createTextSprite('P' + (si + 1), '#4a90e2');
+    spotNum.position.set(spotStartX + si * spotSpacing, 0.02, 6.3);
+    spotNum.scale.set(1.5, 0.75, 1);
+    interiorGroup.add(spotNum);
+  }
+
+  var receptionAreaMat = new THREE.MeshStandardMaterial({
+    color: 0x4a3a2a, transparent: true, opacity: 0.15, roughness: 0.7
+  });
+  var receptionArea = new THREE.Mesh(new THREE.PlaneGeometry(7, 4), receptionAreaMat);
+  receptionArea.rotation.x = -Math.PI / 2;
+  receptionArea.position.set(-5, 0.008, 5);
+  interiorGroup.add(receptionArea);
+
+  var recBorderMat = new THREE.MeshBasicMaterial({ color: 0xdaa520, transparent: true, opacity: 0.4 });
+  var recBorderL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 4), recBorderMat);
+  recBorderL.position.set(-8.5, 0.015, 5); interiorGroup.add(recBorderL);
+  var recBorderR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.03, 4), recBorderMat);
+  recBorderR.position.set(-1.5, 0.015, 5); interiorGroup.add(recBorderR);
+  var recBorderF = new THREE.Mesh(new THREE.BoxGeometry(7, 0.03, 0.04), recBorderMat);
+  recBorderF.position.set(-5, 0.015, 7); interiorGroup.add(recBorderF);
+
   var wallColor = level >= 5 ? 0x2a2a3a : level >= 4 ? 0x2a2a30 : level >= 3 ? 0x2a2a2a : 0x252525;
-  var wallMat = new THREE.MeshStandardMaterial({ color: wallColor, roughness: 0.7, metalness: 0.05 });
+  var wallMat = new THREE.MeshStandardMaterial({
+    color: wallColor, roughness: 0.7, metalness: 0.05,
+    transparent: true, opacity: 0.85
+  });
 
   var backWall = new THREE.Mesh(new THREE.BoxGeometry(roomW, roomH, 0.3), wallMat);
   backWall.position.set(0, roomH / 2, -roomD / 2);
@@ -426,6 +535,23 @@ function createInteriorRoom(outletId, os) {
   var doorTop = new THREE.Mesh(new THREE.BoxGeometry(6, roomH - 3.5, 0.3), wallMat);
   doorTop.position.set(0, roomH - (roomH - 3.5) / 2, roomD / 2);
   interiorGroup.add(doorTop);
+
+  var doorFrameMat = new THREE.MeshStandardMaterial({ color: 0xdaa520, metalness: 0.6, roughness: 0.3 });
+  var doorFrameL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 3.5, 0.15), doorFrameMat);
+  doorFrameL.position.set(-3, 1.75, roomD / 2 + 0.1);
+  interiorGroup.add(doorFrameL);
+  var doorFrameR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 3.5, 0.15), doorFrameMat);
+  doorFrameR.position.set(3, 1.75, roomD / 2 + 0.1);
+  interiorGroup.add(doorFrameR);
+  var doorFrameT = new THREE.Mesh(new THREE.BoxGeometry(6.16, 0.12, 0.15), doorFrameMat);
+  doorFrameT.position.set(0, 3.56, roomD / 2 + 0.1);
+  interiorGroup.add(doorFrameT);
+
+  var entranceArrowMat = new THREE.MeshBasicMaterial({ color: 0x4ade80, transparent: true, opacity: 0.6 });
+  var entranceArrow = createTextSprite('▼ 出入口 ▼', '#4ade80');
+  entranceArrow.position.set(0, 0.05, roomD / 2 - 1);
+  entranceArrow.scale.set(6, 3, 1);
+  interiorGroup.add(entranceArrow);
 
   var ceilingMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.9 });
   var ceiling = new THREE.Mesh(new THREE.PlaneGeometry(roomW, roomD), ceilingMat);
@@ -487,6 +613,20 @@ function createInteriorLighting(os) {
   var roomD = 18 + level * 3;
   var roomH = 4 + level * 0.5;
 
+  var ambient = new THREE.AmbientLight(0xfff8f0, 0.6);
+  interiorGroup.add(ambient);
+
+  var dirLight1 = new THREE.DirectionalLight(0xfff5e6, 0.5);
+  dirLight1.position.set(roomW / 4, roomH - 0.5, roomD / 4);
+  interiorGroup.add(dirLight1);
+
+  var dirLight2 = new THREE.DirectionalLight(0xe6f0ff, 0.25);
+  dirLight2.position.set(-roomW / 4, roomH - 0.5, -roomD / 4);
+  interiorGroup.add(dirLight2);
+
+  var hemiLight = new THREE.HemisphereLight(0xffeebb, 0x223344, 0.35);
+  interiorGroup.add(hemiLight);
+
   var ceilingLightMat = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xffffee, emissiveIntensity: level >= 4 ? 1.2 : 0.8 });
   var lightRows = Math.min(level + 1, 4);
   var lightCols = Math.min(level + 1, 5);
@@ -501,21 +641,36 @@ function createInteriorLighting(os) {
     }
   }
 
-  var pl1 = new THREE.PointLight(0xffffee, 0.6, 30);
+  var pl1 = new THREE.PointLight(0xffffee, 0.7, 35);
   pl1.position.set(0, roomH - 0.5, 0);
+  pl1.castShadow = true;
+  pl1.shadow.mapSize.width = 512;
+  pl1.shadow.mapSize.height = 512;
   interiorGroup.add(pl1);
 
-  var pl2 = new THREE.PointLight(0xffeecc, 0.4, 25);
+  var pl2 = new THREE.PointLight(0xffeecc, 0.45, 28);
   pl2.position.set(-roomW / 4, roomH - 0.5, -roomD / 4);
   interiorGroup.add(pl2);
 
-  var pl3 = new THREE.PointLight(0xffeecc, 0.4, 25);
+  var pl3 = new THREE.PointLight(0xffeecc, 0.45, 28);
   pl3.position.set(roomW / 4, roomH - 0.5, -roomD / 4);
   interiorGroup.add(pl3);
 
-  var pl4 = new THREE.PointLight(0xffeecc, 0.3, 20);
+  var pl4 = new THREE.PointLight(0xffeedd, 0.35, 24);
   pl4.position.set(0, roomH - 0.5, roomD / 4);
   interiorGroup.add(pl4);
+
+  if (level >= 3) {
+    var spotLight = new THREE.SpotLight(0xffffdd, 0.6, 30, Math.PI / 6, 0.3, 1);
+    spotLight.position.set(0, roomH, 0);
+    spotLight.target.position.set(0, 0, 0);
+    interiorGroup.add(spotLight);
+    interiorGroup.add(spotLight.target);
+  }
+
+  var fillLight = new THREE.PointLight(0xaabbff, 0.15, 40);
+  fillLight.position.set(0, 2, 0);
+  interiorGroup.add(fillLight);
 }
 
 function createReceptionDesk() {
@@ -524,6 +679,13 @@ function createReceptionDesk() {
   deskTop.position.set(-5, 1.1, 5);
   deskTop.castShadow = true;
   interiorGroup.add(deskTop);
+
+  var deskTopAccent = new THREE.Mesh(
+    new THREE.BoxGeometry(5.1, 0.03, 1.55),
+    new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.3, metalness: 0.2 })
+  );
+  deskTopAccent.position.set(-5, 1.19, 5);
+  interiorGroup.add(deskTopAccent);
 
   var deskFront = new THREE.Mesh(new THREE.BoxGeometry(5, 1.1, 0.15), deskMat);
   deskFront.position.set(-5, 0.55, 5.7);
@@ -537,46 +699,112 @@ function createReceptionDesk() {
   deskSide2.position.set(-2.5, 0.55, 5);
   interiorGroup.add(deskSide2);
 
+  var monitorStandMat = new THREE.MeshStandardMaterial({ color: 0x333333, metalness: 0.7, roughness: 0.2 });
+  var stand1 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.25, 8), monitorStandMat);
+  stand1.position.set(-5.5, 1.45, 5.35);
+  interiorGroup.add(stand1);
+  var stand2 = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.25, 8), monitorStandMat);
+  stand2.position.set(-4.5, 1.45, 5.35);
+  interiorGroup.add(stand2);
+
   var monitorMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.2, metalness: 0.8 });
   var screen = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 0.05), monitorMat);
-  screen.position.set(-5.5, 1.7, 5.3);
-  screen.rotation.x = -0.15;
+  screen.position.set(-5.5, 1.98, 5.32);
+  screen.rotation.x = -0.12;
   interiorGroup.add(screen);
 
   var screenGlow = new THREE.Mesh(
     new THREE.PlaneGeometry(1.1, 0.7),
-    new THREE.MeshStandardMaterial({ color: 0x3498db, emissive: 0x3498db, emissiveIntensity: 0.5 })
+    new THREE.MeshStandardMaterial({ color: 0x3498db, emissive: 0x3498db, emissiveIntensity: 0.6 })
   );
-  screenGlow.position.set(-5.5, 1.7, 5.27);
-  screenGlow.rotation.x = -0.15;
+  screenGlow.position.set(-5.5, 1.98, 5.29);
+  screenGlow.rotation.x = -0.12;
   interiorGroup.add(screenGlow);
 
+  var screenBar = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.0, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0x27ae60, emissive: 0x27ae60, emissiveIntensity: 0.4 })
+  );
+  screenBar.position.set(-5.5, 1.62, 5.30);
+  screenBar.rotation.x = -0.12;
+  interiorGroup.add(screenBar);
+
   var monitor2 = new THREE.Mesh(new THREE.BoxGeometry(1.2, 0.8, 0.05), monitorMat);
-  monitor2.position.set(-4.5, 1.7, 5.3);
-  monitor2.rotation.x = -0.15;
+  monitor2.position.set(-4.5, 1.98, 5.32);
+  monitor2.rotation.x = -0.12;
   interiorGroup.add(monitor2);
 
   var screenGlow2 = new THREE.Mesh(
     new THREE.PlaneGeometry(1.1, 0.7),
-    new THREE.MeshStandardMaterial({ color: 0x27ae60, emissive: 0x27ae60, emissiveIntensity: 0.5 })
+    new THREE.MeshStandardMaterial({ color: 0x27ae60, emissive: 0x27ae60, emissiveIntensity: 0.6 })
   );
-  screenGlow2.position.set(-4.5, 1.7, 5.27);
-  screenGlow2.rotation.x = -0.15;
+  screenGlow2.position.set(-4.5, 1.98, 5.29);
+  screenGlow2.rotation.x = -0.12;
   interiorGroup.add(screenGlow2);
 
+  var screenBar2 = new THREE.Mesh(
+    new THREE.PlaneGeometry(1.0, 0.06),
+    new THREE.MeshStandardMaterial({ color: 0x3498db, emissive: 0x3498db, emissiveIntensity: 0.4 })
+  );
+  screenBar2.position.set(-4.5, 1.62, 5.30);
+  screenBar2.rotation.x = -0.12;
+  interiorGroup.add(screenBar2);
+
   var chairMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.6 });
-  var chair = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.35, 0.6, 8), chairMat);
-  chair.position.set(-5, 0.5, 4.2);
-  interiorGroup.add(chair);
-
-  var chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.6, 0.1), chairMat);
-  chairBack.position.set(-5, 1.0, 3.95);
+  var chairBase = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.32, 0.45, 10), chairMat);
+  chairBase.position.set(-5, 0.42, 4.2);
+  interiorGroup.add(chairBase);
+  var chairBack = new THREE.Mesh(new THREE.BoxGeometry(0.55, 0.65, 0.1), chairMat);
+  chairBack.position.set(-5, 1.02, 3.95);
   interiorGroup.add(chairBack);
+  var armL = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 0.35), chairMat);
+  armL.position.set(-5.3, 0.72, 4.18);
+  interiorGroup.add(armL);
+  var armR = new THREE.Mesh(new THREE.BoxGeometry(0.08, 0.04, 0.35), chairMat);
+  armR.position.set(-4.7, 0.72, 4.18);
+  interiorGroup.add(armR);
 
-  var welcomeSign = createTextSprite('欢迎光临', '#fbbf24');
-  welcomeSign.position.set(-5, 3.5, 5.5);
+  var customerChairMat = new THREE.MeshStandardMaterial({ color: 0x444444, roughness: 0.5 });
+  for (var ci = 0; ci < 2; ci++) {
+    var cx = -5 + (ci === 0 ? -1.6 : 1.6);
+    var cSeat = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.28, 0.4, 8), customerChairMat);
+    cSeat.position.set(cx, 0.38, 6.6);
+    interiorGroup.add(cSeat);
+    var cBack = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.55, 0.08), customerChairMat);
+    cBack.position.set(cx, 0.92, 6.82);
+    interiorGroup.add(cBack);
+  }
+
+  var welcomeSignBg = new THREE.Mesh(
+    new THREE.BoxGeometry(3.2, 0.65, 0.04),
+    new THREE.MeshStandardMaterial({ color: 0x1a3a5a, roughness: 0.4 })
+  );
+  welcomeSignBg.position.set(-5, 3.5, 5.52);
+  interiorGroup.add(welcomeSignBg);
+  var welcomeSign = createTextSprite('🏪 前台接待', '#fbbf24');
+  welcomeSign.position.set(-5, 3.51, 5.56);
   welcomeSign.scale.set(5, 2.5, 1);
   interiorGroup.add(welcomeSign);
+
+  var phoneMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3, metalness: 0.5 });
+  var phone = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.12, 0.22), phoneMat);
+  phone.position.set(-3.2, 1.23, 5.2);
+  interiorGroup.add(phone);
+  var phoneScreen = new THREE.Mesh(
+    new THREE.PlaneGeometry(0.11, 0.07),
+    new THREE.MeshStandardMaterial({ color: 0x00ff88, emissive: 0x00ff88, emissiveIntensity: 0.3 })
+  );
+  phoneScreen.position.set(-3.2, 1.28, 5.33);
+  interiorGroup.add(phoneScreen);
+
+  var plantPotMat = new THREE.MeshStandardMaterial({ color: 0x8B4513, roughness: 0.7 });
+  var pot = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.14, 0.3, 8), plantPotMat);
+  pot.position.set(-7.8, 0.25, 5);
+  interiorGroup.add(pot);
+  var leafMat = new THREE.MeshStandardMaterial({ color: 0x27ae60, roughness: 0.8 });
+  var leaves = new THREE.Mesh(new THREE.SphereGeometry(0.3, 8, 6), leafMat);
+  leaves.position.set(-7.8, 0.75, 5);
+  interiorGroup.add(leaves);
 }
 
 function createVehicleDisplayArea(outletId) {
@@ -674,6 +902,40 @@ function createInteriorFacilities(outletId, os) {
     { x: 0, z: -roomD / 2 + 3 },
     { x: 0, z: -roomD / 2 + 7 }
   ];
+
+  var facilityZoneMat = new THREE.MeshStandardMaterial({
+    color: 0x4a3a6a, transparent: true, opacity: 0.12, roughness: 0.8
+  });
+  var zoneBorderMat = new THREE.MeshBasicMaterial({
+    color: 0x9b59b6, transparent: true, opacity: 0.35
+  });
+
+  facPositions.forEach(function(pos, idx) {
+    var zoneBase = new THREE.Mesh(new THREE.PlaneGeometry(4.5, 4.5), facilityZoneMat);
+    zoneBase.rotation.x = -Math.PI / 2;
+    zoneBase.position.set(pos.x, 0.006, pos.z);
+    interiorGroup.add(zoneBase);
+
+    var borderL = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 4.5), zoneBorderMat);
+    borderL.position.set(pos.x - 2.25, 0.01, pos.z); interiorGroup.add(borderL);
+    var borderR = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.02, 4.5), zoneBorderMat);
+    borderR.position.set(pos.x + 2.25, 0.01, pos.z); interiorGroup.add(borderR);
+    var borderF = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.02, 0.04), zoneBorderMat);
+    borderF.position.set(pos.x, 0.01, pos.z + 2.25); interiorGroup.add(borderF);
+    var borderB = new THREE.Mesh(new THREE.BoxGeometry(4.5, 0.02, 0.04), zoneBorderMat);
+    borderB.position.set(pos.x, 0.01, pos.z - 2.25); interiorGroup.add(borderB);
+
+    if (idx < facilities.length) {
+      var fid = facilities[idx];
+      var cfg = getFacilityConfig(fid);
+      if (cfg) {
+        var floorIcon = createTextSprite(cfg.icon || '⚙', '#9b59b6');
+        floorIcon.position.set(pos.x, 0.03, pos.z - 1.8);
+        floorIcon.scale.set(1.8, 0.9, 1);
+        interiorGroup.add(floorIcon);
+      }
+    }
+  });
 
   facilities.forEach(function(fid, idx) {
     if (idx >= facPositions.length) return;
@@ -1260,4 +1522,241 @@ function animate() {
   }
 
   renderer.render(scene, camera);
+}
+
+var floorPlanCanvas = null;
+var floorPlanCtx = null;
+
+function renderShopFloorPlan(outletId) {
+  var os = getOutletState(outletId);
+  if (!os || !os.owned) return null;
+
+  var level = os.level || 1;
+  var roomW = 24 + level * 4;
+  var roomD = 18 + level * 3;
+
+  var canvasW = 640;
+  var canvasH = Math.round(canvasW * (roomD / roomW));
+  var scale = canvasW / roomW;
+  var offsetX = canvasW / 2;
+  var offsetY = 40;
+
+  floorPlanCanvas = document.createElement('canvas');
+  floorPlanCanvas.width = canvasW;
+  floorPlanCanvas.height = canvasH + 80;
+  floorPlanCtx = floorPlanCanvas.getContext('2d');
+
+  var ctx = floorPlanCtx;
+
+  ctx.fillStyle = '#1a1a2e';
+  ctx.fillRect(0, 0, canvasW, canvasH + 80);
+
+  ctx.fillStyle = '#252535';
+  ctx.fillRect(offsetX - (roomW / 2) * scale, offsetY, roomW * scale, roomD * scale);
+
+  ctx.strokeStyle = '#3a3a4a';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(offsetX - (roomW / 2) * scale, offsetY, roomW * scale, roomD * scale);
+
+  for (var gx = 0; gx <= roomW; gx += 4) {
+    var sx = offsetX - (roomW / 2) * scale + gx * scale;
+    ctx.beginPath();
+    ctx.moveTo(sx, offsetY);
+    ctx.lineTo(sx, offsetY + roomD * scale);
+    ctx.strokeStyle = 'rgba(85,85,85,0.25)';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  }
+  for (var gz = 0; gz <= roomD; gz += 4) {
+    var sy = offsetY + gz * scale;
+    ctx.beginPath();
+    ctx.moveTo(offsetX - (roomW / 2) * scale, sy);
+    ctx.lineTo(offsetX + (roomW / 2) * scale, sy);
+    ctx.strokeStyle = 'rgba(85,85,85,0.25)';
+    ctx.lineWidth = 0.5;
+    ctx.stroke();
+  }
+
+  ctx.fillStyle = 'rgba(74,74,138,0.2)';
+  var recX = offsetX + (-5 - 3.5) * scale;
+  var recY = offsetY + (5 - 2) * scale;
+  ctx.fillRect(recX, recY, 7 * scale, 4 * scale);
+  ctx.strokeStyle = '#daa520';
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([4, 3]);
+  ctx.strokeRect(recX, recY, 7 * scale, 4 * scale);
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = '#daa520';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('前台', offsetX + (-5) * scale, offsetY + (5) * scale + 4);
+
+  var vehicleCount = 4;
+  var spotStartX = 2;
+  var spotSpacing = 3.5;
+  var vehicleColors = ['#3498db', '#2ecc71', '#f39c12', '#e74c3c'];
+  var vehicles = getAvailableVehiclesAtOutlet(outletId) || [];
+
+  for (var vi = 0; vi < vehicleCount; vi++) {
+    var vx = offsetX + (spotStartX + vi * spotSpacing) * scale;
+    var vy = offsetY + 5 * scale;
+
+    ctx.fillStyle = 'rgba(42,74,138,0.2)';
+    ctx.fillRect(vx - 1.4 * scale, vy - 0.9 * scale, 2.8 * scale, 1.8 * scale);
+    ctx.strokeStyle = '#4a90e2';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 2]);
+    ctx.strokeRect(vx - 1.4 * scale, vy - 0.9 * scale, 2.8 * scale, 1.8 * scale);
+    ctx.setLineDash([]);
+
+    ctx.fillStyle = '#4a90e2';
+    ctx.font = '9px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('P' + (vi + 1), vx, vy + 0.9 * scale + 10);
+
+    if (vi < vehicles.length) {
+      var vColor = vehicleColors[vi % vehicleColors.length];
+      ctx.fillStyle = vColor;
+      var carW = 2.0 * scale;
+      var carH = 1.0 * scale;
+      ctx.beginPath();
+      ctx.roundRect(vx - carW / 2, vy - carH / 2, carW, carH, 3);
+      ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 8px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(vehicles[vi].brand ? vehicles[vi].brand.substring(0, 4) : '车', vx, vy + 3);
+    }
+  }
+
+  ctx.fillStyle = '#60a5fa';
+  ctx.font = 'bold 10px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('🚗 车辆展示区', offsetX + (spotStartX + (vehicleCount - 1) * spotSpacing / 2) * scale, offsetY + (7.5) * scale);
+
+  var facilities = (os.facilities || []);
+  var facPositions = [
+    { x: -roomW / 2 + 3, z: -roomD / 2 + 3 },
+    { x: -roomW / 2 + 3, z: -roomD / 2 + 7 },
+    { x: -roomW / 2 + 3, z: -roomD / 2 + 11 },
+    { x: roomW / 2 - 3, z: -roomD / 2 + 3 },
+    { x: roomW / 2 - 3, z: -roomD / 2 + 7 },
+    { x: roomW / 2 - 3, z: -roomD / 2 + 11 },
+    { x: 0, z: -roomD / 2 + 3 },
+    { x: 0, z: -roomD / 2 + 7 }
+  ];
+
+  facPositions.forEach(function(pos, idx) {
+    var fx = offsetX + pos.x * scale;
+    var fy = offsetY + pos.z * scale;
+
+    ctx.fillStyle = 'rgba(74,58,106,0.15)';
+    ctx.fillRect(fx - 2.25 * scale, fy - 2.25 * scale, 4.5 * scale, 4.5 * scale);
+    ctx.strokeStyle = '#9b59b6';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3, 2]);
+    ctx.strokeRect(fx - 2.25 * scale, fy - 2.25 * scale, 4.5 * scale, 4.5 * scale);
+    ctx.setLineDash([]);
+
+    if (idx < facilities.length) {
+      var fid = facilities[idx];
+      var cfg = getFacilityConfig(fid);
+      if (cfg) {
+        ctx.fillStyle = '#9b59b6';
+        ctx.beginPath();
+        ctx.arc(fx, fy, 12, 0, Math.PI * 2);
+        ctx.fill();
+
+        ctx.fillStyle = '#ffffff';
+        ctx.font = 'bold 10px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        var iconText = cfg.icon || '⚙';
+        ctx.fillText(iconText, fx, fy);
+
+        ctx.font = '8px sans-serif';
+        ctx.textBaseline = 'top';
+        ctx.fillText(cfg.name ? cfg.name.substring(0, 4) : '', fx, fy + 14);
+      }
+    } else {
+      ctx.fillStyle = 'rgba(255,255,255,0.15)';
+      ctx.fillRect(fx - 8, fy - 8, 16, 16);
+      ctx.strokeStyle = 'rgba(255,255,255,0.2)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(fx - 8, fy - 8, 16, 16);
+
+      ctx.fillStyle = 'rgba(255,255,255,0.25)';
+      ctx.font = 'bold 14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('+', fx, fy);
+    }
+  });
+
+  ctx.fillStyle = 'rgba(74,222,128,0.15)';
+  var doorW = 6 * scale;
+  var doorH = 3 * scale;
+  ctx.fillRect(offsetX - doorW / 2, offsetY + roomD * scale - doorH / 2, doorW, doorH);
+  ctx.strokeStyle = '#4ade80';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([]);
+  ctx.strokeRect(offsetX - doorW / 2, offsetY + roomD * scale - doorH / 2, doorW, doorH);
+
+  ctx.fillStyle = '#4ade80';
+  ctx.font = 'bold 11px sans-serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('▼ 出入口 ▼', offsetX, offsetY + roomD * scale + 18);
+
+  ctx.fillStyle = '#333344';
+  ctx.fillRect(0, canvasH + 10, canvasW, 70);
+
+  var outletCfg = OUTLET_CONFIGS.find(function(c){ return c.id === outletId; });
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = 'bold 13px "Microsoft YaHei", sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText((outletCfg ? outletCfg.name : '门店') + ' Lv.' + level + ' - 平面图', 15, canvasH + 32);
+
+  ctx.fillStyle = '#aaaaaa';
+  ctx.font = '10px sans-serif';
+  var infoY = canvasH + 50;
+  ctx.fillText('● 车辆: ' + vehicles.length + '/' + vehicleCount, 15, infoY);
+  ctx.fillText('● 设施: ' + facilities.length + '/8', 120, infoY);
+  ctx.fillText('● 尺寸: ' + roomW + '×' + roomD + 'm', 220, infoY);
+
+  ctx.fillStyle = '#666680';
+  ctx.font = '9px sans-serif';
+  ctx.textAlign = 'right';
+  ctx.fillText('N ↑', canvasW - 15, 20);
+  ctx.beginPath();
+  ctx.moveTo(canvasW - 15, 24);
+  ctx.lineTo(canvasW - 19, 36);
+  ctx.lineTo(canvasW - 11, 36);
+  ctx.closePath();
+  ctx.fillStyle = '#888899';
+  ctx.fill();
+
+  return floorPlanCanvas.toDataURL('image/png');
+}
+
+function showFloorPlanModal(outletId) {
+  var dataUrl = renderShopFloorPlan(outletId);
+  if (!dataUrl) return;
+
+  var existing = document.getElementById('floorPlanModal');
+  if (existing) existing.remove();
+
+  var modal = document.createElement('div');
+  modal.id = 'floorPlanModal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);display:flex;align-items:center;justify-content:center;z-index:9999;animation:fadeIn 0.2s ease;';
+  modal.innerHTML = '<div style="background:#1a1a2e;border-radius:12px;padding:20px;max-width:700px;width:92%;box-shadow:0 8px 40px rgba(0,0,0,0.5);border:1px solid #333355;"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;"><h3 style="color:#fbbf24;margin:0;font-size:16px;">🗺️ 店铺平面图</h3><button id="closeFloorPlanBtn" style="background:#333355;border:none;color:#aaa;padding:6px 14px;border-radius:6px;cursor:pointer;font-size:14px;">✕ 关闭</button></div><img src="' + dataUrl + '" style="width:100%;height:auto;border-radius:8px;border:1px solid #2a2a44;" /><div style="margin-top:12px;display:flex;gap:15px;flex-wrap:wrap;font-size:11px;color:#888;"><span style="color:#4a90e2;">■ 停车位</span><span style="color:#daa520;">■ 前台区</span><span style="color:#9b59b6;">◆ 设施位</span><span style="color:#4ade80;">▣ 出入口</span></div></div>';
+  document.body.appendChild(modal);
+
+  modal.querySelector('#closeFloorPlanBtn').addEventListener('click', function() {
+    modal.remove();
+  });
+  modal.addEventListener('click', function(e) {
+    if (e.target === modal) modal.remove();
+  });
 }

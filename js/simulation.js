@@ -189,6 +189,10 @@ function nextDay() {
   gameState.serviceStats.today = { insurance:0, wifi:0, gps:0, delivery:0, refuel:0, recharge:0, totalIncome:0 };
   gameState._dayMatchedVehicles = {};
   if (!gameState._vehicleRentHistory) gameState._vehicleRentHistory = {};
+  gameState._todayMaintainCount = 0;
+  gameState._todayNewMembers = 0;
+  gameState._todayVipOrders = 0;
+  gameState._todayRejectCounts = {};
 
   processRentalCosts();
   processTransfers();
@@ -197,6 +201,8 @@ function nextDay() {
   processParkingPressure();
   processParkingRent();
   processCarWashAllOutlets();
+
+  if (typeof degradeAllVehicles === 'function') degradeAllVehicles();
 
   var totalWages = processDailyEmployeeEffects();
   if (totalWages > 0) {
@@ -234,6 +240,7 @@ function nextDay() {
 
   if (gameState.currentDay % 5 === 0 && gameState.members.length < 200) {
     var newMember = addNewMember();
+    gameState._todayNewMembers = (gameState._todayNewMembers || 0) + 1;
     addMessage('👤 新会员注册：' + newMember.name + '（' + getMemberLevelInfo(newMember.level).name + '）', 'good');
   }
 
@@ -358,6 +365,18 @@ function nextDay() {
   if (typeof processDailyReviews === 'function') processDailyReviews();
   if (typeof processDailyAdvertising === 'function') processDailyAdvertising();
 
+  if (typeof generateDailyChallenge === 'function' && (!gameState.dailyChallenge || gameState.dailyChallenge.claimed)) {
+    generateDailyChallenge();
+    if (gameState.dailyChallenge) {
+      addMessage('🎯 今日挑战：' + gameState.dailyChallenge.desc + '（奖励 $' + formatCurrency(gameState.dailyChallenge.rewardCash) + '，声誉 +' + gameState.dailyChallenge.rewardRep + '）', 'good');
+    }
+    gameState.challengeStreak = (gameState.challengeStreak || 0) + (gameState.dailyChallenge && gameState.dailyChallenge.completed ? 1 : 0);
+  }
+
+  if (typeof checkChallengeProgress === 'function') checkChallengeProgress();
+  if (typeof processAutoManagement === 'function') processAutoManagement();
+  if (typeof processCustomerLoyalty === 'function') processCustomerLoyalty();
+
   updateUI(); saveGame();
 }
 
@@ -423,9 +442,16 @@ function acceptOrder(orderId) {
   }
   incomeBonusPct += zoneBonus * 100;
 
-  var baseIncome = order.totalIncome;
+  var conditionPenalty = typeof getConditionPenaltyMultiplier === 'function' ? getConditionPenaltyMultiplier(vehicle) : { fuelMult: 1.0, satisfactionPenalty: 1.0, acceptPenalty: 1.0 };
+  var baseIncome = order.totalIncome * conditionPenalty.acceptPenalty;
   var bonusIncome = Math.round(baseIncome * incomeBonusPct / 100);
   var totalIncome = baseIncome + serviceResult.serviceIncome + facilityFee + bonusIncome;
+
+  var outletState = getOutletState(order.outletId);
+  if (outletState && outletState.autoManageEnabled) {
+    var managementFee = Math.round(baseIncome * 0.05);
+    totalIncome -= managementFee;
+  }
 
   gameState.cash += totalIncome;
   gameState.todayIncome += totalIncome;
@@ -448,6 +474,16 @@ function acceptOrder(orderId) {
 
   if (order.memberId) {
     updateMemberAfterRental(order.memberId, totalIncome);
+    gameState._todayVipOrders = (gameState._todayVipOrders || 0) + 1;
+    var member = gameState.members.find(function(m){ return m.id === order.memberId; });
+    if (member && typeof calculateVipTip === 'function') {
+      var tip = calculateVipTip(member.level || 1, totalIncome);
+      if (tip > 0) {
+        gameState.cash += tip;
+        gameState.todayIncome += tip;
+        addMessage('💎 ' + order.customerName + '(VIP) 小费 +' + formatCurrency(tip), 'good');
+      }
+    }
   }
 
   if (typeof showDollarSign === 'function') showDollarSign(order.outletId);
@@ -554,6 +590,11 @@ function rejectOrder(orderId) {
   if (idx === -1) return;
   var order = gameState.pendingOrders[idx];
   gameState.pendingOrders.splice(idx, 1);
+  if (typeof applyCustomerComplaints === 'function') {
+    var prevRejects = gameState._todayRejectCounts[order.customerName] || 0;
+    gameState._todayRejectCounts[order.customerName] = prevRejects + 1;
+    applyCustomerComplaints(order.customerName, gameState._todayRejectCounts[order.customerName]);
+  }
   addMessage('已拒绝 ' + order.customerName + ' 的租车订单', 'bad');
   renderOrders(); updateUI(); saveGame();
 }
