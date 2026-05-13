@@ -200,8 +200,8 @@ function nextDay() {
     addMessage('💼 员工工资支出 ' + formatCurrency(totalWages), 'warn');
   }
 
-  if (typeof processLoanInterest === 'function') processLoanInterest();
   if (typeof processDailyFinance === 'function') processDailyFinance();
+  if (typeof processLoanInterest === 'function') processLoanInterest();
 
   if (typeof processFacilityMaintenance === 'function') {
     var maintCost = processFacilityMaintenance();

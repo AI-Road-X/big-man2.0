@@ -228,8 +228,11 @@ function repayLoan(loanId, amount) {
 }
 
 function processLoanInterest() {
+  if (!gameState.financials) initFinancialState();
+  if (!gameState.financials.todayDetail) gameState.financials.todayDetail = JSON.parse(JSON.stringify((initFinancialState() || {}).todayDetail || { loanInterest:0, loanRepayments:0, loanProceeds:0 }));
   var totalInterest = 0;
   var overdueLoans = [];
+  if (!gameState.loans || gameState.loans.length === 0) return 0;
   gameState.loans.forEach(function(loan) {
     var interest = loan.dailyInterest;
     loan.remainingAmount = Math.round((loan.remainingAmount + interest) * 100) / 100;
@@ -242,7 +245,7 @@ function processLoanInterest() {
     var roundedInterest = Math.round(totalInterest);
     gameState.cash -= roundedInterest;
     gameState.todayExpense += roundedInterest;
-    gameState.financials.todayDetail.loanInterest += roundedInterest;
+    gameState.financials.todayDetail.loanInterest = (gameState.financials.todayDetail.loanInterest || 0) + roundedInterest;
   }
   overdueLoans.forEach(function(loan) {
     addMessage('⚠️ 贷款逾期！' + formatCurrency(loan.remainingAmount) + ' 未还，每日利息 ' + formatCurrency(loan.dailyInterest), 'bad');
@@ -391,7 +394,6 @@ function processDailyFinance() {
   gameState.financials.todayDetail.energyCost = Math.round(energyCost);
   gameState.financials.todayDetail.rentalIncome = gameState.todayIncome - (gameState.serviceStats ? gameState.serviceStats.today.totalIncome : 0);
   gameState.financials.todayDetail.serviceIncome = gameState.serviceStats ? gameState.serviceStats.today.totalIncome : 0;
-  processLoanInterest();
   var preTaxProfit = gameState.todayIncome - gameState.todayExpense;
   var taxes = preTaxProfit > 0 ? Math.round(preTaxProfit * 0.05) : 0;
   if (taxes > 0) {
