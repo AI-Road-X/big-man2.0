@@ -647,22 +647,37 @@
     function renderPricingInline() {
       var content = document.getElementById('pricingContent');
       var types = Object.values(VEHICLE_TYPES);
-      html = '<div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">';
-      html += '<div style="font-size:13px;font-weight:700;color:#1e293b;">⚡ 一键调价</div>';
-      html += '<button style="padding:6px 14px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#059669,#10b981);color:#fff;" onclick="batchSetPrice(80)">全部8折</button>';
-      html += '<button style="padding:6px 14px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;" onclick="batchSetPrice(100)">恢复原价</button>';
-      html += '<button style="padding:6px 14px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#d97706,#f59e0b);color:#fff;" onclick="batchSetPrice(120)">全部加价20%</button>';
-      html += '<button style="padding:6px 14px;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;" onclick="batchSetPrice(150)">全部加价50%</button>';
+      html = '<div style="padding:14px;background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(168,85,247,0.06));border-radius:12px;border:1px solid rgba(168,85,247,0.15);margin-bottom:12px;">';
+      html += '<div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:8px;">⚡ 一键调价</div>';
+      html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px;">';
+      html += '<button style="padding:6px 12px;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#059669,#10b981);color:#fff;" onclick="batchSetPrice(80)">📉 全部8折</button>';
+      html += '<button style="padding:6px 12px;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;" onclick="batchSetPrice(100)">↩️ 恢复原价</button>';
+      html += '<button style="padding:6px 12px;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#d97706,#f59e0b);color:#fff;" onclick="batchSetPrice(120)">📈 加价20%</button>';
+      html += '<button style="padding:6px 12px;border:none;border-radius:6px;font-size:10px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;" onclick="batchSetPrice(150)">🚀 加价50%</button>';
       html += '</div>';
-      html += '<table class="vehicle-table"><thead><tr><th>车型</th><th>数量</th><th>租金倍率</th><th>范围</th><th>生效</th><th>操作</th></tr></thead><tbody>';
+      html += '<div style="font-size:11px;color:#94a3b8;margin-bottom:4px;">策略预设：</div>';
+      html += '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+      if (typeof applyPriceStrategy === 'function') {
+        html += '<button style="padding:5px 10px;border:none;border-radius:6px;font-size:9px;font-weight:600;cursor:pointer;background:rgba(239,68,68,0.1);color:#ef4444;" onclick="applyPriceStrategy(\'aggressive\');renderPricingInline();">🔥 激进高价</button>';
+        html += '<button style="padding:5px 10px;border:none;border-radius:6px;font-size:9px;font-weight:600;cursor:pointer;background:rgba(59,130,246,0.1);color:#3b82f6;" onclick="applyPriceStrategy(\'balanced\');renderPricingInline();">⚖️ 平衡策略</button>';
+        html += '<button style="padding:5px 10px;border:none;border-radius:6px;font-size:9px;font-weight:600;cursor:pointer;background:rgba(16,185,129,0.1);color:#10b981;" onclick="applyPriceStrategy(\'volume\');renderPricingInline();">🏃 薄利多销</button>';
+        html += '<button style="padding:5px 10px;border:none;border-radius:6px;font-size:9px;font-weight:600;cursor:pointer;background:rgba(168,85,247,0.1);color:#a855f7;" onclick="applyPriceStrategy(\'premium\');renderPricingInline();">💎 高端溢价</button>';
+      }
+      html += '</div></div>';
+      html += '<table class="vehicle-table"><thead><tr><th>车型</th><th>数量</th><th>租金倍率</th><th>推荐</th><th>操作</th></tr></thead><tbody>';
       types.forEach(function(type){
         var mult = getRateMultiplier(type);
         var count = gameState.ownedVehicles.filter(function(v){ return v.type === type; }).length;
         if (count === 0 && mult === 1.0) return;
+        var recMult = typeof getRecommendedRateMultiplier === 'function' ? getRecommendedRateMultiplier(type) : mult;
+        var recDiff = Math.abs(mult - recMult);
+        var recLabel = recDiff < 0.1 ? '✅' : mult > recMult ? '⬇️' : '⬆️';
+        var recColor = recDiff < 0.1 ? '#22c55e' : mult > recMult ? '#f59e0b' : '#3b82f6';
         html += '<tr><td><span class="tag tag-type">' + type + '</span></td><td>' + count + ' 辆</td>' +
           '<td><div style="display:flex;align-items:center;gap:8px;"><input type="range" min="50" max="200" value="' + Math.round(mult * 100) + '" class="rate-slider" id="pRateSlider_' + type + '" oninput="updatePRateDisplay(\'' + type + '\',this.value)"><span id="pRateDisplay_' + type + '" style="font-family:JetBrains Mono,monospace;font-size:14px;font-weight:700;color:#4ade80;min-width:40px;">' + mult.toFixed(1) + 'x</span></div></td>' +
-          '<td><span style="font-size:10px;color:#94a3b8;">0.5x ~ 2.0x</span></td>' +
-          '<td><span style="font-size:10px;color:#94a3b8;">次日生效</span></td>' +
+          '<td><span style="font-size:12px;' + 'color:' + recColor + ';">' + recLabel + '</span> <span style="font-size:9px;color:#94a3b8;">' + recMult.toFixed(1) + 'x</span>' +
+          (typeof applyRecommendedPrice === 'function' ? '<br><button style="padding:2px 8px;font-size:9px;background:rgba(59,130,246,0.1);color:#3b82f6;border:1px solid rgba(59,130,246,0.3);border-radius:4px;cursor:pointer;margin-top:2px;" onclick="applyRecommendedPrice(\'' + type + '\');renderPricingInline();">🎯 应用推荐</button>' : '') +
+          '</td>' +
           '<td><button class="action-btn btn-buy" onclick="confirmPRateChange(\'' + type + '\')">确认</button></td></tr>';
       });
       html += '</tbody></table>';
@@ -670,10 +685,10 @@
         html = '<div class="empty-state"><div class="icon">💰</div><div class="text">购买车辆后可调整租金倍率</div></div>';
       }
       html += '<div style="margin-top:16px;padding:12px;background:rgba(241,245,249,1);border-radius:10px;">' +
-        '<div style="font-size:11px;color:#64748b;margin-bottom:6px;">💡 提示</div>' +
+        '<div style="font-size:11px;color:#64748b;margin-bottom:6px;">💡 定价指南</div>' +
         '<div style="font-size:10px;color:#94a3b8;line-height:1.6;">' +
-        '• 竞争对手每周调整市场系数（0.8~1.2），影响所有车辆基础租金<br>' +
-        '• 当前市场系数: <span style="color:' + (gameState.marketCoefficient >= 1.0 ? '#4ade80' : '#f87171') + ';">' + gameState.marketCoefficient.toFixed(2) + '</span><br>' +
+        '• 竞争对手每周调整市场系数（<span style="color:' + (gameState.marketCoefficient >= 1.0 ? '#22c55e' : '#ef4444') + ';">' + gameState.marketCoefficient.toFixed(2) + '</span>），影响所有车辆基础租金<br>' +
+        '• 🎯 推荐价基于需求、市场、库存综合计算<br>' +
         '• 调价后次日生效，合理定价可提高客户下单率</div></div>';
       content.innerHTML = html;
     }

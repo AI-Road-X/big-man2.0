@@ -540,6 +540,28 @@ function renderMyFleet() {
     tbody.innerHTML = '<tr><td colspan="12"><div class="empty-state"><div class="icon">🚗</div><div class="text">暂无车辆，前往市场购买吧！</div></div></td></tr>';
     return;
   }
+
+  var totalV = gameState.ownedVehicles.length;
+  var availV = gameState.ownedVehicles.filter(function(v){ return (!v.rentedUntil || v.rentedUntil < gameState.currentDay) && !isInTransit(v.id); }).length;
+  var rentedV = gameState.ownedVehicles.filter(function(v){ return v.rentedUntil && v.rentedUntil >= gameState.currentDay; }).length;
+  var transitV = gameState.ownedVehicles.filter(function(v){ return isInTransit(v.id); }).length;
+  var utilRate = totalV > 0 ? Math.round(rentedV / totalV * 100) : 0;
+  var totalValue = gameState.ownedVehicles.reduce(function(s,v){ return s + calculateVehicleValue(v); }, 0);
+  var totalProfitAll = gameState.ownedVehicles.reduce(function(s,v){ return s + getVehicleTotalProfit(v.id); }, 0);
+
+  var toolbarRow = document.createElement('tr');
+  var filterStatus = window._fleetFilter || 'all';
+  toolbarRow.innerHTML = '<td colspan="12"><div style="padding:10px 12px;background:linear-gradient(135deg,rgba(34,197,94,0.05),rgba(59,130,246,0.05));border-radius:10px;border:1px solid rgba(203,213,225,0.4);margin-bottom:6px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">' +
+    '<span style="font-size:11px;font-weight:700;color:#1e293b;">🔍 筛选:</span>' +
+    '<button style="padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid ' + (filterStatus==='all'?'#3b82f6':'rgba(203,213,225,1)') + ';background:' + (filterStatus==='all'?'rgba(59,130,246,0.1)':'transparent') + ';color:' + (filterStatus==='all'?'#3b82f6':'#64748b') + ';" onclick="_fleetFilter=\'all\';renderMyFleet();">全部(' + totalV + ')</button>' +
+    '<button style="padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid ' + (filterStatus==='available'?'#22c55e':'rgba(203,213,225,1)') + ';background:' + (filterStatus==='available'?'rgba(34,197,94,0.1)':'transparent') + ';color:' + (filterStatus==='available'?'#22c55e':'#64748b') + ';" onclick="_fleetFilter=\'available\';renderMyFleet();">✅ 可用(' + availV + ')</button>' +
+    '<button style="padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid ' + (filterStatus==='rented'?'#f59e0b':'rgba(203,213,225,1)') + ';background:' + (filterStatus==='rented'?'rgba(245,158,11,0.1)':'transparent') + ';color:' + (filterStatus==='rented'?'#f59e0b':'#64748b') + ';" onclick="_fleetFilter=\'rented\';renderMyFleet();">📋 已租(' + rentedV + ')</button>' +
+    '<button style="padding:4px 10px;border-radius:6px;font-size:10px;font-weight:600;cursor:pointer;border:1px solid ' + (filterStatus==='transit'?'#60a5fa':'rgba(203,213,225,1)') + ';background:' + (filterStatus==='transit'?'rgba(96,165,250,0.1)':'transparent') + ';color:' + (filterStatus==='transit'?'#60a5fa':'#64748b') + ';" onclick="_fleetFilter=\'transit\';renderMyFleet();">🚚 调度中(' + transitV + ')</button>' +
+    '<div style="width:1px;height:18px;background:rgba(203,213,225,0.5);"></div>' +
+    '<span style="font-size:9px;color:#94a3b8;">利用率 <strong style="color:#3b82f6;">' + utilRate + '%</strong> | 车队总值 <strong style="color:#22c55e;">' + formatCurrency(totalValue) + '</strong> | 累计利润 <strong style="color:#f59e0b;">' + formatCurrency(totalProfitAll) + '</strong></span>' +
+    '</div></td>';
+  tbody.appendChild(toolbarRow);
+
   var sorted = gameState.ownedVehicles.slice();
   sorted.sort(function(a, b) {
     var va, vb;
@@ -572,8 +594,12 @@ function renderMyFleet() {
   });
 
   var ownedOutlets = gameState.outlets.filter(function(o){ return o.owned; });
+  var filterStatus = window._fleetFilter || 'all';
   var fragment = document.createDocumentFragment();
   sorted.forEach(function(v){
+    if (filterStatus === 'available' && (v.rentedUntil && v.rentedUntil >= gameState.currentDay || isInTransit(v.id))) return;
+    if (filterStatus === 'rented' && !(v.rentedUntil && v.rentedUntil >= gameState.currentDay)) return;
+    if (filterStatus === 'transit' && !isInTransit(v.id)) return;
     var fuelInfo = getFuelTypeInfo(v.fuelType);
     var typeInfo = getVehicleTypeInfo(v.type);
     var currentValue = calculateVehicleValue(v);
@@ -647,18 +673,54 @@ function renderVehicleStatus() {
 
   tbody.innerHTML = '';
 
+  var utilRate = total > 0 ? Math.round(rented / total * 100) : 0;
+  var totalValue = gameState.ownedVehicles.reduce(function(s,v){ return s + calculateVehicleValue(v); }, 0);
+  var totalProfitAll = gameState.ownedVehicles.reduce(function(s,v){ return s + getVehicleTotalProfit(v.id); }, 0);
+  var avgMargin = total > 0 ? Math.round(totalProfitAll / (totalValue || 1) * 1000) / 10 : 0;
+
   var statsRow = document.createElement('tr');
   statsRow.innerHTML = '<td colspan="7"><div class="status-grid">' +
     '<div class="status-card"><div class="status-label">总车队</div><div class="status-value" style="color:#60a5fa;">' + total + ' 辆</div></div>' +
     '<div class="status-card"><div class="status-label">可用</div><div class="status-value" style="color:#4ade80;">' + available + ' 辆</div></div>' +
     '<div class="status-card"><div class="status-label">已租出</div><div class="status-value" style="color:#fbbf24;">' + rented + ' 辆</div></div>' +
     '<div class="status-card"><div class="status-label">调度中</div><div class="status-value" style="color:#60a5fa;">' + inTransit + ' 辆</div></div>' +
+    '<div class="status-card"><div class="status-label">利用率</div><div class="status-value" style="color:' + (utilRate >= 70 ? '#22c55e' : utilRate >= 40 ? '#f59e0b' : '#ef4444') + ';">' + utilRate + '%</div></div>' +
     '<div class="status-card"><div class="status-label">平均日租金</div><div class="status-value" style="color:#a78bfa;">' + formatCurrency(avgRate) + '</div></div>' +
-    '<div class="status-card"><div class="status-label">市场系数</div><div class="status-value" style="color:' + (gameState.marketCoefficient >= 1.0 ? '#4ade80' : '#f87171') + ';">' + gameState.marketCoefficient.toFixed(2) + '</div></div>' +
-    '<div class="status-card"><div class="status-label">累计营收</div><div class="status-value" style="color:#4ade80;">' + formatCurrency(gameState.totalRevenue || 0) + '</div></div>' +
-    '<div class="status-card"><div class="status-label">累计出租天数</div><div class="status-value" style="color:#fbbf24;">' + (gameState.totalDaysRented || 0) + ' 天</div></div>' +
+    '<div class="status-card"><div class="status-label">车队总值</div><div class="status-value" style="color:#22c55e;">' + formatCurrency(totalValue) + '</div></div>' +
+    '<div class="status-card"><div class="status-label">累计利润率</div><div class="status-value" style="color:' + (avgMargin >= 30 ? '#22c55e' : avgMargin >= 10 ? '#f59e0b' : '#ef4444') + ';">' + avgMargin + '%</div></div>' +
     '</div></td>';
   tbody.appendChild(statsRow);
+
+  var actionRow = document.createElement('tr');
+  actionRow.innerHTML = '<td colspan="7"><div style="display:flex;gap:6px;padding:8px;background:rgba(248,250,252,1);border-radius:8px;flex-wrap:wrap;margin-bottom:6px;">' +
+    '<button class="action-btn" style="padding:5px 12px;font-size:10px;" onclick="switchTab(\'myvehicles\')">🚗 查看车队详情</button>' +
+    '<button class="action-btn" style="padding:5px 12px;font-size:10px;" onclick="switchTab(\'pricing\')">💰 调整定价</button>' +
+    '<button class="action-btn" style="padding:5px 12px;font-size:10px;" onclick="switchTab(\'outlets\')">🏢 网点管理</button>' +
+    (gameState.ownedVehicles.some(function(v){ return !v.rentedUntil || v.rentedUntil < gameState.currentDay; }) ?
+      '<button class="action-btn" style="padding:5px 12px;font-size:10px;background:linear-gradient(135deg,#059669,#10b981);" onclick="switchTab(\'market\')">🛒 购买新车</button>' : '') +
+    '</div></td>';
+  tbody.appendChild(actionRow);
+
+  if (total > 0) {
+    var profitRanking = gameState.ownedVehicles.slice().sort(function(a,b){ return getVehicleTotalProfit(b.id) - getVehicleTotalProfit(a.id); }).slice(0, 5);
+    var rankRow = document.createElement('tr');
+    var rankHtml = '<td colspan="7"><div style="padding:10px;background:linear-gradient(135deg,rgba(245,158,11,0.06),rgba(239,68,68,0.04));border-radius:10px;border:1px solid rgba(203,213,225,0.3);margin-bottom:6px;">';
+    rankHtml += '<div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:6px;">🏆 利润排行榜 TOP5</div>';
+    rankHtml += '<div style="display:flex;gap:8px;flex-wrap:wrap;">';
+    profitRanking.forEach(function(v, i){
+      var medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1)+'.';
+      var profit = getVehicleTotalProfit(v.id);
+      var margin = getVehicleProfitMargin(v.id);
+      var marginColor = margin > 50 ? '#22c55e' : margin >= 20 ? '#f59e0b' : '#ef4444';
+      rankHtml += '<div style="flex:1;min-width:140px;padding:8px;background:#fff;border-radius:8px;border:1px solid rgba(226,232,240,0.8);">';
+      rankHtml += '<div style="font-size:10px;font-weight:600;color:#1e293b;">' + medal + ' ' + v.brand + ' ' + v.model + ' <span style="color:#94a3b8;font-weight:400;">' + (v.licensePlate||'') + '</span></div>';
+      rankHtml += '<div style="display:flex;gap:8px;margin-top:4px;"><span style="font-size:9px;color:#22c55e;">利润 $' + formatCurrency(profit) + '</span><span style="font-size:9px;color:' + marginColor + ';">' + margin + '%</span></div>';
+      rankHtml += '</div>';
+    });
+    rankHtml += '</div></div></td>';
+    rankRow.innerHTML = rankHtml;
+    tbody.appendChild(rankRow);
+  }
 
   var typeCounts = {};
   gameState.ownedVehicles.forEach(function(v){ typeCounts[v.type] = (typeCounts[v.type] || 0) + 1; });
@@ -668,11 +730,12 @@ function renderVehicleStatus() {
     var typeAvailable = typeVehicles.filter(function(v){ return (!v.rentedUntil || v.rentedUntil < gameState.currentDay) && !isInTransit(v.id); }).length;
     var typeRented = typeVehicles.filter(function(v){ return v.rentedUntil && v.rentedUntil >= gameState.currentDay; }).length;
     var typeAvgRate = typeVehicles.length > 0 ? Math.round(typeVehicles.reduce(function(s,v){ return s + getEffectiveDailyRate(v); }, 0) / typeVehicles.length) : 0;
+    var typeUtil = count > 0 ? Math.round(typeRented / count * 100) : 0;
     var row = document.createElement('tr');
     row.innerHTML =
       '<td><span class="tag tag-type">' + type + '</span></td>' +
       '<td>' + count + ' 辆</td>' +
-      '<td>可用 ' + typeAvailable + ' / 已租 ' + typeRented + '</td>' +
+      '<td>✅' + typeAvailable + ' 📋' + typeRented + ' <span style="font-size:9px;color:' + (typeUtil >= 70 ? '#22c55e' : typeUtil >= 40 ? '#f59e0b' : '#94a3b8') + ';">(' + typeUtil + '%)</span></td>' +
       '<td>—</td><td>—</td>' +
       '<td>均价 ' + formatCurrency(typeAvgRate) + '/天</td>' +
       '<td><span style="font-size:10px;color:#94a3b8;">倍率 ' + getRateMultiplier(type).toFixed(1) + 'x</span></td>';
@@ -719,29 +782,171 @@ function renderPricing() {
   var tbody = document.getElementById('vehicleTableBody');
   tbody.innerHTML = '';
   var types = Object.values(VEHICLE_TYPES);
+  var hasAnyVehicle = gameState.ownedVehicles.length > 0;
+
+  var toolbarRow = document.createElement('tr');
+  var toolbarHtml = '<td colspan="7"><div style="padding:14px;background:linear-gradient(135deg,rgba(99,102,241,0.06),rgba(168,85,247,0.06));border-radius:12px;border:1px solid rgba(168,85,247,0.15);margin-bottom:4px;">';
+  toolbarHtml += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:10px;flex-wrap:wrap;"><span style="font-size:13px;font-weight:700;color:#7c3aed;">⚡ 一键调价</span>';
+  toolbarHtml += '<button class="action-btn" style="padding:5px 12px;font-size:10px;background:linear-gradient(135deg,#059669,#10b981);color:#fff;border:none;" onclick="batchSetAllPrices(80)">📉 全部8折</button>';
+  toolbarHtml += '<button class="action-btn" style="padding:5px 12px;font-size:10px;background:linear-gradient(135deg,#2563eb,#3b82f6);color:#fff;border:none;" onclick="batchSetAllPrices(100)">↩️ 恢复原价</button>';
+  toolbarHtml += '<button class="action-btn" style="padding:5px 12px;font-size:10px;background:linear-gradient(135deg,#d97706,#f59e0b);color:#fff;border:none;" onclick="batchSetAllPrices(120)">📈 加价20%</button>';
+  toolbarHtml += '<button class="action-btn" style="padding:5px 12px;font-size:10px;background:linear-gradient(135deg,#dc2626,#ef4444);color:#fff;border:none;" onclick="batchSetAllPrices(150)">🚀 加价50%</button>';
+  toolbarHtml += '<div style="width:1px;height:20px;background:rgba(203,213,225,0.6);"></div>';
+  toolbarHtml += '<span style="font-size:11px;color:#94a3b8;">策略预设：</span>';
+  toolbarHtml += '<button class="action-btn" style="padding:5px 10px;font-size:10px;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.3);" onclick="applyPriceStrategy(\'aggressive\')">🔥 激进高价</button>';
+  toolbarHtml += '<button class="action-btn" style="padding:5px 10px;font-size:10px;background:rgba(59,130,246,0.1);color:#3b82f6;border:1px solid rgba(59,130,246,0.3);" onclick="applyPriceStrategy(\'balanced\')">⚖️ 平衡策略</button>';
+  toolbarHtml += '<button class="action-btn" style="padding:5px 10px;font-size:10px;background:rgba(16,185,129,0.1);color:#10b981;border:1px solid rgba(16,185,129,0.3);" onclick="applyPriceStrategy(\'volume\')">🏃 薄利多销</button>';
+  toolbarHtml += '<button class="action-btn" style="padding:5px 10px;font-size:10px;background:rgba(168,85,247,0.1);color:#a855f7;border:1px solid rgba(168,85,247,0.3);" onclick="applyPriceStrategy(\'premium\')">💎 高端溢价</button>';
+  toolbarHtml += '</div>';
+
+  if (hasAnyVehicle) {
+    var avgMult = 0;
+    var typeCount = 0;
+    types.forEach(function(t){ var m = getRateMultiplier(t); var c = gameState.ownedVehicles.filter(function(v){ return v.type === t; }).length; if(c>0){ avgMult+=m; typeCount++; } });
+    avgMult = typeCount > 0 ? avgMult / typeCount : 1;
+    var estDailyRevenue = 0;
+    gameState.ownedVehicles.forEach(function(v){ if(!v.rentedUntil || v.rentedUntil < gameState.currentDay) estDailyRevenue += getEffectiveDailyRate(v); });
+    toolbarHtml += '<div style="display:flex;gap:16px;flex-wrap:wrap;padding-top:8px;border-top:1px dashed rgba(168,85,247,0.2);">';
+    toolbarHtml += '<div><span style="font-size:10px;color:#94a3b8;">平均倍率</span><br><span style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:#7c3aed;">' + avgMult.toFixed(2) + 'x</span></div>';
+    toolbarHtml += '<div><span style="font-size:10px;color:#94a3b8;">市场系数</span><br><span style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:' + (gameState.marketCoefficient >= 1 ? '#10b981' : '#f87171') + ';">' + gameState.marketCoefficient.toFixed(2) + '</span></div>';
+    toolbarHtml += '<div><span style="font-size:10px;color:#94a3b8;">预估日收</span><br><span style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:#059669;">' + formatCurrency(estDailyRevenue) + '</span></div>';
+    toolbarHtml += '<div><span style="font-size:10px;color:#94a3b8;">声誉加成</span><br><span style="font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:#f59e0b;">' + ((gameState.reputation||50) < 70 ? '偏低' : (gameState.reputation||50) < 90 ? '良好' : '优秀') + '</span></div>';
+    toolbarHtml += '</div>';
+  }
+  toolbarHtml += '</div></td>';
+  toolbarRow.innerHTML = toolbarHtml;
+  tbody.appendChild(toolbarRow);
+
+  if (!hasAnyVehicle) {
+    var emptyRow = document.createElement('tr');
+    emptyRow.innerHTML = '<td colspan="7"><div class="empty-state"><div class="icon">💰</div><div class="text">购买车辆后可调整租金倍率</div></div></td>';
+    tbody.appendChild(emptyRow);
+    return;
+  }
+
   var hasAny = false;
   types.forEach(function(type){
     var mult = getRateMultiplier(type);
     var count = gameState.ownedVehicles.filter(function(v){ return v.type === type; }).length;
     if (count === 0 && mult === 1.0) return;
     hasAny = true;
+    var recMult = getRecommendedRateMultiplier(type);
+    var recDiff = Math.abs(mult - recMult);
+    var recLabel = recDiff < 0.1 ? '✅ 合理' : mult > recMult ? '⬇️ 偏高' : '⬆️ 偏低';
+    var recColor = recDiff < 0.1 ? '#22c55e' : mult > recMult ? '#f59e0b' : '#3b82f6';
+
+    var vehiclesOfType = gameState.ownedVehicles.filter(function(v){ return v.type === type; });
+    var avgDailyRate = vehiclesOfType.length > 0 ? Math.round(vehiclesOfType.reduce(function(s,v){ return s + getEffectiveDailyRate(v); }, 0) / vehiclesOfType.length) : 0;
+
     var row = document.createElement('tr');
     row.innerHTML =
       '<td><span class="tag tag-type">' + type + '</span></td>' +
-      '<td>' + count + ' 辆</td>' +
-      '<td><div style="display:flex;align-items:center;gap:8px;"><input type="range" min="50" max="200" value="' + Math.round(mult * 100) + '" class="rate-slider" id="rateSlider_' + type + '" oninput="updateRateDisplay(\'' + type + '\',this.value)"><span id="rateDisplay_' + type + '" style="font-family:JetBrains Mono,monospace;font-size:14px;font-weight:700;color:#4ade80;min-width:40px;">' + mult.toFixed(1) + 'x</span></div></td>' +
-      '<td><span style="font-size:10px;color:#94a3b8;">0.5x ~ 2.0x</span></td>' +
-      '<td><span style="font-size:10px;color:#94a3b8;">次日生效</span></td>' +
+      '<td>' + count + ' 辆<br><span style="font-size:9px;color:#94a3b8;">均$' + avgDailyRate + '/天</span></td>' +
+      '<td><div style="display:flex;align-items:center;gap:8px;"><input type="range" min="50" max="200" value="' + Math.round(mult * 100) + '" class="rate-slider" id="rateSlider_' + type + '" oninput="updateRateDisplay(\'' + type + '\',this.value)" style="flex:1;"><span id="rateDisplay_' + type + '" style="font-family:JetBrains Mono,monospace;font-size:14px;font-weight:700;color:#4ade80;min-width:44px;text-align:right;">' + mult.toFixed(1) + 'x</span></div></td>' +
+      '<td><span style="font-size:10px;color:#94a3b8;">0.5x~2.0x</span></td>' +
+      '<td><span style="font-size:10px;' + 'color:' + recColor + ';font-weight:600;">' + recLabel + '</span><br><span style="font-size:9px;color:#94a3b8;">推荐' + recMult.toFixed(1) + 'x</span></td>' +
       '<td><button class="action-btn btn-buy" onclick="confirmRateChange(\'' + type + '\')">确认调价</button></td>' +
-      '<td></td>';
+      '<td><button class="action-btn" style="padding:2px 8px;font-size:9px;background:rgba(59,130,246,0.1);color:#3b82f6;border:1px solid rgba(59,130,246,0.3);" onclick="applyRecommendedPrice(\'' + type + '\')">🎯 推荐</button></td>';
     tbody.appendChild(row);
   });
+
   if (!hasAny) {
-    tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><div class="icon">💰</div><div class="text">购买车辆后可调整租金倍率</div></div></td></tr>';
+    var emptyRow2 = document.createElement('tr');
+    emptyRow2.innerHTML = '<td colspan="7"><div class="empty-state"><div class="icon">💰</div><div class="text">暂无车辆数据</div></div></td>';
+    tbody.appendChild(emptyRow2);
   }
+
   var tipRow = document.createElement('tr');
-  tipRow.innerHTML = '<td colspan="7" style="padding:12px;"><div style="padding:10px;background:rgba(248,250,252,1);border-radius:8px;font-size:10px;color:#94a3b8;line-height:1.6;">💡 竞争对手每周调整市场系数（0.8~1.2），当前: <span style="color:' + (gameState.marketCoefficient >= 1.0 ? '#4ade80' : '#f87171') + ';">' + gameState.marketCoefficient.toFixed(2) + '</span>。合理定价可提高客户下单率。</div></td>';
+  tipRow.innerHTML = '<td colspan="7" style="padding:12px;"><div style="padding:10px;background:rgba(248,250,252,1);border-radius:8px;font-size:10px;color:#94a3b8;line-height:1.8;">' +
+    '<div style="font-weight:600;color:#64748b;margin-bottom:4px;">💡 定价策略指南</div>' +
+    '• 竞争对手每周调整市场系数（<span style="color:' + (gameState.marketCoefficient >= 1.0 ? '#22c55e' : '#ef4444') + ';">' + gameState.marketCoefficient.toFixed(2) + '</span>），影响所有车辆基础租金<br>' +
+    '• 声誉越高客户对高价的接受度越高（当前声誉：<span style="color:#f59e0b;font-weight:600;">' + (gameState.reputation||50) + '</span>）<br>' +
+    '• 🎯 推荐价基于车型需求、市场系数、库存量综合计算<br>' +
+    '• 调价后次日生效，合理定价可提高客户下单率</div></td>';
   tbody.appendChild(tipRow);
+}
+
+function getRecommendedRateMultiplier(type) {
+  var baseMult = getRateMultiplier(type);
+  var marketCoeff = gameState.marketCoefficient || 1.0;
+  var reputation = gameState.reputation || 50;
+  var typeVehicles = gameState.ownedVehicles.filter(function(v){ return v.type === type && (!v.rentedUntil || v.rentedUntil < gameState.currentDay) && !isInTransit(v.id); });
+  var availableCount = typeVehicles.length;
+  var totalCount = gameState.ownedVehicles.filter(function(v){ return v.type === type; }).length;
+  var stockRatio = totalCount > 0 ? availableCount / totalCount : 1;
+
+  var demandBonus = 0;
+  if (gameState.activeEvents.length > 0) {
+    gameState.activeEvents.forEach(function(e){
+      if (e.effect && e.effect.typeDemandMultiplier && e.effect.typeDemandMultiplier[type]) {
+        demandBonus += (e.effect.typeDemandMultiplier[type] - 1) * 0.3;
+      }
+    });
+  }
+
+  var repBonus = reputation > 90 ? 0.15 : reputation > 70 ? 0.08 : reputation > 50 ? 0 : -0.05;
+  var stockPenalty = stockRatio > 0.8 ? -0.1 : stockRatio > 0.5 ? 0 : 0.1;
+  var marketAdjust = marketCoeff > 1.1 ? 0.08 : marketCoeff < 0.9 ? -0.08 : 0;
+
+  var defaultMults = { '轿车':1.0,'SUV':1.3,'跑车':1.8,'MPV':1.2,'紧凑型':0.85,'豪华车':1.6,'超跑':2.5,'旅行车':0.95,'皮卡':1.4,'面包车':0.9,'轿跑':1.7,'小型SUV':1.15,'大型SUV':1.5,'大型MPV':1.35,'敞篷':2.0,'两厢':0.8 };
+  var baseForType = defaultMults[type] || 1.0;
+  var recommended = baseForType * (1 + repBonus + stockPenalty + marketAdjust + demandBonus);
+  return Math.max(0.5, Math.min(2.0, Math.round(recommended * 100) / 100));
+}
+
+function applyRecommendedPrice(type) {
+  var rec = getRecommendedRateMultiplier(type);
+  setRateMultiplier(type, rec);
+  addMessage('🎯 ' + type + ' 已应用推荐倍率 ' + rec.toFixed(1) + 'x', 'good');
+  showToast(type + ' → ' + rec.toFixed(1) + 'x (智能推荐)', 'success');
+  saveGame();
+  switchTab('pricing');
+}
+
+function batchSetAllPrices(percent) {
+  var types = Object.values(VEHICLE_TYPES);
+  var changed = 0;
+  var targetMult = percent / 100;
+  types.forEach(function(type){
+    var count = gameState.ownedVehicles.filter(function(v){ return v.type === type; }).length;
+    if (count > 0) {
+      setRateMultiplier(type, targetMult);
+      changed++;
+    }
+  });
+  if (changed > 0) {
+    var label = percent === 80 ? '全部8折' : percent === 100 ? '恢复原价' : percent === 120 ? '加价20%' : '加价50%';
+    addMessage('⚡ 一键调价：' + label + '，影响 ' + changed + ' 种车型', 'warn');
+    showToast(label + '已应用！影响' + changed + '种车型', 'success');
+    saveGame();
+    switchTab('pricing');
+  } else {
+    showToast('没有可调整的车辆', 'error');
+  }
+}
+
+function applyPriceStrategy(strategy) {
+  var strategies = {
+    aggressive: { name:'激进高价', mults:{'轿车':1.4,'SUV':1.7,'跑车':2.0,'MPV':1.5,'紧凑型':1.1,'豪华车':2.0,'超跑':2.5,'旅行车':1.2,'皮卡':1.8,'面包车':1.2,'轿跑':2.0,'小型SUV':1.4,'大型SUV':1.9,'大型MPV':1.7,'敞篷':2.2,'两厢':1.1} },
+    balanced:   { name:'平衡策略', mults:{'轿车':1.0,'SUV':1.3,'跑车':1.8,'MPV':1.2,'紧凑型':0.85,'豪华车':1.6,'超跑':2.5,'旅行车':0.95,'皮卡':1.4,'面包车':0.9,'轿跑':1.7,'小型SUV':1.15,'大型SUV':1.5,'大型MPV':1.35,'敞篷':2.0,'两厢':0.8} },
+    volume:     { name:'薄利多销', mults:{'轿车':0.75,'SUV':0.95,'跑车':1.3,'MPV':0.9,'紧凑型':0.65,'豪华车':1.2,'超跑':1.8,'旅行车':0.75,'皮卡':1.1,'面包车':0.7,'轿跑':1.25,'小型SUV':0.85,'大型SUV':1.15,'大型MPV':1.0,'敞篷':1.5,'两厢':0.65} },
+    premium:    { name:'高端溢价', mults:{'轿车':1.6,'SUV':1.9,'跑车':2.0,'MPV':1.7,'紧凑型':1.2,'豪华车':2.0,'超跑':2.5,'旅行车':1.3,'皮卡':1.9,'面包车':1.3,'轿跑':2.0,'小型SUV':1.5,'大型SUV':2.0,'大型MPV':1.8,'敞篷':2.2,'两厢':1.2} }
+  };
+  var s = strategies[strategy];
+  if (!s) return;
+  var types = Object.keys(s.mults);
+  var changed = 0;
+  types.forEach(function(type){
+    var count = gameState.ownedVehicles.filter(function(v){ return v.type === type; }).length;
+    if (count > 0) {
+      setRateMultiplier(type, s.mults[type]);
+      changed++;
+    }
+  });
+  addMessage('📋 已应用「' + s.name + '」策略，影响 ' + changed + ' 种车型', 'good');
+  showToast(s.name + '策略已应用！', 'success');
+  saveGame();
+  switchTab('pricing');
 }
 
 function updateRateDisplay(type, value) {
@@ -2240,7 +2445,8 @@ function renderCashFlow() {
 function renderLoans() {
   var loans = gameState.loans || [];
   var bs = getBalanceSheet();
-  var maxLoan = Math.round(bs.assets.total * 0.5);
+  var totalAssets = typeof bs.assets === 'number' ? bs.assets : (bs.assets && bs.assets.total) || 0;
+  var maxLoan = Math.round(totalAssets * 0.5);
   var existingDebt = loans.reduce(function(s,l){ return s + l.remainingAmount; }, 0);
   var available = Math.max(0, maxLoan - existingDebt);
   var html = '<div style="background:rgba(248,250,252,1);border-radius:10px;padding:14px;margin-bottom:14px;">';
