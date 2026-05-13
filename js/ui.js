@@ -1624,6 +1624,1142 @@ function renderMemberModal() {
   content.innerHTML = html;
 }
 
+function openMarketingModal() {
+  document.getElementById('marketingModal').classList.add('active');
+  renderMarketingModal();
+}
+function closeMarketingModal() { document.getElementById('marketingModal').classList.remove('active'); }
+
+function renderMarketingModal() {
+  var content = document.getElementById('marketingContent');
+  var mkt = gameState.marketing;
+  var html = '';
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">';
+  html += '<div style="background:linear-gradient(135deg,rgba(6,182,212,0.08),rgba(8,145,178,0.06));border:1px solid rgba(6,182,212,0.2);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">总营销投入</div><div style="font-size:18px;font-weight:700;color:#06b6d4;">' + formatCurrency(mkt.totalSpend || 0) + '</div></div>';
+  html += '<div style="background:linear-gradient(135deg,rgba(139,92,246,0.08),rgba(124,58,237,0.06));border:1px solid rgba(139,92,246,0.2);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">整体CAC</div><div style="font-size:18px;font-weight:700;color:#8b5cf6;">' + formatCurrency(mkt.overallCAC || 0) + '</div></div>';
+  html += '<div style="background:linear-gradient(135deg,rgba(34,197,94,0.08),rgba(22,163,74,0.06));border:1px solid rgba(34,197,94,0.2);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">新客户总数</div><div style="font-size:18px;font-weight:700;color:#22c55e;">' + (mkt.totalNewCustomers || 0) + '</div></div>';
+  html += '<div style="background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(217,119,6,0.06));border:1px solid rgba(245,158,11,0.2);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">品牌价值</div><div style="font-size:18px;font-weight:700;color:#f59e0b;">' + (getBrandEquity() || 0) + '</div></div>';
+  html += '</div>';
+
+  html += '<div style="display:flex;gap:8px;margin-bottom:14px;border-bottom:2px solid #e2e8f0;padding-bottom:10px;">';
+  html += '<button class="market-tab" style="' + (!window._mktTab || window._mktTab === 'cac' ? 'background:linear-gradient(135deg,#06b6d4,#0891b2);color:#fff;border-color:#06b6d4;' : '') + 'flex:1;" onclick="_mktTab=\'cac\';renderMarketingModal()">📊 CAC分析</button>';
+  html += '<button class="market-tab" style="' + (window._mktTab === 'brand' ? 'background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border-color:#f59e0b;' : '') + 'flex:1;" onclick="_mktTab=\'brand\';renderMarketingModal()">🏆 品牌管理</button>';
+  html += '<button class="market-tab" style="' + (window._mktTab === 'campaigns' ? 'background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border-color:#22c55e;' : '') + 'flex:1;" onclick="_mktTab=\'campaigns\';renderMarketingModal()">🎯 营销活动</button>';
+  html += '<button class="market-tab" style="' + (window._mktTab === 'funnel' ? 'background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:#fff;border-color:#8b5cf6;' : '') + 'flex:1;" onclick="_mktTab=\'funnel\';renderMarketingModal()">🔄 转化漏斗</button>';
+  html += '</div>';
+
+  if (!window._mktTab || window._mktTab === 'cac') {
+    html += '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">📊 客户获取成本 (CAC) 分析</div>';
+    html += '<table class="vehicle-table"><thead><tr><th>渠道</th><th>投入</th><th>获客数</th><th>CAC</th><th>转化率</th><th>操作</th></tr></thead><tbody>';
+    var channelNames = { advertising:'📺 广告投放', referral:'💬 口碑推荐', member:'👤 会员转介', organic:'🌿 自然流量' };
+    var channelIcons = { advertising:'#e74c3c', referral:'#22c55e', member:'#3b82f6', organic:'#94a3b8' };
+    Object.keys(mkt.channels).forEach(function(k){
+      var ch = mkt.channels[k];
+      getMarketingCAC(k);
+      html += '<tr><td><span style="color:' + (channelIcons[k]||'#64748b') + ';font-weight:600;">' + (channelNames[k]||k) + '</span></td>';
+      html += '<td>' + formatCurrency(ch.spend||0) + '</td><td>' + (ch.customers||0) + '</td>';
+      html += '<td style="font-weight:700;color:' + ((ch.cac||0) < 200 ? '#22c55e' : (ch.cac||0) < 500 ? '#f59e0b' : '#ef4444') + ';">' + formatCurrency(ch.cac||0) + '</td>';
+      html += '<td>' + Math.round((ch.conversion||0)*100) + '%</td>';
+      html += '<td><input type="number" id="mktSpend_' + k + '" placeholder="金额" style="width:70px;padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:11px;"> <button style="padding:4px 8px;border:none;border-radius:4px;font-size:9px;cursor:pointer;background:#06b6d4;color:#fff;" onclick="var v=document.getElementById(\'mktSpend_'+k+'\').value;spendMarketing(\''+k+'\',v);renderMarketingModal();">投入</button></td></tr>';
+    });
+    html += '</tbody></table>';
+    var cacBenchmark = gameState.companyStage <= 2 ? 300 : (gameState.companyStage <= 3 ? 500 : 800);
+    html += '<div style="margin-top:10px;padding:10px;background:rgba(248,250,252,1);border-radius:8px;font-size:11px;color:#64748b;">💡 行业阶段' + gameState.companyStage + '的CAC基准线：' + formatCurrency(cacBenchmark) + ' | 当前' + ((mkt.overallCAC||0) <= cacBenchmark ? '✅ 低于基准' : '⚠️ 高于基准') + '</div>';
+  }
+
+  if (window._mktTab === 'brand') {
+    var brand = mkt.brand;
+    html += '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">🏆 品牌价值系统</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">';
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">品牌知名度</div><div style="font-size:28px;font-weight:700;color:' + ((brand.awareness||20)>=70?'#22c55e':(brand.awareness||20)>=40?'#f59e0b':'#ef4444') + ';">' + (brand.awareness||20) + '</div><div style="height:6px;background:#e2e8f0;border-radius:3px;margin-top:6px;overflow:hidden;"><div style="width:'+(brand.awareness||20)+'%;height:100%;background:linear-gradient(90deg,#f59e0b,#d97706);border-radius:3px;"></div></div></div>';
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">品牌声誉</div><div style="font-size:28px;font-weight:700;color:' + ((brand.reputation||50)>=70?'#22c55e':(brand.reputation||50)>=40?'#f59e0b':'#ef4444') + ';">' + (brand.reputation||50) + '</div><div style="height:6px;background:#e2e8f0;border-radius:3px;margin-top:6px;overflow:hidden;"><div style="width:'+(brand.reputation||50)+'%;height:100%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:3px;"></div></div></div>';
+    var premium = getPremiumPriceBonus();
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">溢价能力</div><div style="font-size:28px;font-weight:700;color:' + (premium > 0 ? '#22c55e' : '#94a3b8') + ';">' + (premium > 0 ? '+'+premium+'%' : '-') + '</div><div style="font-size:9px;color:#94a3b8;margin-top:4px;">' + (premium > 0 ? '可溢价' : '未达标') + '</div></div>';
+    html += '</div>';
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:14px;">';
+    html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;">🛡️ 危机管理</div>';
+    if (brand.crisisLevel > 0) {
+      html += '<div style="padding:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:8px;margin-bottom:10px;"><div style="font-size:12px;font-weight:700;color:#ef4444;">🚨 当前危机等级：' + brand.crisisLevel + '/5</div><div style="font-size:10px;color:#94a3b8;margin-top:4px;">已持续 ' + (gameState.currentDay - (brand.lastCrisisDay||0)) + ' 天</div>';
+      html += '<div style="margin-top:8px;display:flex;gap:6px;"><button style="padding:6px 12px;border:none;border-radius:6px;font-size:10px;cursor:pointer;background:#3b82f6;color:#fff;" onclick="handleCrisisPRResponse(5000);renderMarketingModal();">公关处理 $5K</button><button style="padding:6px 12px;border:none;border-radius:6px;font-size:10px;cursor:pointer;background:#1d4ed8;color:#fff;" onclick="handleCrisisPRResponse(15000);renderMarketingModal();">强力公关 $15K</button></div></div>';
+    } else {
+      html += '<div style="text-align:center;padding:16px;color:#22c55e;font-size:12px;">✅ 无活跃危机事件</div>';
+      html += '<div style="margin-top:8px;display:flex;gap:6px;justify-content:center;"><button style="padding:6px 12px;border:none;border-radius:6px;font-size:10px;cursor:pointer;background:rgba(239,68,68,0.1);color:#ef4444;border:1px solid rgba(239,68,68,0.3);" onclick="triggerCrisisEvent(1);renderMarketingModal();">🎲 模拟轻微危机</button><button style="padding:6px 12px;border:none;border-radius:6px;font-size:10px;cursor:pointer;background:rgba(239,68,68,0.15);color:#dc2626;border:1px solid rgba(239,68,68,0.3);" onclick="triggerCrisisEvent(3);renderMarketingModal();">🎲 模拟严重危机</button></div>';
+    }
+    html += '<div style="margin-top:10px;display:flex;gap:6px;align-items:center;"><span style="font-size:11px;color:#64748b;">品牌建设：</span><button style="padding:5px 10px;border:none;border-radius:5px;font-size:9px;cursor:pointer;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;" onclick="updateBrandAwareness(3);renderMarketingModal()">📢 PR活动 $2K</button><button style="padding:5px 10px;border:none;border-radius:5px;font-size:9px;cursor:pointer;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;" onclick="updateBrandAwareness(5);renderMarketingModal();">🤝 赞助 $5K</button><button style="padding:5px 10px;border:none;border-radius:5px;font-size:9px;cursor:pointer;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;" onclick="updateBrandAwareness(8);renderMarketingModal();">🌟 CSR $10K</button></div>';
+    html += '</div>';
+  }
+
+  if (window._mktTab === 'campaigns') {
+    html += '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">🎯 季节性营销活动</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">';
+    SEASONAL_CAMPAIGNS.forEach(function(sc){
+      var currentMonth = new Date(getGameDate()).getMonth();
+      var isSeason = sc.months.indexOf(currentMonth) !== -1;
+      var activeCount = mkt.campaigns.filter(function(c){ return c.status === 'active' && c.id === sc.id; }).length;
+      html += '<div style="background:' + (isSeason ? 'rgba(34,197,94,0.06)' : 'rgba(248,250,252,1)') + ';border:1px solid ' + (isSeason ? 'rgba(34,197,94,0.2)' : '#e2e8f0') + ';border-radius:10px;padding:12px;">';
+      html += '<div style="font-size:12px;font-weight:700;color:#1e293b;">' + sc.name + '</div>';
+      html += '<div style="font-size:9px;color:#94a3b8;margin:4px 0;">' + sc.description + '</div>';
+      html += '<div style="display:flex;gap:4px;flex-wrap:wrap;margin-top:6px;">';
+      html += '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(34,197,94,0.1);color:#22c55e;">需求×' + sc.demandMultiplier + '</span>';
+      html += '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(245,158,11,0.1);color:#d97706;">' + Math.round((1-sc.discount)*100) + '%折</span>';
+      if (isSeason) html += '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(34,197,94,0.15);color:#16a34a;">🔥 当季</span>';
+      if (activeCount > 0) html += '<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:rgba(59,130,246,0.15);color:#2563eb;">进行中</span>';
+      html += '</div>';
+      if (activeCount === 0 && gameState.cash >= sc.minBudget) {
+        html += '<button style="margin-top:8px;width:100%;padding:6px;border:none;border-radius:6px;font-size:10px;cursor:pointer;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;" onclick="launchCampaign({name:\''+sc.name+'\',type:\'seasonal\',discount:'+sc.discount+',demandMultiplier:'+sc.demandMultiplier+',targetTypes:'+JSON.stringify(sc.targetTypes)+',budget:'+sc.minBudget+',durationDays:14,channel:\'advertising\',description:\''+sc.description+'\'});renderMarketingModal();">启动 $'+(sc.minBudget/1000)+'K</button>';
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+
+    html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px;margin-top:14px;">🛠️ 自定义活动</div>';
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;">';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">';
+    html += '<div><label style="font-size:10px;color:#64748b;display:block;margin-bottom:4px;">活动名称</label><input id="cmpName" value="自定义促销" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px;"></div>';
+    html += '<div><label style="font-size:10px;color:#64748b;display:block;margin-bottom:4px;">预算 ($)</label><input id="cmpBudget" type="number" value="3000" min="500" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px;"></div>';
+    html += '<div><label style="font-size:10px;color:#64748b;display:block;margin-bottom:4px;">折扣 (如0.85=85折)</label><input id="cmpDiscount" type="number" value="0.90" step="0.05" min="0.5" max="1" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px;"></div>';
+    html += '<div><label style="font-size:10px;color:#64748b;display:block;margin-bottom:4px;">需求倍率</label><input id="cmpDemand" type="number" value="1.3" step="0.1" min="1" max="3" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px;"></div>';
+    html += '<div><label style="font-size:10px;color:#64748b;display:block;margin-bottom:4px;">持续时间(天)</label><input id="cmpDuration" type="number" value="14" min="3" max="60" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px;"></div>';
+    html += '<div><label style="font-size:10px;color:#64748b;display:block;margin-bottom:4px;">渠道</label><select id="cmpChannel" style="width:100%;padding:6px 8px;border:1px solid #cbd5e1;border-radius:6px;font-size:11px;"><option value="advertising">广告投放</option><option value="referral">口碑推荐</option><option value="member">会员转介</option></select></div>';
+    html += '</div>';
+    html += '<button style="padding:8px 16px;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;width:100%;" onclick="launchCampaign({name:document.getElementById(\'cmpName\').value,type:\'custom\',discount:parseFloat(document.getElementById(\'cmpDiscount\').value)||0.9,demandMultiplier:parseFloat(document.getElementById(\'cmpDemand\').value)||1.3,targetTypes:[],budget:parseInt(document.getElementById(\'cmpBudget\').value)||3000,durationDays:parseInt(document.getElementById(\'cmpDuration\').value)||14,channel:document.getElementById(\'cmpChannel\').value});renderMarketingModal();">🚀 启动自定义活动</button>';
+    html += '</div>';
+
+    html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin:14px 0 8px;">📋 活动历史</div>';
+    html += '<table class="vehicle-table"><thead><tr><th>活动名</th><th>状态</th><th>预算/已花</th><th>获客</th><th>ROI</th></tr></thead><tbody>';
+    mkt.campaigns.forEach(function(c){
+      var statusTag = c.status === 'active' ? '<span style="color:#22c55e;font-weight:600;">运行中</span>' : (c.status === 'completed' ? '<span style="color:#64748b;">已结束</span>' : c.status);
+      html += '<tr><td>' + c.name + '</td><td>' + statusTag + '</td><td>' + formatCurrency(c.budget||0) + '/' + formatCurrency(c.spent||0) + '</td><td>' + (c.customersAcquired||0) + '</td><td style="color:' + ((c.roi||0)>=0?'#22c55e':'#ef4444') + ';">' + (c.roi||0) + '%</td></tr>';
+    });
+    if (mkt.campaigns.length === 0) html += '<tr><td colspan="5" style="text-align:center;color:#94a3b8;">暂无活动记录</td></tr>';
+    html += '</tbody></table>';
+  }
+
+  if (window._mktTab === 'funnel') {
+    html += '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">🔄 转化漏斗分析</div>';
+    var f = mkt.funnel;
+    var stages = [
+      { key:'visitors', label:'访客', icon:'👀' },
+      { key:'browsed', label:'浏览车型', icon:'🚗' },
+      { key:'inquired', label:'询价', icon:'💬' },
+      { key:'ordered', label:'下单', icon:'📝' },
+      { key:'paid', label:'支付', icon:'💳' },
+      { key:'pickedUp', label:'取车', icon:'🔑' },
+      { key:'returned', label:'还车', icon:'↩️' },
+      { key:'reviewed', label:'评价', icon:'⭐' }
+    ];
+    var rates = getFunnelConversionRates();
+    stages.forEach(function(s, i){
+      var val = f[s.key] || 0;
+      var rate = rates[i] ? rates[i].rate : 0;
+      var barW = i === 0 ? 100 : Math.min(100, Math.max(5, val / Math.max(1,f[stages[0].key]||1) * 100));
+      var rateColor = rate >= 50 ? '#22c55e' : rate >= 25 ? '#f59e0b' : '#ef4444';
+      html += '<div style="display:flex;align-items:center;gap:10px;padding:8px;background:#fff;border:1px solid #e2e8f0;border-radius:8px;margin-bottom:4px;">';
+      html += '<span style="font-size:18px;width:30px;text-align:center;">' + s.icon + '</span>';
+      html += '<span style="font-size:12px;font-weight:600;color:#1e293b;width:70px;">' + s.label + '</span>';
+      html += '<span style="font-family:JetBrains Mono,monospace;font-size:14px;font-weight:700;color:#06b6d4;width:50px;text-align:right;">' + val + '</span>';
+      html += '<div style="flex:1;height:16px;background:#e2e8f0;border-radius:8px;overflow:hidden;position:relative;"><div style="width:' + barW + '%;height:100%;background:linear-gradient(90deg,' + (i%2===0?'#06b6d4,#0891b2':'#8b5cf6,#7c3aed') + ');border-radius:8px;"></div></div>';
+      if (i > 0) html += '<span style="font-size:11px;font-weight:700;color:' + rateColor + ';width:50px;text-align:right;">' + rate + '%</span>';
+      html += '</div>';
+    });
+
+    html += '<div style="margin-top:14px;padding:12px;background:rgba(139,92,246,0.04);border:1px solid rgba(139,92,246,0.15);border-radius:10px;">';
+    html += '<div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:8px;">🧪 A/B 测试</div>';
+    if (mkt.abTests.length === 0) {
+      html += '<div style="font-size:10px;color:#94a3b8;text-align:center;padding:10px;">暂无A/B测试</div>';
+      html += '<button style="margin-top:6px;padding:6px 12px;border:none;border-radius:6px;font-size:10px;cursor:pointer;background:#8b5cf6;color:#fff;" onclick="createABTest(\'定价策略A vs B\',{name:\'方案A\',priceMult:1.1},{name:\'方案B\',priceMult:0.95});renderMarketingModal();">创建新测试</button>';
+    } else {
+      mkt.abTests.forEach(function(t){
+        html += '<div style="padding:8px;background:#fff;border-radius:6px;margin-bottom:6px;"><div style="font-size:11px;font-weight:600;">' + t.name + ' — ' + (t.status==='running'?'<span style="color:#22c55e;">运行中</span>':'已完成') + '</div>';
+        html += '<div style="display:flex;gap:12px;margin-top:4px;font-size:10px;"><span>A: '+(t.conversionsA||0)+'/'+(t.trafficA||0)+' 转化</span><span>B: '+(t.conversionsB||0)+'/'+(t.trafficB||0)+' 转化</span></div></div>';
+      });
+    }
+    html += '</div>';
+
+    html += '<div style="margin-top:10px;padding:12px;background:rgba(239,68,68,0.03);border:1px solid rgba(239,68,68,0.12);border-radius:10px;">';
+    html += '<div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:8px;">🛒 废弃购物车恢复</div>';
+    var abandoned = mkt.abandonedCartRecovery.filter(function(r){ return !r.recovered; });
+    html += '<div style="font-size:10px;color:#64748b;">待恢复订单: ' + abandoned.length + ' 个</div>';
+    if (abandoned.length > 0) {
+      abandoned.slice(-5).forEach(function(r){
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:4px 6px;border-bottom:1px solid #f1f5f9;font-size:10px;"><span>' + r.customerName + ' → ' + r.vehicleName + '</span><button style="padding:2px 8px;border:none;border-radius:4px;font-size:9px;cursor:pointer;background:#3b82f6;color:#fff;" onclick="recoverAbandonedCart(\''+r.orderId+'\');renderMarketingModal();">恢复</button></div>';
+      });
+    }
+    html += '</div>';
+  }
+
+  content.innerHTML = html;
+}
+
+function openFleetMgmtModal() {
+  document.getElementById('fleetMgmtModal').classList.add('active');
+  renderFleetMgmtModal();
+}
+function closeFleetMgmtModal() { document.getElementById('fleetMgmtModal').classList.remove('active'); }
+
+function renderFleetMgmtModal() {
+  var content = document.getElementById('fleetMgmtContent');
+  var summary = getFleetPhaseSummary();
+  var analytics = getFleetAnalytics();
+  var html = '';
+
+  html += '<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-bottom:12px;">';
+  html += '<div style="background:rgba(34,197,94,0.06);border:1px solid rgba(34,197,94,0.15);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">服役中</div><div style="font-size:20px;font-weight:700;color:#22c55e;">' + (summary.active||0) + '</div></div>';
+  html += '<div style="background:rgba(245,158,11,0.06);border:1px solid rgba(245,158,11,0.15);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">维护中</div><div style="font-size:20px;font-weight:700;color:#f59e0b;">' + (summary.maintenance||0) + '</div></div>';
+  html += '<div style="background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.15);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">待处置</div><div style="font-size:20px;font-weight:700;color:#ef4444;">' + (summary.disposal||0) + '</div></div>';
+  html += '<div style="background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.15);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">车队总计</div><div style="font-size:20px;font-weight:700;color:#64748b;">' + (summary.total||0) + '</div></div>';
+  html += '<div style="background:rgba(99,102,241,0.06);border:1px solid rgba(99,102,241,0.15);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">事故处理中</div><div style="font-size:20px;font-weight:700;color:#6366f1;">' + getIncidentCount() + '</div></div>';
+  html += '</div>';
+
+  html += '<div style="display:flex;gap:6px;margin-bottom:12px;border-bottom:2px solid #e2e8f0;padding-bottom:8px;">';
+  html += '<button class="market-tab" style="' + (!window._fleetTab || window._fleetTab === 'lifecycle' ? 'background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border-color:#22c55e;' : '') + 'flex:1;" onclick="_fleetTab=\'lifecycle\';renderFleetMgmtModal()">🔄 全生命周期</button>';
+  html += '<button class="market-tab" style="' + (window._fleetTab === 'analytics' ? 'background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;border-color:#3b82f6;' : '') + 'flex:1;" onclick="_fleetTab=\'analytics\';renderFleetMgmtModal()">📊 车队分析</button>';
+  html += '<button class="market-tab" style="' + (window._fleetTab === 'procurement' ? 'background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border-color:#f59e0b;' : '') + 'flex:1;" onclick="_fleetTab=\'procurement\';renderFleetMgmtModal()">🛒 采购优化</button>';
+  html += '<button class="market-tab" style="' + (window._fleetTab === 'incidents' ? 'background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border-color:#ef4444;' : '') + 'flex:1;" onclick="_fleetTab=\'incidents\';renderFleetMgmtModal()">⚠️ 事故记录</button>';
+  html += '</div>';
+
+  if (!window._fleetTab || window._fleetTab === 'lifecycle') {
+    html += '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">🔄 车辆全生命周期管理</div>';
+    html += '<table class="vehicle-table"><thead><tr><th>车辆</th><th>车牌</th><th>类型</th><th>阶段</th><th>累计收入</th><th>运营成本</th><th>租出天数</th><th>日均收入</th><th>ROI</th><th>操作</th></tr></thead><tbody>';
+    var phaseColors = { active:'#22c55e', maintenance:'#f59e0b', disposal:'#ef4444', disposed:'#94a3b8' };
+    var phaseNames = { active:'服役中', maintenance:'维护中', disposal:'待处置', disposed:'已处置' };
+    gameState.ownedVehicles.slice(0, 20).forEach(function(v){
+      initVehicleLifecycle(v);
+      var lc = v.lifecycle;
+      html += '<tr>';
+      html += '<td><span style="font-weight:600;">' + v.brand + ' ' + v.model + '</span></td>';
+      html += '<td><span class="license-plate">' + (v.licensePlate||'-') + '</span></td>';
+      html += '<td>' + (v.type||'-') + '</td>';
+      html += '<td><span style="color:' + (phaseColors[lc.phase]||'#64748b') + ';font-weight:600;">' + (phaseNames[lc.phase]||lc.phase) + '</span></td>';
+      html += '<td style="color:#22c55e;">' + formatCurrency(lc.totalRevenueGenerated||0) + '</td>';
+      html += '<td style="color:#ef4444;">' + formatCurrency(lc.totalOperatingCost||0) + '</td>';
+      html += '<td>' + (lc.totalRentalDays||0) + '天</td>';
+      html += '<td>' + formatCurrency(lc.averageDailyRevenue||0) + '</td>';
+      html += '<td style="font-weight:700;color:' + ((lc.roi||0)>=0?'#22c55e':'#ef4444') + ';">' + (lc.roi||0) + '%</td>';
+      if (lc.phase !== 'disposed') {
+        html += '<td>';
+        if (lc.phase === 'disposal') html += '<button style="padding:3px 8px;border:none;border-radius:4px;font-size:9px;cursor:pointer;background:#ef4444;color:#fff;" onclick="disposeVehicle(\''+v.id+'\',\'sold\','+Math.round(calculateVehicleValue(v)*0.85)+');renderFleetMgmtModal();">出售</button>';
+        else if (lc.phase === 'maintenance') html += '<button style="padding:3px 8px;border:none;border-radius:4px;font-size:9px;cursor:pointer;background:#22c55e;color:#fff;" onclick="setVehiclePhase(&apos;'+v.id+'&apos;,&apos;active&apos;,&apos;&apos;);renderFleetMgmtModal();">恢复</button>';
+        html += '</td>';
+      } else { html += '<td>-</td>'; }
+      html += '</tr>';
+    });
+    if (gameState.ownedVehicles.length === 0) html += '<tr><td colspan="10" style="text-align:center;color:#94a3b8;">暂无车辆</td></tr>';
+    else if (gameState.ownedVehicles.length > 20) html += '<tr><td colspan="10" style="text-align:center;color:#94a3b8;">显示前20辆车（共' + gameState.ownedVehicles.length + '辆）</td></tr>';
+    html += '</tbody></table>';
+  }
+
+  if (window._fleetTab === 'analytics') {
+    html += '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">📊 车队配置优化分析</div>';
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px;">';
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;"><div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:10px;">📊 车型分布</div>';
+    Object.keys(analytics.byType).forEach(function(t){
+      var count = analytics.byType[t];
+      var pct = summary.total > 0 ? Math.round(count / summary.total * 100) : 0;
+      var u = analytics.utilizationByType[t];
+      html += '<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;"><span style="width:60px;font-size:11px;font-weight:600;">' + t + '</span>';
+      html += '<div style="flex:1;height:18px;background:#f1f5f9;border-radius:4px;overflow:hidden;"><div style="width:' + pct + '%;height:100%;background:linear-gradient(90deg,#3b82f6,#6366f1);"></div></div>';
+      html += '<span style="font-size:11px;font-weight:600;width:30px;">' + count + '</span>';
+      html += '<span style="font-size:9px;color:' + (u&&u.utilRate>=60?'#22c55e':(u&&u.utilRate>=30?'#f59e0b':'#ef4444')) + ';">' + (u?u.utilRate+'%':'-') + '</span></div>';
+    });
+    html += '</div>';
+
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;"><div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:10px;">📅 车龄分布</div>';
+    var totalAge = (analytics.ageDistribution.under3||0)+(analytics.ageDistribution.threeTo5||0)+(analytics.ageDistribution.over5||0)||1;
+    var ageData = [
+      { label:'&lt;3年', value:analytics.ageDistribution.under3||0, target:60, color:'#22c55e' },
+      { label:'3-5年', value:analytics.ageDistribution.threeTo5||0, target:30, color:'#f59e0b' },
+      { label:'&gt;5年', value:analytics.ageDistribution.over5||0, target:10, color:'#ef4444' }
+    ];
+    ageData.forEach(function(a){
+      var pct = Math.round(a.value / totalAge * 100);
+      var targetPct = a.target;
+      var ok = pct <= targetPct + 10;
+      html += '<div style="margin-bottom:8px;"><div style="display:flex;justify-content:space-between;font-size:10px;margin-bottom:3px;"><span>' + a.label + ': ' + a.value + '辆 (' + pct + '%)</span><span style="color:' + (ok?'#22c55e':'#ef4444') + ';">目标≤' + targetPct + '% ' + (ok?'✅':'⚠️') + '</span></div>';
+      html += '<div style="height:12px;background:#f1f5f9;border-radius:6px;overflow:hidden;"><div style="width:' + pct + '%;height:100%;background:' + a.color + ';"></div></div></div>';
+    });
+    html += '</div></div>';
+
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:14px;"><div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:10px;">💰 各车型TCO (总拥有成本)</div>';
+    html += '<table class="vehicle-table"><thead><tr><th>车型</th><th>数量</th><th>平均TCO</th><th>日均营收</th></tr></thead><tbody>';
+    Object.keys(analytics.tcoByType).forEach(function(t){
+      var tc = analytics.tcoByType[t];
+      var rd = analytics.revenuePerDayByType[t];
+      html += '<tr><td>' + t + '</td><td>' + tc.count + '</td><td style="color:#ef4444;">' + formatCurrency(tc.avgTCO||0) + '</td><td style="color:#22c55e;">' + formatCurrency(rd?rd.avgRevenuePerDay:0) + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+
+    var advice = getFleetReplacementAdvice();
+    if (advice.length > 0) {
+      html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;"><div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:8px;">💡 更换建议</div>';
+      advice.forEach(function(a){
+        var lvlColor = a.level==='danger'?'#ef4444':a.level==='warning'?'#f59e0b':'#3b82f6';
+        html += '<div style="padding:6px 10px;margin-bottom:4px;border-radius:6px;font-size:11px;background:' + (a.level==='danger'?'rgba(239,68,68,0.05)':(a.level==='warning'?'rgba(245,158,11,0.05)':'rgba(59,130,246,0.05)')) + ';border-left:3px solid ' + lvlColor + ';color:#334155;">' + a.message + '</div>';
+      });
+      html += '</div>';
+    }
+
+    if (analytics.replacementSuggestions.length > 0) {
+      html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;"><div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:8px;">🔧 建议更换车辆 TOP' + Math.min(5, analytics.replacementSuggestions.length) + '</div>';
+      analytics.replacementSuggestions.slice(0, 5).forEach(function(r){
+        html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 10px;border-bottom:1px solid #f1f5f9;font-size:11px;"><div><span style="font-weight:600;">' + r.name + '</span> <span style="color:#94a3b8;">' + r.ageYears + '年/' + r.condition + '%</span></div><span style="color:' + (r.priority==='high'?'#ef4444':'#f59e0b') + ';">' + r.reason + '</span></div>';
+      });
+      html += '</div>';
+    }
+  }
+
+  if (window._fleetTab === 'procurement') {
+    html += '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">🛒 采购与供应商管理</div>';
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:14px;"><div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:10px;">📦 批量采购优惠</div>';
+    html += '<table class="vehicle-table"><thead><tr><th>数量</th><th>折扣</th><th>示例($200K车)</th><th>节省</th></tr></thead><tbody>';
+    [3,5,10].forEach(function(n){
+      var d = getBulkPurchaseDiscount(n, 200000);
+      html += '<tr><td>' + n + '+ 辆</td><td style="color:#22c55e;font-weight:700;">' + Math.round(d.discount*100) + '%</td><td>' + formatCurrency(d.finalPrice) + '</td><td style="color:#f59e0b;">-' + formatCurrency(d.savings) + '</td></tr>';
+    });
+    html += '</tbody></table></div>';
+
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;margin-bottom:14px;"><div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:10px;">🏭 供应商关系</div>';
+    var vendorKeys = Object.keys(gameState.vendors);
+    if (vendorKeys.length === 0) {
+      html += '<div style="text-align:center;color:#94a3b8;font-size:11px;padding:16px;">暂无采购记录，购车后将自动建立供应商关系</div>';
+    } else {
+      vendorKeys.forEach(function(vk){
+        var vd = gameState.vendors[vk];
+        var loyalty = getVendorLoyaltyDiscount(vk);
+        html += '<div style="padding:8px;border-bottom:1px solid #f1f5f9;"><div style="display:flex;justify-content:space-between;font-size:11px;"><span style="font-weight:600;">' + vk + '</span><span style="color:#22c55e;">忠诚度 Lv.' + (vd.level||1) + ' | 忠惠 +' + loyalty + '%</span></div>';
+        html += '<div style="font-size:9px;color:#94a3b8;">采购' + (vd.orderCount||0) + '次 | 总额 ' + formatCurrency(vd.totalSpent||0) + '</div></div>';
+      });
+    }
+    html += '</div>';
+
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:14px;"><div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:10px;">🔄 置换计划</div>';
+    var tradeInVehicles = gameState.ownedVehicles.filter(function(v){ var lc=v.lifecycle; return lc && lc.purchaseDate && (gameState.currentDay - lc.purchaseDate) > 365*3; });
+    if (tradeInVehicles.length === 0) {
+      html += '<div style="text-align:center;color:#94a3b8;font-size:11px;padding:16px;">暂无达到置换条件的车辆（需车龄&gt;3年）</div>';
+    } else {
+      html += '<table class="vehicle-table"><thead><tr><th>车辆</th><th>车龄</th><th>当前估值</th><th>置换估值</th><th>操作</th></tr></thead><tbody>';
+      tradeInVehicles.slice(0, 8).forEach(function(v){
+        var tiv = calculateTradeInValue(v.id);
+        var cv = calculateVehicleValue(v);
+        html += '<tr><td>' + v.brand + ' ' + v.model + '</td><td>' + Math.floor((gameState.currentDay-(v.lifecycle?v.lifecycle.purchaseDate:v.purchaseDay||gameState.currentDay))/365) + '年</td><td>' + formatCurrency(cv) + '</td><td style="color:#22c55e;">' + formatCurrency(tiv) + '</td><td><button style="padding:3px 8px;border:none;border-radius:4px;font-size:9px;cursor:pointer;background:#f59e0b;color:#fff;" onclick="console.log(&apos;置换 &apos;+v.id)">置换</button></td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '</div>';
+  }
+
+  if (window._fleetTab === 'incidents') {
+    html += '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">⚠️ 事故与事件记录</div>';
+    var incidents = gameState.incidents || [];
+    if (incidents.length === 0) {
+      html += '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:12px;">✅ 暂无事故记录</div>';
+    } else {
+      html += '<table class="vehicle-table"><thead><tr><th>日期</th><th>车辆</th><th>类型</th><th>维修费</th><th>停运天</th><th>状态</th><th>操作</th></tr></thead><tbody>';
+      incidents.slice(-15).reverse().forEach(function(inc){
+        var statusStyle = inc.resolved ? 'color:#22c55e;' : 'color:#ef4444;';
+        var statusText = inc.resolved ? '✅ 已解决' : '⏳ 处理中';
+        html += '<tr><td>D' + inc.day + '</td><td>' + inc.vehicleName + '</td><td>' + inc.name + '</td><td style="color:#ef4444;">' + formatCurrency(inc.repairCost) + '</td><td>' + inc.downtime + '天</td><td style="'+statusStyle+'font-weight:600;">' + statusText + '</td>';
+        if (!inc.resolved) html += '<td><button style="padding:3px 8px;border:none;border-radius:4px;font-size:9px;cursor:pointer;background:#22c55e;color:#fff;" onclick="resolveIncident(\''+inc.id+'\');renderFleetMgmtModal();">解决</button></td>';
+        else html += '<td>-</td>';
+        html += '</tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '<div style="margin-top:12px;padding:10px;background:rgba(239,68,68,0.04);border:1px solid rgba(239,68,68,0.12);border-radius:8px;font-size:11px;color:#64748b;">💡 提示：车况低于30%的车辆事故概率显著增加，建议及时保养或更换</div>';
+  }
+
+  content.innerHTML = html;
+}
+
+function openInsuranceModal() {
+  document.getElementById('insuranceModal').classList.add('active');
+  renderInsuranceModal();
+}
+function closeInsuranceModal() { document.getElementById('insuranceModal').classList.remove('active'); }
+
+function renderInsuranceModal() {
+  var content = document.getElementById('insuranceContent');
+  var ins = gameState.insurance;
+  var html = '';
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">';
+  html += '<div style="background:linear-gradient(135deg,rgba(239,68,68,0.06),rgba(220,38,38,0.04));border:1px solid rgba(239,68,68,0.15);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">年保费总额</div><div style="font-size:18px;font-weight:700;color:#ef4444;">' + formatCurrency(ins.totalAnnualPremium || 0) + '</div></div>';
+  html += '<div style="background:linear-gradient(135deg,rgba(59,130,246,0.06),rgba(37,99,235,0.04));border:1px solid rgba(59,130,246,0.15);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">有效保单</div><div style="font-size:18px;font-weight:700;color:#3b82f6;">' + (ins.policies ? ins.policies.filter(function(p){return p.status==='active'}).length : 0) + ' 份</div></div>';
+  html += '<div style="background:linear-gradient(135deg,rgba(245,158,11,0.06),rgba(217,119,6,0.04));border:1px solid rgba(245,158,11,0.15);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">待处理理赔</div><div style="font-size:18px;font-weight:700;color:#f59e0b;">' + (ins.pendingClaims ? ins.pendingClaims.length : 0) + ' 件</div></div>';
+  html += '</div>';
+
+  html += '<div style="display:flex;gap:6px;margin-bottom:12px;border-bottom:2px solid #e2e8f0;padding-bottom:8px;">';
+  html += '<button class="market-tab" style="' + (!window._insTab || window._insTab === 'policies' ? 'background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;border-color:#3b82f6;' : '') + 'flex:1;" onclick="_insTab=\'policies\';renderInsuranceModal()">📋 保单管理</button>';
+  html += '<button class="market-tab" style="' + (window._insTab === 'claims' ? 'background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border-color:#ef4444;' : '') + 'flex:1;" onclick="_insTab=\'claims\';renderInsuranceModal()">📝 理赔记录</button>';
+  html += '<button class="market-tab" style="' + (window._insTab === 'buy' ? 'background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;border-color:#22c55e;' : '') + 'flex:1;" onclick="_insTab=\'buy\';renderInsuranceModal()">🛡️ 投保</button>';
+  html += '</div>';
+
+  if (!window._insTab || window._insTab === 'policies') {
+    html += '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">📋 有效保单列表</div>';
+    var activePolicies = (ins.policies || []).filter(function(p){ return p.status === 'active'; });
+    if (activePolicies.length === 0) {
+      html += '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:12px;">暂无有效保单，请为车辆投保以降低风险</div>';
+    } else {
+      html += '<table class="vehicle-table"><thead><tr><th>车辆</th><th>类型</th><th>保险公司</th><th>年保费</th><th>免赔额</th><th>保额</th><th>无赔年限</th><th>到期日</th><th>操作</th></tr></thead><tbody>';
+      activePolicies.forEach(function(p){
+        var daysLeft = p.expiryDay - gameState.currentDay;
+        var urgent = daysLeft < 30;
+        html += '<tr><td style="font-weight:600;">' + p.vehicleName + '</td><td>' + (p.type === 'comprehensive' ? '<span style="color:#3b82f6;">商业险</span>' : '<span style="color:#64748b;">交强险</span>') + '</td><td>' + p.provider + '</td><td>' + formatCurrency(p.annualPremium) + '</td><td>' + formatCurrency(p.deductible) + '</td><td>' + formatCurrency(p.coverage) + '</td><td>' + (p.noClaimsYears || 0) + '年' + ((p.noClaimsYears||0)>0?' <span style="color:#22c55e;font-size:9px;">(-'+Math.min(p.noClaimsYears*10,50)+'%)</span>':'') + '</td><td style="color:' + (urgent?'#ef4444':'#64748b') + ';">' + daysLeft + '天后</td><td><button style="padding:3px 8px;border:none;border-radius:4px;font-size:9px;cursor:pointer;background:rgba(59,130,246,0.1);color:#3b82f6;border:1px solid rgba(59,130,246,0.3);" onclick="renewInsurancePolicy(\''+p.id+'\');renderInsuranceModal();">续保</button></td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+  }
+
+  if (window._insTab === 'claims') {
+    html += '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">📝 理赔历史记录</div>';
+    var allClaims = (ins.claimsHistory || []).concat(ins.pendingClaims || []);
+    if (allClaims.length === 0) {
+      html += '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:12px;">暂无理赔记录</div>';
+    } else {
+      html += '<table class="vehicle-table"><thead><tr><th>类型</th><th>申请金额</th><th>赔付金额</th><th>状态</th><th>申请日</th></tr></thead><tbody>';
+      allClaims.slice(-20).reverse().forEach(function(c){
+        var st = c.status === 'paid' ? '<span style="color:#22c55e;">已赔付</span>' : (c.status === 'approved' ? '<span style="color:#3b82f6;">已批准</span>' : (c.status === 'rejected' ? '<span style="color:#ef4444;">被拒</span>' : '<span style="color:#f59e0b;">处理中</span>'));
+        html += '<tr><td>' + (c.type||'-') + '</td><td>' + formatCurrency(c.claimedAmount||0) + '</td><td>' + formatCurrency(c.approvedAmount||0) + '</td><td>' + st + '</td><td>D' + (c.filedDay||gameState.currentDay) + '</td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+  }
+
+  if (window._insTab === 'buy') {
+    html += '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">🛡️ 为车辆购买保险</div>';
+    var uninsuredVehicles = gameState.ownedVehicles.filter(function(v){
+      return !ins.policies.some(function(p){ return p.vehicleId === v.id && p.status === 'active'; });
+    });
+    if (uninsuredVehicles.length === 0) {
+      html += '<div style="text-align:center;padding:30px;color:#94a3b8;font-size:12px;">所有车辆均已投保 ✅</div>';
+    } else {
+      html += '<table class="vehicle-table"><thead><tr><th>车辆</th><th>估值</th><th>保险类型</th><th>免赔额</th><th>预估年费</th><th>操作</th></tr></thead><tbody>';
+      uninsuredVehicles.forEach(function(v){
+        var val = calculateVehicleValue(v);
+        var compPrem = Math.round(2000 * (val/200000));
+        var thirdPrem = Math.round(800 * (val/200000));
+        html += '<tr><td style="font-weight:600;">' + v.brand + ' ' + v.model + ' <span class="license-plate">' + (v.licensePlate||'-') + '</span></td><td>' + formatCurrency(val) + '</td>';
+        html += '<td><select id="insType_' + v.id + '" style="padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:11px;"><option value="comprehensive">商业险 (全保)</option><option value="third_party">交强险 (基础)</option></select></td>';
+        html += '<td><select id="insDed_' + v.id + '" style="padding:4px 6px;border:1px solid #cbd5e1;border-radius:4px;font-size:11px;"><option value="0">$0 (高保费)</option><option value="500" selected>$500</option><option value="1000">$1000 (低保费)</option></select></td>';
+        html += '<td id="insEst_' + v.id + '">' + formatCurrency(compPrem) + '</td>';
+        html += '<td><button style="padding:5px 10px;border:none;border-radius:6px;font-size:10px;cursor:pointer;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;" onclick="issueInsurancePolicy(&apos;'+v.id+'&apos;,document.getElementById(&apos;insType_'+v.id+'&apos;).value,parseInt(document.getElementById(&apos;insDed_'+v.id+'&apos;).value));renderInsuranceModal();">投保</button></td></tr>';
+      });
+      html += '</tbody></table>';
+    }
+    html += '<div style="margin-top:12px;padding:12px;background:rgba(59,130,246,0.04);border:1px solid rgba(59,130,246,0.12);border-radius:10px;font-size:11px;color:#64748b;line-height:1.6;">';
+    html += '💡 <strong>保险建议：</strong>商业险覆盖盗抢、碰撞、自然灾害等，强烈建议为高价车辆投保。无保险车辆发生事故将全额自付损失。连续无理赔可享受最高<strong>50%</strong>保费优惠。</div>';
+  }
+
+  content.innerHTML = html;
+}
+
+var crmTab = 'overview';
+function renderMarketAnalysisTab() {
+  var html = '';
+  if (typeof getMarketPosition === 'function') {
+    var pos = getMarketPosition();
+    html += '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">📊 市场地位</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">';
+    html += '<div style="background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:22px;font-weight:700;color:#06b6d4;">#' + pos.rank + '</div><div style="font-size:9px;color:#64748b;">行业排名/' + pos.totalPlayers + '</div></div>';
+    html += '<div style="background:' + (pos.trend === 'growing' ? 'rgba(74,222,128,0.1)' : pos.trend === 'declining' ? 'rgba(239,68,68,0.1)' : 'rgba(241,245,249,0.8)') + ';border-radius:10px;padding:12px;text-align:center;"><div style="font-size:18px;font-weight:700;color:' + (pos.trend === 'growing' ? '#22c55e' : pos.trend === 'declining' ? '#ef4444' : '#64748b') + ';">' + (pos.share * 100).toFixed(1) + '%</div><div style="font-size:9px;color:#64748b;">市场份额</div></div>';
+    html += '<div style="background:rgba(248,250,252,1);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:14px;font-weight:700;color:#1e293b;">$' + (pos.marketSize / 10000).toFixed(0) + '万</div><div style="font-size:9px;color:#64748b;">日市场规模</div></div>';
+    html += '</div>';
+  }
+  if (typeof getSegmentPerformance === 'function') {
+    var segs = getSegmentPerformance();
+    html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px;margin-top:12px;">📦 细分市场表现</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+    Object.keys(segs).forEach(function(segKey){
+      var s = segs[segKey];
+      var shareColor = s.yourShare >= 15 ? '#22c55e' : s.yourShare >= 8 ? '#f59e0b' : '#ef4444';
+      html += '<div style="display:flex;align-items:center;gap:10px;background:rgba(248,250,252,1);border-radius:8px;padding:10px;">';
+      html += '<div style="min-width:50px;font-size:11px;font-weight:600;color:#1e293b;">' + s.name + '</div>';
+      html += '<div style="flex:1;height:8px;background:rgba(226,232,240,1);border-radius:4px;overflow:hidden;"><div style="width:' + Math.min(100, s.yourShare * 5) + '%;height:100%;background:' + shareColor + ';border-radius:4px;"></div></div>';
+      html += '<span style="min-width:45px;text-align:right;font-size:11px;font-weight:700;color:' + shareColor + ';">' + s.yourShare + '%</span>';
+      html += '<span style="min-width:35px;font-size:9px;color:#94a3b8;">' + s.competitionLevel + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  if (gameState.competitorIntel && gameState.competitorIntel.promotionAlerts && gameState.competitorIntel.promotionAlerts.length > 0) {
+    html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px;margin-top:12px;">⚠️ 竞争动态</div>';
+    gameState.competitorIntel.promotionAlerts.slice(0,5).forEach(function(alert){
+      var impactColor = alert.move.impact === 'negative' ? '#ef4444' : alert.move.impact === 'warning' ? '#f59e0b' : '#64748b';
+      html += '<div style="padding:6px 10px;border-left:3px solid ' + impactColor + ';background:rgba(248,250,252,0.5);font-size:10px;color:#475569;margin-bottom:4px;border-radius:0 6px 6px 0;">D' + alert.day + ': ' + alert.move.desc + '</div>';
+    });
+  }
+  if (typeof getCompetitorPricing === 'function') {
+    html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px;margin-top:12px;">💰 竞品价格对比（标准型）</div>';
+    var pricing = getCompetitorPricing('Standard');
+    html += '<table style="width:100%;border-collapse:collapse;font-size:10px;"><thead><tr style="background:rgba(241,245,249,1);"><th style="padding:5px;text-align:left;">竞品</th><th style="padding:5px;text-align:right;">日租金</th><th style="padding:5px;text-align:center;">趋势</th></tr></thead><tbody>';
+    pricing.forEach(function(p){
+      html += '<tr style="border-bottom:1px solid rgba(226,232,240,0.6);' + (p.isMe ? 'background:rgba(6,182,212,0.08);font-weight:700;' : '') + '">';
+      html += '<td style="padding:5px;">' + (p.isMe ? '🔵 ' : '') + p.competitor + '</td>';
+      html += '<td style="padding:5px;text-align:right;color:' + (p.isMe ? '#06b6d4' : '#1e293b') + ';">$' + p.price + '/天</td>';
+      html += '<td style="padding:5px;text-align:center;" style="color:' + (p.trend === 'up' ? '#ef4444' : p.trend === 'down' ? '#22c55e' : '#94a3b8') + ';">' + (p.trend === 'up' ? '↑' : p.trend === 'down' ? '↓' : '→') + '</td></tr>';
+    });
+    html += '</tbody></table>';
+  }
+  if (gameState.competitorIntel && gameState.competitorIntel.swotAnalysis) {
+    var swot = gameState.competitorIntel.swotAnalysis;
+    html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:12px;">';
+    var swotItems = [
+      { key:'strengths', label:'🟢 优势', color:'#22c55e', bg:'rgba(34,197,94,0.08)' },
+      { key:'weaknesses', label:'🔴 劣势', color:'#ef4444', bg:'rgba(239,68,68,0.08)' },
+      { key:'opportunities', label:'🟡 机会', color:'#f59e0b', bg:'rgba(245,158,11,0.08)' },
+      { key:'threats', label:'🟠 威胁', color:'#f97316', bg:'rgba(249,115,22,0.08)' }
+    ];
+    swotItems.forEach(function(item){
+      html += '<div style="background:' + item.bg + ';border:1px solid ' + item.color + '30;border-radius:10px;padding:10px;">';
+      html += '<div style="font-size:11px;font-weight:700;color:' + item.color + ';margin-bottom:6px;">' + item.label + '</div>';
+      (swot[item.key] || []).forEach(function(s){ html += '<div style="font-size:9px;color:#475569;padding:2px 0;">• ' + s.text + (s.potential ? ' <span style="color:' + item.color + ';">(' + s.potential + ')</span>' : '') + '</div>'; });
+      if ((swot[item.key] || []).length === 0) html += '<div style="font-size:9px;color:#94a3b8;">暂无</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  if (!html) html = '<div style="text-align:center;padding:40px;color:#94a3b8;">市场分析数据加载中...</div>';
+  return html;
+}
+
+function renderStrategicKPITab() {
+  var html = '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">📈 战略KPI仪表盘</div>';
+  var revs = gameState.financials ? gameState.financials.dailyRevenue : [];
+  var exps = gameState.financials ? gameState.financials.dailyExpenses : [];
+  var profits = gameState.financials ? gameState.financials.dailyProfit : [];
+  var avgRevenue7d = revs.length >= 7 ? revs.slice(-7).reduce(function(s,r){return s+r;},0)/7 : 0;
+  var avgRevenue30d = revs.length >= 30 ? revs.slice(-30).reduce(function(s,r){return s+r;},0)/30 : 0;
+  var momGrowth = avgRevenue30d > 0 && revs.length >= 30 ? ((avgRevenue7d / Math.max(1,avgRevenue30d) - 1) * 100) : 0;
+  var totalEmployees = (gameState.employees || []).length;
+  var fleetCount = (gameState.ownedVehicles || []).length;
+  var revenuePerEmployee = totalEmployees > 0 ? avgRevenue7d / totalEmployees : 0;
+  var revenuePerVehicle = fleetCount > 0 ? avgRevenue7d / fleetCount : 0;
+  var grossMargin = avgRevenue7d > 0 ? Math.max(-1, Math.min(1, (avgRevenue7d - (exps.length>=7?exps.slice(-7).reduce(function(s,e){return s+e;},0)/7:0)) / avgRevenue7d)) : 0;
+  var npsVal = (gameState.npsSystem && gameState.npsSystem.trend30d) || gameState.npsScore || 50;
+  var memberCount = (gameState.members || []).length;
+  var churnEstimate = memberCount > 0 ? Math.round((getAtRiskCustomers ? getAtRiskCustomers(60).length : 0) / memberCount * 100) : 0;
+  var marketShare = (gameState.marketAnalysis && gameState.marketAnalysis.yourShare) || 0.12;
+  var kpiGroups = [
+    { name:'增长指标', color:'#3b82f6', items:[
+      { label:'月收入增长率(MoM)', value:momGrowth, unit:'%', target:10, format:'pct', good:5, bad:-5 },
+      { label:'客户增长率', value:memberCount > 0 ? Math.round(memberCount/Math.max(1,gameState.currentDay/30)*10)/10 : 0, unit:'%/月', target:15, format:'pct', good:10, bad:-5 },
+      { label:'车队增长率', value:fleetCount > 0 ? Math.round(fleetCount/Math.max(1,gameState.currentDay)*100)/100 : 0, unit:'辆/天', target:0.5, format:'number', good:0.3, bad:0.1 }
+    ]},
+    { name:'效率指标', color:'#8b5cf6', items:[
+      { label:'人均营收', value:revenuePerEmployee, unit:'$/人/天', target:500, format:'currency', good:400, bad:200 },
+      { label:'单车营收', value:revenuePerVehicle, unit:'$/车/天', target:300, format:'currency', good:250, bad:100 }
+    ]},
+    { name:'盈利指标', color:'#22c55e', items:[
+      { label:'毛利率', value:grossMargin*100, unit:'%', target:35, format:'pct', good:25, bad:5 },
+      { label:'净利润率', value:profits.length>=7?(profits.slice(-7).reduce(function(s,p){return s+p;},0)/7)/Math.max(1,avgRevenue7d)*100:0, unit:'%', target:20, format:'pct', good:15, bad:-5 }
+    ]},
+    { name:'健康指标', color:'#f59e0b', items:[
+      { label:'流动比率', value:gameState.cash > 0 ? Math.min(10, gameState.cash / Math.max(1,(exps.length>=7?exps.slice(-7).reduce(function(s,e){return s+e;},0)/7*7:1))) : 0, unit:'', target:1.5, format:'number', good:1.2, bad:0.5 },
+      { label:'现金储备天数', value:(exps.length>=7&&exps.slice(-7).reduce(function(s,e){return s+e;},0)>0)?Math.round(gameState.cash/(exps.slice(-7).reduce(function(s,e){return s+e;},0)/7)):0, unit:'天', target:90, format:'number', good:60, bad:20 }
+    ]},
+    { name:'客户指标', color:'#ec4899', items:[
+      { label:'NPS评分', value:npsVal, unit:'', target:50, format:'number', good:40, bad:20 },
+      { label:'流失率预估', value:churnEstimate, unit:'%', target:10, format:'pct_invert', good:15, bad:30 },
+      { label:'市场份额', value:marketShare*100, unit:'%', target:20, format:'pct', good:15, bad:5 }
+    ]}
+  ];
+  kpiGroups.forEach(function(group){
+    html += '<div style="margin-bottom:12px;"><div style="font-size:11px;font-weight:700;color:' + group.color + ';margin-bottom:6px;">' + group.name + '</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:4px;">';
+    group.items.forEach(function(kpi){
+      var val = kpi.value;
+      var displayVal = kpi.format === 'currency' ? formatCurrency(val) : kpi.format === 'pct' ? val.toFixed(1) + '%' : kpi.format === 'pct_invert' ? val.toFixed(1) + '%' : typeof val === 'number' ? Math.round(val * 10) / 10 : val;
+      var meetsTarget = kpi.format === 'pct_invert' ? val <= kpi.target : kpi.format === 'pct' || kpi.format === 'number' ? val >= kpi.target : val >= kpi.target;
+      var isGood = kpi.format === 'pct_invert' ? val <= kpi.good : val >= kpi.good;
+      var isBad = kpi.format === 'pct_invert' ? val >= kpi.bad : val <= kpi.bad;
+      var lightColor = isGood ? '#22c55e' : isBad ? '#ef4444' : '#f59e0b';
+      var arrow = (kpi.format === 'pct' || kpi.format === 'pct_invert') ? (val > 0 ? '↑' : val < 0 ? '↓' : '→') : (val >= kpi.target ? '↑' : '↓');
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:rgba(248,250,252,1);border-radius:6px;border-left:3px solid ' + lightColor + ';">';
+      html += '<span style="width:8px;height:8px;border-radius:50%;background:' + lightColor + ';"></span>';
+      html += '<span style="flex:1;font-size:10px;color:#475569;">' + kpi.label + '</span>';
+      html += '<span style="font-size:11px;font-weight:700;color:#1e293b;">' + displayVal + '</span>';
+      html += '<span style="font-size:10px;color:' + lightColor + ';">' + arrow + '</span>';
+      html += '</div>';
+    });
+    html += '</div></div>';
+  });
+  return html;
+}
+
+function renderStrategyToolsTab() {
+  var html = '<div style="font-size:13px;font-weight:700;color:#1e293b;margin-bottom:10px;">🎯 战略规划工具</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#ec4899;margin-bottom:8px;">📊 盈亏平衡分析</div>';
+  var dailyFixedCost = 0;
+  if (gameState.employees) gameState.employees.forEach(function(e){ dailyFixedCost += (e.salary||0)/30; });
+  if (gameState.outlets) gameState.outlets.filter(function(o){return o.owned;}).forEach(function(o){
+    var oc = OUTLET_CONFIGS.find(function(c){return c.id===o.id;});
+    if (oc) dailyFixedCost += oc.unlockCost / 365 * 0.05;
+  });
+  var avgDailyRev = (gameState.financials && gameState.financials.dailyRevenue && gameState.financials.dailyRevenue.length > 0)
+    ? gameState.financials.dailyRevenue.slice(-7).reduce(function(s,r){return s+r;},0)/7 : 1000;
+  var contributionMargin = Math.max(0.1, Math.min(0.8, 1 - (dailyFixedCost > 0 ? Math.min(1, (gameState.todayExpense||0)/Math.max(1,avgDailyRev)) : 0.4)));
+  var breakEvenDays = contributionMargin > 0 ? Math.ceil(dailyFixedCost / (avgDailyRev * contributionMargin)) : 999;
+  var breakEvenOrders = contributionMargin > 0 ? Math.ceil(dailyFixedCost / (avgDailyRev * contributionMax)) : 999;
+  var avgOrderValue = (gameState.orderHistory && gameState.orderHistory.length > 0)
+    ? gameState.orderHistory.reduce(function(s,o){return s+(o.actualIncome||o.totalIncome||0);},0) / gameState.orderHistory.length : 500;
+  breakEvenOrders = avgOrderValue > 0 ? Math.ceil(dailyFixedCost / (avgOrderValue * contributionMargin)) : 999;
+  html += '<div style="background:rgba(236,72,153,0.08);border:1px solid rgba(236,72,153,0.2);border-radius:10px;padding:12px;margin-bottom:12px;">';
+  html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;">';
+  html += '<div>日均固定成本<br><span style="font-size:16px;font-weight:700;color:#ec4899;">' + formatCurrency(dailyFixedCost) + '</span></div>';
+  html += '<div>边际贡献率<br><span style="font-size:16px;font-weight:700;color:#ec4899;">' + (contributionMargin*100).toFixed(0) + '%</span></div>';
+  html += '<div>盈亏平衡天数<br><span style="font-size:16px;font-weight:700;color:' + (breakEvenDays <= 30 ? '#22c55e' : breakEvenDays <= 90 ? '#f59e0b' : '#ef4444') + ';">' + breakEvenDays + '天</span></div>';
+  html += '<div>盈亏平衡订单<br><span style="font-size:16px;font-weight:700;color:' + (breakEvenOrders <= 5 ? '#22c55e' : breakEverOrders <= 15 ? '#f59e0b' : '#ef4444') + ';">' + breakEvenOrders + '单/天</span></div>';
+  html += '</div></div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#ec4899;margin-bottom:8px;">🔮 敏感性分析</div>';
+  var scenarios = [
+    { label:'需求-10%', demandChange:-0.1, revenueImpact: avgDailyRev * -0.1, profitImpact: avgDailyRev * -0.1 * contributionMargin - dailyFixedCost * 0.02 },
+    { label:'需求+10%', demandChange:0.1, revenueImpact: avgDailyRev * 0.1, profitImpact: avgDailyRev * 0.1 * contributionMargin - dailyFixedCost * -0.01 },
+    { label:'成本+10%', demandChange:0, revenueImpact: 0, profitImpact: -dailyFixedCost * 0.1 },
+    { label:'价格-10%', demandChange:0.15, revenueImpact: avgDailyRev * 0.035, profitImpact: avgDailyRev * 0.035 * contributionMargin }
+  ];
+  html += '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px;">';
+  scenarios.forEach(function(sc){
+    var profitColor = sc.profitImpact >= 0 ? '#22c55e' : '#ef4444';
+    html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 10px;background:rgba(248,250,252,1);border-radius:6px;">';
+    html += '<span style="font-size:10px;color:#475569;">' + sc.label + '</span>';
+    html += '<span style="font-size:10px;color:#64748b;">收入' + (sc.revenueImpact >= 0 ? '+' : '') + formatCurrency(sc.revenueImpact) + '</span>';
+    html += '<span style="font-size:10px;font-weight:700;color:' + profitColor + ';">利润' + (sc.profitImpact >= 0 ? '+' : '') + formatCurrency(sc.profitImpact) + '</span>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#ec4899;margin-bottom:8px;">🏗️ 扩张ROI计算器</div>';
+  var outletCosts = OUTLET_CONFIGS.filter(function(c){ return c.unlockCost > 0; }).slice(0,3);
+  html += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:12px;">';
+  outletCosts.forEach(function(oc){
+    var estDailyRevenue = (oc.citySize === 'large' ? 8000 : oc.citySize === 'medium' ? 4500 : 2500);
+    var estDailyCost = estDailyRevenue * 0.55;
+    var estDailyProfit = estDailyRevenue - estDailyCost;
+    var paybackDays = Math.ceil(oc.unlockCost / Math.max(1, estDailyProfit));
+    var annualROI = Math.round(estDailyProfit * 365 / oc.unlockCost * 100);
+    html += '<div style="background:rgba(248,250,252,1);border-radius:8px;padding:10px;">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;"><span style="font-size:11px;font-weight:600;color:#1e293b;">' + oc.name + '</span><span style="font-size:9px;color:#94a3b8;">' + oc.cityLabel + '</span></div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:4px;font-size:9px;text-align:center;">';
+    html += '<div>投资<br><b>' + formatCurrency(oc.unlockCost) + '</b></div>';
+    html += '<div>日利润<br><b style="color:#22c55e;">' + formatCurrency(estDailyProfit) + '</b></div>';
+    html += '<div>回本<br><b>' + paybackDays + '天</b></div>';
+    html += '<div>年ROI<br><b style="color:' + (annualROI >= 50 ? '#22c55e' : annualROI >= 20 ? '#f59e0b' : '#ef4444') + ';">' + annualROI + '%</b></div>';
+    html += '</div></div>';
+  });
+  html += '</div>';
+  html += '<div style="font-size:12px;font-weight:700;color:#ec4899;margin-bottom:8px;">⚡ 场景规划器</div>';
+  var scenarioInputs = [
+    { desc:'购买10辆新SUV', cost:10*120000, extraDailyRevenue:10*350, extraDailyCost:10*80, payback:null },
+    { desc:'开设城东分店', cost:OUTLET_CONFIGS[1]?OUTLET_CONFIGS[1].unlockCost:500000, extraDailyRevenue:3500, extraDailyCost:1900, payback:null },
+    { desc:'全员培训计划', cost:20000, extraDailyRevenue:0.05*avgDailyRev, extraDailyCost:200, payback:null }
+  ];
+  html += '<div style="display:flex;flex-direction:column;gap:6px;">';
+  scenarioInputs.forEach(function(si){
+    si.payback = si.extraDailyRevenue > si.extraDailyCost ? Math.ceil(si.cost / Math.max(1, si.extraDailyRevenue - si.extraDailyCost)) : 999;
+    var roi = si.payback < 365 ? Math.round((si.extraDailyRevenue - si.extraDailyCost) * 365 / si.cost * 100) : -1;
+    html += '<div style="padding:8px 10px;background:rgba(248,250,252,1);border-radius:8px;border-left:3px solid ' + (si.payback <= 180 ? '#22c55e' : si.payback <= 365 ? '#f59e0b' : '#ef4444') + ';">';
+    html += '<div style="font-size:11px;font-weight:600;color:#1e293b;">' + si.desc + '</div>';
+    html += '<div style="display:flex;gap:12px;margin-top:4px;font-size:9px;color:#64748b;">';
+    html += '<span>投资:' + formatCurrency(si.cost) + '</span>';
+    html += '<span>日增收:+$' + Math.round(si.extraDailyRevenue) + '</span>';
+    html += '<span>日增支:$' + Math.round(si.extraDailyCost) + '</span>';
+    html += '<span>回本:<b style="color:' + (si.payback<=180?'#22c55e':si.payback<=365?'#f59e0b':'#ef4444') + ';">' + si.payback + '天</b></span>';
+    if (roi >= 0) html += '<span>年ROI:<b style="color:#22c55e;">' + roi + '%</b></span>';
+    html += '</div></div>';
+  });
+  html += '</div>';
+  return html;
+}
+
+function renderNPSDashboard() {
+  initNPSSystem();
+  var ns = gameState.npsSystem;
+  var html = '<div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:12px;">📊 NPS实时仪表盘</div>';
+  var bench = typeof getNPSBenchmarkComparison === 'function' ? getNPSBenchmarkComparison() : null;
+  if (bench) {
+    html += '<div style="background:' + bench.color + '15;border:1px solid ' + bench.color + '40;border-radius:12px;padding:16px;margin-bottom:14px;text-align:center;">';
+    html += '<div style="font-size:36px;font-weight:700;color:' + bench.color + ';">' + bench.myNPS + '</div>';
+    html += '<div style="font-size:11px;color:#64748b;">当前NPS（30天） | 行业基准: ' + bench.benchmark + ' | ' + bench.status + '</div>';
+    html += '<div style="font-size:10px;color:#94a3b8;margin-top:4px;">' + bench.desc + '</div>';
+    html += '</div>';
+  }
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">';
+  html += '<div style="background:rgba(59,130,246,0.08);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:18px;font-weight:700;color:#3b82f6;">' + ns.trend7d + '</div><div style="font-size:9px;color:#64748b;">7日NPS</div></div>';
+  html += '<div style="background:rgba(168,85,247,0.08);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:18px;font-weight:700;color:#a855f7;">' + (ns.scores||[]).length + '</div><div style="font-size:9px;color:#64748b;">总评价数</div></div>';
+  html += '<div style="background:rgba(34,197,94,0.08);border-radius:10px;padding:12px;text-align:center;"><div style="font-size:18px;font-weight:700;color:#22c55e;">' + (ns.promoterReferrals||[]).length + '</div><div style="font-size:9px;color:#64748b;">推荐奖励</div></div>';
+  html += '</div>';
+  var trendLine = typeof getNPSTrendLine === 'function' ? getNPSTrendLine(14) : [];
+  if (trendLine.length > 0) {
+    html += '<div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:6px;">📈 NPS趋势线（近14天）</div>';
+    html += '<div style="display:flex;align-items:flex-end;gap:2px;height:60px;background:rgba(241,245,249,1);border-radius:8px;padding:6px;">';
+    var maxNPS = Math.max(100, Math.max.apply(null, trendLine.map(function(t){return Math.abs(t.nps);}))+10);
+    trendLine.forEach(function(t){
+      var barH = Math.max(2, Math.abs(t.nps) / maxNPS * 48);
+      var barColor = t.nps >= 40 ? '#22c55e' : t.nps >= 20 ? '#3b82f6' : t.nps >= 0 ? '#f59e0b' : '#ef4444';
+      html += '<div style="flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;">';
+      html += '<div style="width:100%;max-width:16px;height:' + barH + 'px;background:' + barColor + ';border-radius:2px 2px 0 0;min-height:2px;"></div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  var breakdownByType = typeof getNPSBreakdown === 'function' ? getNPSBreakdown('type') : {};
+  if (Object.keys(breakdownByType).length > 0) {
+    html += '<div style="font-size:11px;font-weight:700;color:#1e293b;margin-top:12px;margin-bottom:6px;">🚗 按车型NPS分布</div>';
+    Object.keys(breakdownByType).forEach(function(key){
+      var d = breakdownByType[key];
+      var color = d.nps >= 40 ? '#22c55e' : d.nps >= 20 ? '#3b82f6' : d.nps >= 0 ? '#f59e0b' : '#ef4444';
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:4px 0;"><span style="min-width:45px;font-size:10px;color:#475569;">' + key + '</span>';
+      html += '<div style="flex:1;height:6px;background:rgba(226,232,240,1);border-radius:3px;"><div style="width:' + Math.min(100, Math.abs(d.nps) + 50) + '%;height:100%;background:' + color + ';border-radius:3px;"></div></div>';
+      html += '<span style="min-width:28px;text-align:right;font-size:10px;font-weight:700;color:' + color + ';">' + d.nps + '</span>';
+      html += '<span style="min-width:20px;font-size:9px;color:#94a3b8;">(' + d.count + ')</span></div>';
+    });
+  }
+  if (ns.detractorsRecovery && ns.detractorsRecovery.length > 0) {
+    var pendingRecoveries = ns.detractorsRecovery.filter(function(r){ return r.status !== 'Recovered' && r.status !== 'Lost'; });
+    var recovered = ns.detractorsRecovery.filter(function(r){ return r.status === 'Recovered'; }).length;
+    html += '<div style="font-size:11px;font-weight:700;color:#1e293b;margin-top:12px;margin-bottom:6px;">🔄 贬低者挽回</div>';
+    html += '<div style="display:flex;gap:8px;">';
+    html += '<div style="flex:1;background:rgba(34,197,94,0.08);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:18px;font-weight:700;color:#22c55e;">' + recovered + '</div><div style="font-size:9px;color:#64748b;">已挽回</div></div>';
+    html += '<div style="flex:1;background:rgba(245,158,11,0.08);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:18px;font-weight:700;color:#f59e0b;">' + pendingRecoveries.length + '</div><div style="font-size:9px;color:#64748b;">跟进中</div></div>';
+    html += '</div>';
+  }
+  return html;
+}
+
+function renderComplaintDashboard() {
+  initComplaintSystem();
+  var stats = typeof getComplaintStats === 'function' ? getComplaintStats() : { total:0, resolved:0, breached:0, openCount:0 };
+  var html = '<div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:12px;">⚠️ 投诉管理中心</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:14px;">';
+  html += '<div style="background:rgba(59,130,246,0.08);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:18px;font-weight:700;color:#3b82f6;">' + stats.total + '</div><div style="font-size:9px;color:#64748b;">总投诉</div></div>';
+  html += '<div style="background:rgba(34,197,94,0.08);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:18px;font-weight:700;color:#22c55e;">' + stats.resolved + '</div><div style="font-size:9px;color:#64748b;">已解决</div></div>';
+  html += '<div style="background:rgba(239,68,68,0.08);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:18px;font-weight:700;color:#ef4444;">' + stats.breached + '</div><div style="font-size:9px;color:#64748b;">SLA违约</div></div>';
+  html += '<div style="background:rgba(245,158,11,0.08);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:18px;font-weight:700;color:#f59e0b;">' + stats.openCount + '</div><div style="font-size:9px;color:#64748b;">处理中</div></div>';
+  html += '</div>';
+  var complaints = (gameState.complaintSystem && gameState.complaintSystem.complaints) || [];
+  var activeComplaints = complaints.filter(function(c){ return c.status !== 'Closed'; }).slice(-8);
+  if (activeComplaints.length > 0) {
+    html += '<div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:6px;">📋 活跃投诉列表</div>';
+    activeComplaints.forEach(function(c){
+      var priorityColors = { Critical:'#ef4444', High:'#f97316', Normal:'#3b82f6', Low:'#64748b' };
+      var statusColors = { Received:'#94a3b8', Categorized:'#f59e0b', Prioritized:'#f59e0b', Assigned:'#3b82f6', Resolved:'#22c55e', FollowedUp:'#22c55e', Closed:'#64748b' };
+      var pc = priorityColors[c.priority] || '#64748b';
+      var sc = statusColors[c.status] || '#94a3b8';
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:8px;background:rgba(248,250,252,1);border-radius:8px;margin-bottom:4px;border-left:3px solid ' + pc + ';">';
+      html += '<div style="flex:1;"><div style="font-size:11px;font-weight:600;color:#1e293b;">' + c.title + '</div>';
+      html += '<div style="font-size:9px;color:#64748b;">' + c.customerName + ' | D' + c.createdDay + ' | 赔偿 $' + c.compensation + '</div></div>';
+      html += '<span style="font-size:8px;padding:2px 6px;border-radius:4px;background:' + pc + '20;color:' + pc + ';font-weight:600;">' + c.priority + '</span>';
+      html += '<span style="font-size:8px;padding:2px 6px;border-radius:4px;background:' + sc + '20;color:' + sc + ';">' + c.status + '</span>';
+      if (c.status === 'Received' || c.status === 'Categorized' || c.status === 'Prioritized') {
+        html += '<button style="padding:2px 8px;border:none;border-radius:4px;font-size:8px;cursor:pointer;background:#3b82f6;color:#fff;" onclick="quickProcessComplaint(\'' + c.id + '\')">处理</button>';
+      } else if (c.status === 'Assigned') {
+        html += '<button style="padding:2px 8px;border:none;border-radius:4px;font-size:8px;cursor:pointer;background:#22c55e;color:#fff;" onclick="resolveComplaint(\'' + c.id + '\')">解决</button>';
+      } else if (c.status === 'Resolved') {
+        html += '<button style="padding:2px 8px;border:none;border-radius:4px;font-size:8px;cursor:pointer;background:#a855f7;color:#fff;" onclick="followUpComplaint(\'' + c.id + '\')">回访</button>';
+      }
+      html += '</div>';
+    });
+  } else {
+    html += '<div style="text-align:center;padding:20px;color:#94a3b8;font-size:12px;">✅ 暂无活跃投诉</div>';
+  }
+  if (stats.totalCompensation > 0) {
+    html += '<div style="margin-top:10px;padding:8px;background:rgba(239,68,68,0.06);border-radius:8px;font-size:10px;color:#ef4444;">累计赔偿支出: $' + formatCurrency(stats.totalCompensation) + (stats.breached > 0 ? ' | SLA违约罚款: $' + formatCurrency(stats.breached * 150) : '') + '</div>';
+  }
+  return html;
+}
+
+function quickProcessComplaint(complaintId) {
+  categorizeComplaint(complaintId);
+  prioritizeComplaint(complaintId);
+  var employees = (gameState.employees || []).filter(function(e){ return e.role === '店长' || e.role === '销售员'; });
+  if (employees.length > 0) assignComplaint(complaintId, employees[Math.floor(Math.random() * employees.length)].id);
+  renderProgressionModal();
+}
+
+function renderCRMDashboard() {
+  var members = gameState.members || [];
+  var html = '<div style="font-size:14px;font-weight:700;color:#1e293b;margin-bottom:12px;">💜 CRM客户关系管理</div>';
+  var topCustomers = typeof getTopCustomers === 'function' ? getTopCustomers(10) : [];
+  if (topCustomers.length > 0) {
+    html += '<div style="font-size:11px;font-weight:700;color:#1e293b;margin-bottom:6px;">🏆 客户终身价值 TOP10</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:3px;">';
+    topCustomers.forEach(function(m, idx){
+      var lv = typeof getMemberLevelInfo === 'function' ? getMemberLevelInfo(m.level) : {name:'会员',color:'#94a3b8'};
+      var churnScore = typeof predictChurnScore === 'function' ? predictChurnScore(m.id) : 30;
+      var riskColor = churnScore >= 60 ? '#ef4444' : churnScore >= 40 ? '#f59e0b' : '#22c55e';
+      html += '<div style="display:flex;align-items:center;gap:8px;padding:5px 8px;background:' + (idx < 3 ? 'rgba(168,85,247,0.06)' : 'rgba(248,250,252,1)') + ';border-radius:6px;">';
+      html += '<span style="min-width:16px;font-size:10px;color:#94a3b8;">#' + (idx+1) + '</span>';
+      html += '<span style="min-width:50px;font-size:11px;font-weight:600;color:#1e293b;">' + m.name + '</span>';
+      html += '<span style="padding:1px 6px;border-radius:8px;font-size:8px;font-weight:600;background:' + lv.color + '20;color:' + lv.color + ';">' + lv.name.substring(0,2) + '</span>';
+      html += '<span style="flex:1;text-align:right;font-size:11px;font-weight:700;color:#a855f7;">' + formatCurrency(m.ltv) + '</span>';
+      html += '<span style="font-size:8px;color:' + riskColor + ';">风险' + churnScore + '</span>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  var atRisk = typeof getAtRiskCustomers === 'function' ? getAtRiskCustomers(60) : [];
+  if (atRisk.length > 0) {
+    html += '<div style="font-size:11px;font-weight:700;color:#1e293b;margin-top:12px;margin-bottom:6px;">⚠️ 流失风险客户 (' + atRisk.length + '人)</div>';
+    html += '<div style="display:flex;flex-direction:column;gap:3px;">';
+    atRisk.slice(0,5).forEach(function(m){
+      html += '<div style="display:flex;align-items:center;justify-content:space-between;padding:5px 8px;background:rgba(239,68,68,0.05);border-radius:6px;border-left:2px solid ' + (m.riskLevel === 'high' ? '#ef4444' : '#f59e0b') + ';">';
+      html += '<span style="font-size:10px;color:#1e293b;">' + m.name + '</span>';
+      html += '<span style="font-size:9px;color:#94a3b8;">' + m.daysSinceLast + '天未租</span>';
+      html += '<button style="padding:1px 8px;border:none;border-radius:4px;font-size:8px;cursor:pointer;background:#f97316;color:#fff;" onclick="sendWinBackOffer(\'' + m.id + '\')">挽回</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  var segments = typeof getCustomerSegmentAnalysis === 'function' ? getCustomerSegmentAnalysis() : null;
+  if (segments) {
+    html += '<div style="font-size:11px;font-weight:700;color:#1e293b;margin-top:12px;margin-bottom:6px;">👥 客户细分</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">';
+    var segmentItems = [
+      { label:'商务客户', count:segments.business.count, pct:segments.business.pct, color:'#3b82f6' },
+      { label:'旅游客户', count:segments.leisure.count, pct:segments.leisure.pct, color:'#22c55e' },
+      { label:'高频客户', count:segments.frequent.count, pct:segments.frequent.pct, color:'#f59e0b' },
+      { label:'低频客户', count:segments.occasional.count, pct:segments.occasional.pct, color:'#64748b' }
+    ];
+    segmentItems.forEach(function(s){
+      html += '<div style="background:rgba(248,250,252,1);border-radius:8px;padding:10px;text-align:center;">';
+      html += '<div style="font-size:16px;font-weight:700;color:' + s.color + ';">' + s.count + '</div>';
+      html += '<div style="font-size:9px;color:#64748b;">' + s.label + ' (' + s.pct + '%)</div>';
+      html += '</div>';
+    });
+    html += '</div>';
+  }
+  return html;
+}
+
+function sendWinBackOffer(memberId) {
+  var member = gameState.members.find(function(m){ return m.id === memberId; });
+  if (!member) return;
+  var offerCost = 50 + member.level * 30;
+  if (gameState.cash < offerCost) { showToast('资金不足','error'); return; }
+  gameState.cash -= offerCost;
+  gameState.todayExpense += offerCost;
+  member.lastRentalDay = gameState.currentDay;
+  member.isActive = true;
+  addMessage('🎁 已向 ' + member.name + ' 发送挽回优惠（-$' + offerCost + '）', 'good');
+  renderProgressionModal(); saveGame();
+}
+function renderKPIDashboard() {
+  if (typeof getKPIDashboard !== 'function') return '<div style="padding:20px;text-align:center;color:#94a3b8;">KPI模块未加载</div>';
+  var kpi = getKPIDashboard();
+  var runway = kpi.cashRunway;
+  var runwayColor = runway < 7 ? '#ef4444' : runway < 30 ? '#f59e0b' : '#22c55e';
+  var wc = kpi.workingCapital;
+  var wcColor = wc.workingCapital >= 0 ? '#22c55e' : '#ef4444';
+  var html = '';
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">';
+  var quickStats = [
+    {label:'💰 现金跑道', value: runway === 999 ? '∞天' : runway + '天', color:runwayColor},
+    {label:'📊 营收增长(月)', value:(kpi.revenueGrowth.mom >= 0 ? '+' : '') + kpi.revenueGrowth.mom + '%', color:kpi.revenueGrowth.mom >= 0 ? '#22c55e' : '#ef4444'},
+    {label:'📈 净利润率', value:kpi.profitMargins.net + '%', color:kpi.profitMargins.net >= 10 ? '#22c55e' : kpi.profitMargins.net >= 0 ? '#f59e0b' : '#ef4444'},
+    {label:'🏭 EBITDA', value:_fmt(kpi.ebitda), color:'#3b82f6'}
+  ];
+  quickStats.forEach(function(s) {
+    html += '<div style="background:#ffffff;border-radius:10px;padding:12px;border:1px solid rgba(226,232,240,0.6);text-align:center;">';
+    html += '<div style="font-size:9px;color:#94a3b8;margin-bottom:4px;">'+s.label+'</div>';
+    html += '<div style="font-size:16px;font-weight:700;color:'+s.color+';">'+s.value+'</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">';
+  html += '<div style="background:#ffffff;border-radius:10px;padding:14px;border:1px solid rgba(226,232,240,0.6);">';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;border-bottom:2px solid rgba(59,130,246,0.3);padding-bottom:6px;">📈 增长指标</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><tbody>';
+  var growthRows = [
+    ['本月营收', _fmt(kpi.revenueGrowth.thisMonth), '上月', _fmt(kpi.revenueGrowth.lastMonth)],
+    ['本季营收', _fmt(kpi.revenueGrowth.thisQuarter), '上季', _fmt(kpi.revenueGrowth.lastQuarter)],
+    ['月增长率(MoM)', (kpi.revenueGrowth.mom >= 0 ? '+' : '') + kpi.revenueGrowth.mom + '%', '', ''],
+    ['季增长率(QoQ)', (kpi.revenueGrowth.qoq >= 0 ? '+' : '') + kpi.revenueGrowth.qoq + '%', '', '']
+  ];
+  growthRows.forEach(function(r,i){
+    var bg = i%2===0?'#ffffff':'rgba(248,250,252,0.5)';
+    html += '<tr style="'+bg+'"><td style="padding:5px 8px;color:#475569;">'+r[0]+'</td><td style="padding:5px 8px;text-align:right;font-weight:600;color:#1e293b;">'+r[1]+'</td><td style="padding:5px 8px;color:#94a3b8;">'+r[2]+'</td><td style="padding:5px 8px;text-align:right;color:#64748b;">'+r[3]+'</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  html += '<div style="background:#ffffff;border-radius:10px;padding:14px;border:1px solid rgba(226,232,240,0.6);">';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;border-bottom:2px solid rgba(168,85,247,0.3);padding-bottom:6px;">💹 利润率分析</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><tbody>';
+  var marginRows = [
+    ['毛利率', kpi.profitMargins.gross + '%', Math.abs(kpi.profitMargins.gross)],
+    ['营业利润率', kpi.profitMargins.operating + '%', Math.abs(kpi.profitMargins.operating)],
+    ['净利润率', kpi.profitMargins.net + '%', Math.abs(kpi.profitMargins.net)]
+  ];
+  marginRows.forEach(function(m,i){
+    var barW = Math.min(100, m[2] * 3);
+    var barColor = m[2] >= 15 ? '#22c55e' : m[2] >= 5 ? '#f59e0b' : '#ef4444';
+    html += '<tr><td style="padding:5px 0;color:#475569;width:80px;">'+m[0]+'</td><td style="padding:5px 8px;font-weight:700;color:'+barColor+';width:50px;">'+m[1]+'</td><td style="padding:5px 0;"><div style="width:100%;height:8px;background:rgba(226,232,240,1);border-radius:4px;overflow:hidden;"><div style="width:'+barW+'%;height:100%;background:'+barColor+';border-radius:4px;"></div></td></tr>';
+  });
+  html += '</tbody></table></div></div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;">';
+  html += '<div style="background:#ffffff;border-radius:10px;padding:14px;border:1px solid rgba(226,232,240,0.6);">';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;border-bottom:2px solid rgba(34,197,94,0.3);padding-bottom:6px;">🚗 运营效率</div>';
+  html += '<div style="margin-bottom:8px;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(226,232,240,0.4);"><span style="font-size:11px;color:#475569;">车队利用率</span><span style="font-size:13px;font-weight:700;color:#3b82f6;">'+kpi.fleetUtilization+'%</span></div>';
+  html += '<div style="margin-bottom:8px;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(226,232,240,0.4);"><span style="font-size:11px;color:#475569;">资产周转率</span><span style="font-size:13px;font-weight:700;color:#3b82f6;">'+kpi.assetTurnover+'x</span></div>';
+  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;"><span style="font-size:11px;color:#475569;">盈亏平衡天数</span><span style="font-size:13px;font-weight:700;color:'+(kpi.breakEvenAnalysis.breakEvenDays<=30?'#22c55e':kpi.breakEvenAnalysis.breakEvenDays<=60?'#f59e0b':'#ef4444')+';">'+kpi.breakEvenAnalysis.breakEvenDays+'天</span></div>';
+  html += '</div>';
+  html += '<div style="background:#ffffff;border-radius:10px;padding:14px;border:1px solid rgba(226,232,240,0.6);">';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;border-bottom:2px solid rgba(245,158,11,0.3);padding-bottom:6px;">👥 客户价值</div>';
+  html += '<div style="margin-bottom:8px;display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(226,232,240,0.4);"><span style="font-size:11px;color:#475569;">客户获取成本(CAC)</span><span style="font-size:13px;font-weight:700;color:#f59e0b;">'+_fmt(kpi.customerAcquisitionCost)+'</span></div>';
+  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(226,232,240,0.4);"><span style="font-size:11px;color:#475569;">客户生命周期价值(CLV)</span><span style="font-size:13px;font-weight:700;color:#22c55e;">'+_fmt(kpi.customerLifetimeValue)+'</span></div>';
+  var clvcacRatio = kpi.customerAcquisitionCost > 0 ? Math.round(kpi.customerLifetimeValue / kpi.customerAcquisitionCost * 10) / 10 : 0;
+  html += '<div style="display:flex;justify-content:space-between;padding:6px 0;"><span style="font-size:11px;color:#475569;">CLV/CAC 比值</span><span style="font-size:13px;font-weight:700;color:'+(clvcacRatio>=3?'#22c55e':clvcacRatio>=1?'#f59e0b':'#ef4444')+';">'+clvcacRatio+'x</span></div>';
+  html += '</div></div>';
+  html += '<div style="background:#ffffff;border-radius:10px;padding:14px;border:1px solid rgba(226,232,240,0.6);margin-bottom:14px;">';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;border-bottom:2px solid rgba(99,102,241,0.3);padding-bottom:6px;">⚖️ 财务健康度</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;">';
+  var ratioItems = [
+    {label:'流动比率', value:kpi.balanceRatios.currentRatio, good: kpi.balanceRatios.currentRatio >= 1.5, desc:'>1.5 健康'},
+    {label:'资产负债率', value:(kpi.balanceRatios.debtToEquity*100).toFixed(1)+'%', good: kpi.balanceRatios.debtToEquity <= 1, desc:'<100% 安全'},
+    {label:'ROA(资产回报)', value:kpi.balanceRatios.roa+'%', good: kpi.balanceRatios.roa > 0, desc:'>0 盈利'},
+    {label:'ROE(权益回报)', value:kpi.balanceRatios.roe+'%', good: kpi.balanceRatios.roe > 5, desc:'>5% 良好'}
+  ];
+  ratioItems.forEach(function(r) {
+    html += '<div style="background:rgba(248,250,252,1);border-radius:8px;padding:10px;text-align:center;">';
+    html += '<div style="font-size:9px;color:#94a3b8;margin-bottom:4px;">'+r.label+'</div>';
+    html += '<div style="font-size:15px;font-weight:700;color:'+(r.good?'#22c55e':'#ef4444')+';">'+r.value+'</div>';
+    html += '<div style="font-size:8px;color:#cbd5e1;">'+r.desc+'</div></div>';
+  });
+  html += '</div>';
+  html += '<div style="margin-top:10px;display:flex;gap:8px;">';
+  html += '<div style="flex:1;background:rgba(248,250,252,1);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">营运资本</div><div style="font-size:14px;font-weight:700;color:'+wcColor+';">'+_fmt(wc.workingCapital)+'</div></div>';
+  html += '<div style="flex:1;background:rgba(248,250,252,1);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">流动资产</div><div style="font-size:14px;font-weight:700;color:#3b82f6;">'+_fmt(wc.currentAssets)+'</div></div>';
+  html += '<div style="flex:1;background:rgba(248,250,252,1);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">流动负债</div><div style="font-size:14px;font-weight:700;color:#f87171;">'+_fmt(wc.currentLiabilities)+'</div></div>';
+  html += '</div></div>';
+  return html;
+}
+function renderTaxCenter() {
+  if (typeof getTaxSummary !== 'function') return '<div style="padding:20px;text-align:center;color:#94a3b8;">税务模块未加载</div>';
+  var tax = getTaxSummary();
+  var html = '';
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">';
+  var taxCards = [
+    {label:'📊 本年累计利润', value:_fmt(tax.ytdProfit), color:tax.ytdProfit>=0?'#22c55e':'#ef4444'},
+    {label:'🧾 已缴税款', value:_fmt(tax.ytdTaxPaid), color:'#3b82f6'},
+    {label:'⚠️ 应缴税金', value:_fmt(tax.totalOwed), color:tax.totalOwed>0?'#f59e0b':'#22c55e'},
+    {label:'📅 已申报季度', value:tax.quartersFiled+'/4', color:tax.quartersFiled>=2?'#22c55e':'#f59e0b'}
+  ];
+  taxCards.forEach(function(c) {
+    html += '<div style="background:#ffffff;border-radius:10px;padding:12px;border:1px solid rgba(226,232,240,0.6);text-align:center;">';
+    html += '<div style="font-size:9px;color:#94a3b8;margin-bottom:4px;">'+c.label+'</div>';
+    html += '<div style="font-size:15px;font-weight:700;color:'+c.color+';">'+c.value+'</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  html += '<div style="background:#ffffff;border-radius:10px;padding:14px;border:1px solid rgba(226,232,240,0.6);margin-bottom:14px;">';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;border-bottom:2px solid rgba(239,68,68,0.3);padding-bottom:6px;">📋 税种明细</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><tbody>';
+  var taxTypes = [
+    ['企业所得税 ('+(tax.corporateTaxRate*100)+'%)', tax.ytdProfit*tax.corporateTaxRate, '年度利润计征'],
+    ['增值税/VAT ('+(tax.vatRate*100)+'%)', tax.vatCollected, '租金收入计征'],
+    ['财产税 ('+(tax.propertyTaxRate*100)+'%/年)', tax.propertyTaxOwed, '车队净值计征'],
+    ['滞纳金/罚款', tax.taxPenalties, '逾期产生']
+  ];
+  taxTypes.forEach(function(t,i){
+    var bg = i%2===0?'#ffffff':'rgba(248,250,252,0.5)';
+    html += '<tr style="'+bg+'"><td style="padding:6px 10px;color:#1e293b;font-weight:600;">'+t[0]+'</td><td style="padding:6px 10px;text-align:right;color:#f87171;">'+_fmt(t[1])+'</td><td style="padding:6px 10px;color:#94a3b8;font-size:10px;">'+t[2]+'</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  if (tax.nextFiling) {
+    html += '<div style="background:'+(tax.nextFiling.daysLeft<=0?'rgba(239,68,68,0.08)':tax.nextFiling.daysLeft<=7?'rgba(245,158,11,0.08)':'rgba(34,197,94,0.05)')+';border-radius:10px;padding:14px;border:1px solid '+(tax.nextFiling.daysLeft<=0?'rgba(239,68,68,0.3)':tax.nextFiling.daysLeft<=7?'rgba(245,158,11,0.3)':'rgba(34,197,94,0.2)')+';margin-bottom:14px;">';
+    html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px;">⏰ 下次报税截止</div>';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+    html += '<div><span style="font-size:18px;font-weight:700;color:'+(tax.nextFiling.daysLeft<=0?'#ef4444':tax.nextFiling.daysLeft<=7?'#f59e0b':'#22c55e')+';">第'+tax.nextFiling.quarter+'季度</span>';
+    html += '<span style="font-size:11px;color:#64748b;margin-left:8px;">应缴 '+_fmt(tax.nextFiling.amount)+' · 剩余 '+Math.max(0,tax.nextFiling.daysLeft)+' 天</span></div>';
+    html += '<button class="action-btn btn-buy" onclick="doPayTaxes()">立即缴税</button></div></div>';
+  }
+  html += '<div style="background:#ffffff;border-radius:10px;padding:14px;border:1px solid rgba(226,232,240,0.6);margin-bottom:14px;">';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;border-bottom:2px solid rgba(168,85,247,0.3);padding-bottom:6px;">📉 折旧方法优化</div>';
+  html += '<div style="display:flex;gap:10px;align-items:center;margin-bottom:8px;">';
+  html += '<button style="flex:1;padding:10px;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;'+(tax.depreciationMethod==='straight'?'background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;':'background:rgba(241,245,249,1);color:#475569;border:1px solid rgba(203,213,225,1);')+'" onclick="doSwitchDepreciation(\'straight\')">直线折旧法<br><span style="font-size:9px;font-weight:400;">均匀分摊，税负平稳</span></button>';
+  html += '<button style="flex:1;padding:10px;border:none;border-radius:8px;font-size:11px;font-weight:700;cursor:pointer;'+(tax.depreciationMethod==='accelerated'?'background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;':'background:rgba(241,245,249,1);color:#475569;border:1px solid rgba(203,213,225,1);')+'" onclick="doSwitchDepreciation(\'accelerated\')">加速折旧法<br><span style="font-size:9px;font-weight:400;">前两年双倍，前期少交税</span></button>';
+  html += '</div>';
+  html += '<div style="font-size:10px;color:#64748b;line-height:1.6;">当前使用: <strong>'+(tax.depreciationMethod==='straight'?'直线法（每年等额）':'加速法（前两年双倍余额递减）')+'</strong>。加速折旧可延迟纳税，改善现金流。</div>';
+  html += '</div>';
+  html += '<div style="display:flex;gap:8px;">';
+  html += '<button class="action-btn btn-buy" style="flex:1;" onclick="doPayTaxes()" '+(tax.totalOwed<=0?'disabled style="opacity:0.5;"':'')+'>💰 缴纳所有税款 ('+_fmt(tax.totalOwed)+')</button>';
+  html += '</div>';
+  return html;
+}
+function doPayTaxes() {
+  if (typeof payTaxes === 'function') {
+    var result = payTaxes();
+    if (!result.success) showToast(result.message || '无需缴税', result.success ? 'success' : 'warn');
+    else showToast('成功缴税 ' + formatCurrency(result.paid), 'success');
+    updateUI(); saveGame(); renderFinanceModal();
+  }
+}
+function doSwitchDepreciation(method) {
+  if (typeof optimizeDepreciationMethod === 'function') {
+    optimizeDepreciationMethod(method);
+    updateUI(); saveGame(); renderFinanceModal();
+  }
+}
+function renderDepreciationSchedule() {
+  if (typeof getFleetDepreciationReport !== 'function') return '<div style="padding:20px;text-align:center;color:#94a3b8;">折旧模块未加载</div>';
+  var report = getFleetDepreciationReport();
+  var html = '';
+  html += '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;">';
+  var depCards = [
+    {label:'🚗 车队原值', value:_fmt(report.totalOriginalCost), color:'#3b82f6'},
+    {label:'📉 累计折旧', value:_fmt(report.totalAccumulated), color:'#f59e0b'},
+    {label:'💎 车队账面净值', value:_fmt(report.totalBookValue), color:'#22c55e'},
+    {label:'📅 月折旧费', value:_fmt(report.totalMonthlyExpense), color:'#f87171'}
+  ];
+  depCards.forEach(function(c) {
+    html += '<div style="background:#ffffff;border-radius:10px;padding:12px;border:1px solid rgba(226,232,240,0.6);text-align:center;">';
+    html += '<div style="font-size:9px;color:#94a3b8;margin-bottom:4px;">'+c.label+'</div>';
+    html += '<div style="font-size:15px;font-weight:700;color:'+c.color+';">'+c.value+'</div>';
+    html += '</div>';
+  });
+  html += '</div>';
+  var totalDepreciatedPct = report.totalOriginalCost > 0 ? Math.round(report.totalAccumulated / report.totalOriginalCost * 10000) / 100 : 0;
+  html += '<div style="background:rgba(248,250,252,1);border-radius:10px;padding:14px;margin-bottom:14px;">';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:8px;">📊 折旧进度</div>';
+  html += '<div style="width:100%;height:12px;background:rgba(226,232,240,1);border-radius:6px;overflow:hidden;margin-bottom:6px;">';
+  html += '<div style="width:'+totalDepreciatedPct+'%;height:100%;background:linear-gradient(90deg,#3b82f6,#8b5cf6);border-radius:6px;"></div></div>';
+  html += '<div style="font-size:10px;color:#64748b;">已折旧 '+totalDepreciatedPct+'% · 剩余账面价值 '+_fmt(report.totalBookValue)+'</div></div>';
+  if (report.vehicleDetails.length > 0) {
+    html += '<div style="background:#ffffff;border-radius:10px;overflow:hidden;border:1px solid rgba(226,232,240,0.6);">';
+    html += '<table style="width:100%;border-collapse:collapse;font-size:10px;"><thead><tr style="background:rgba(241,245,249,1);">';
+    html += '<th style="padding:8px 10px;text-align:left;color:#1e293b;">车辆</th><th style="padding:8px 6px;text-align:right;color:#1e293b;">原值</th><th style="padding:8px 6px;text-align:right;color:#1e293b;">累计折旧</th><th style="padding:8px 6px;text-align:right;color:#1e293b;">账面净值</th><th style="padding:8px 6px;text-align:right;color:#1e293b;">月折旧</th><th style="padding:8px 6px;text-align:center;color:#1e293b;">方法</th><th style="padding:8px 6px;text-align:center;color:#1e293b;">车龄</th></tr></thead><tbody>';
+    report.vehicleDetails.forEach(function(v,i){
+      var bg = i%2===0?'#ffffff':'rgba(248,250,252,0.5)';
+      var methodLabel = v.method==='accelerated'?'加速':'直线';
+      var ageDisplay = v.ageMonths<12?v.ageMonths+'个月':Math.floor(v.ageMonths/12)+'年'+(v.ageMonths%12)+'月';
+      html += '<tr style="'+bg+';border-bottom:1px solid rgba(226,232,240,0.4);">';
+      html += '<td style="padding:6px 10px;color:#1e293b;font-weight:500;">'+v.name+'<br><span style="color:#94a3b8;font-size:9px;">'+(v.licensePlate||'—')+'</span></td>';
+      html += '<td style="padding:6px 6px;text-align:right;color:#3b82f6;">'+_fmt(v.originalCost)+'</td>';
+      html += '<td style="padding:6px 6px;text-align:right;color:#f59e0b;">'+_fmt(v.accumulated)+'</td>';
+      html += '<td style="padding:6px 6px;text-align:right;font-weight:600;color:#22c55e;">'+_fmt(v.bookValue)+'</td>';
+      html += '<td style="padding:6px 6px;text-align:right;color:#f87171;">'+_fmt(v.monthlyExpense)+'</td>';
+      html += '<td style="padding:6px 6px;text-align:center;"><span style="padding:2px 6px;border-radius:3px;font-size:9px;background:'+(v.method==='accelerated'?'rgba(168,85,247,0.15);color:#a855f7':'rgba(59,130,246,0.15);color:#3b82f6')+';">'+methodLabel+'</span></td>';
+      html += '<td style="padding:6px 6px;text-align:center;color:#64748b;">'+ageDisplay+'</td></tr>';
+    });
+    html += '</tbody></table></div>';
+  } else {
+    html += '<div class="empty-state"><div class="icon">🚗</div><div class="text">暂无车辆数据</div></div>';
+  }
+  return html;
+}
+function renderBudgetManagement() {
+  if (typeof getBudgetVariance !== 'function') return '<div style="padding:20px;text-align:center;color:#94a3b8;">预算模块未加载</div>';
+  var variance = getBudgetVariance();
+  var b = gameState.budget || {};
+  var html = '';
+  html += '<div style="background:rgba(248,250,252,1);border-radius:10px;padding:14px;margin-bottom:14px;">';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;">🎯 月度预算设置</div>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">';
+  html += '<div><label style="font-size:10px;color:#64748b;display:block;margin-bottom:4px;">收入目标</label><input type="number" id="budgetRevenueTarget" value="'+b.monthlyRevenueTarget+'" style="width:100%;padding:8px;background:rgba(226,232,240,0.8);border:1px solid rgba(203,213,225,1);border-radius:6px;color:#1e293b;font-size:12px;"></div>';
+  html += '<div><label style="font-size:10px;color:#64748b;display:block;margin-bottom:4px;">工资上限</label><input type="number" id="budgetSalariesCap" value="'+b.salariesCap+'" style="width:100%;padding:8px;background:rgba(226,232,240,0.8);border:1px solid rgba(203,213,225,1);border-radius:6px;color:#1e293b;font-size:12px;"></div>';
+  html += '<div><label style="font-size:10px;color:#64748b;display:block;margin-bottom:4px;">营销上限</label><input type="number" id="budgetMarketingCap" value="'+b.marketingCap+'" style="width:100%;padding:8px;background:rgba(226,232,240,0.8);border:1px solid rgba(203,213,225,1);border-radius:6px;color:#1e293b;font-size:12px;"></div>';
+  html += '<div><label style="font-size:10px;color:#64748b;display:block;margin-bottom:4px;">维护上限</label><input type="number" id="budgetMaintenanceCap" value="'+b.maintenanceCap+'" style="width:100%;padding:8px;background:rgba(226,232,240,0.8);border:1px solid rgba(203,213,225,1);border-radius:6px;color:#1e293b;font-size:12px;"></div>';
+  html += '</div>';
+  html += '<button class="action-btn btn-buy" style="width:100%;margin-top:10px;" onclick="doSaveBudget()">保存预算设置</button>';
+  html += '</div>';
+  html += '<div style="background:#ffffff;border-radius:10px;padding:14px;border:1px solid rgba(226,232,240,0.6);margin-bottom:14px;">';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;border-bottom:2px solid rgba(59,130,246,0.3);padding-bottom:6px;">📊 预算执行差异分析（本月）</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:rgba(241,245,249,1);"><th style="padding:8px 10px;text-align:left;color:#1e293b;">项目</th><th style="padding:8px 10px;text-align:right;color:#1e293b;">预算</th><th style="padding:8px 10px;text-align:right;color:#1e293b;">实际</th><th style="padding:8px 10px;text-align:right;color:#1e293b;">差异</th><th style="padding:8px 10px;text-align:right;color:#1e293b;">偏差%</th></tr></thead><tbody>';
+  var budgetRows = [
+    {name:'营业收入', target:variance.revenue.target, actual:variance.revenue.actual, variance:variance.revenue.varianceance, pct:variance.revenue.variancePct, inverse:false},
+    {name:'员工工资', target:variance.salaries.target, actual:variance.salaries.actual, variance:variance.salaries.variance, pct:variance.salaries.target>0?Math.round(variance.salaries.variance/variance.salaries.target*10000)/100:0, inverse:true},
+    {name:'营销费用', target:variance.marketing.target, actual:variance.marketing.actual, variance:variance.marketing.variance, pct:variance.marketing.target>0?Math.round(variance.marketing.variance/variance.marketing.target*10000)/100:0, inverse:true},
+    {name:'维护费用', target:variance.maintenance.target, actual:variance.maintenance.actual, variance:variance.maintenance.variance, pct:variance.maintenance.target>0?Math.round(variance.maintenance.variance/variance.maintenance.target*10000)/100:0, inverse:true}
+  ];
+  budgetRows.forEach(function(row,i){
+    var bg = i%2===0?'#ffffff':'rgba(248,250,252,0.5)';
+    var isGood = row.inverse ? row.variance <= 0 : row.variance >= 0;
+    var vColor = isGood ? '#22c55e' : '#ef4444';
+    var vPrefix = (row.variance>=0 && !row.inverse || row.variance<0 && row.inverse)?'+':'';
+    html += '<tr style="'+bg+';border-bottom:1px solid rgba(226,232,240,0.4);">';
+    html += '<td style="padding:7px 10px;color:#1e293b;font-weight:500;">'+row.name+'</td>';
+    html += '<td style="padding:7px 10px;text-align:right;color:#64748b;">'+_fmt(row.target)+'</td>';
+    html += '<td style="padding:7px 10px;text-align:right;color:#1e293b;">'+_fmt(row.actual)+'</td>';
+    html += '<td style="padding:7px 10px;text-align:right;font-weight:600;color:'+vColor+';">'+vPrefix+_fmt(Math.abs(row.variance))+'</td>';
+    html += '<td style="padding:7px 10px;text-align:right;"><span style="color:'+vColor+';font-weight:600;">'+(row.pct>=0?'+':'')+row.pct+'%</span></td></tr>';
+  });
+  html += '</tbody></table></div>';
+  html += '<div style="background:'+(variance.overallStatus==='favorable'?'rgba(34,197,94,0.06)':'rgba(239,68,68,0.06)')+';border:1px solid '+(variance.overallStatus==='favorable'?'rgba(34,197,94,0.2)':'rgba(239,68,68,0.2)')+';border-radius:10px;padding:14px;margin-bottom:14px;">';
+  html += '<div style="display:flex;justify-content:space-between;align-items:center;">';
+  html += '<div><span style="font-size:13px;font-weight:700;color:'+(variance.overallStatus==='favorable'?'#22c55e':'#ef4444')+';">'+(variance.overallStatus==='favorable'?'✅ 预算执行良好':'❌ 预算超支警告')+'</span>';
+  html += '<span style="font-size:11px;color:#64748b;margin-left:8px;">收入差异 '+_fmt(variance.revenue.varianceance)+'</span></div>';
+  html += '<button class="action-btn '+(variance.overallStatus==='favorable'?'btn-buy':'btn-sell')+'" onclick="doMonthEndClosing()">📊 月度结账</button></div></div>';
+  if (b.varianceHistory && b.varianceHistory.length > 0) {
+    html += '<div style="background:#ffffff;border-radius:10px;padding:14px;border:1px solid rgba(226,232,240,0.6);">';
+    html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;border-bottom:2px solid rgba(139,92,246,0.3);padding-bottom:6px;">📜 结账历史</div>';
+    b.varianceHistory.slice(-3).forEach(function(h,i){
+      html += '<div style="padding:8px;background:'+(i%2===0?'#ffffff':'rgba(248,250,252,0.5)')+';border-radius:6px;margin-bottom:6px;">';
+      html += '<div style="display:flex;justify-content:space-between;font-size:11px;"><span style="font-weight:600;color:#1e293b;">'+h.period+' (D'+h.closingDay+')</span><span style="color:'+(h.incomeStatement.netIncome>=0?'#22c55e':'#ef4444')+';font-weight:700;">净利润 '+_fmt(h.incomeStatement.netIncome)+'</span></div>';
+      html += '<div style="font-size:9px;color:#94a3b8;margin-top:2px;">EBITDA: '+_fmt(h.kpis.ebitda)+' · 收入: '+_fmt(h.incomeStatement.revenue.total)+'</div></div>';
+    });
+    html += '</div>';
+  }
+  return html;
+}
+function doSaveBudget() {
+  if (typeof setBudget === 'function') {
+    setBudget({
+      monthlyRevenueTarget: parseInt(document.getElementById('budgetRevenueTarget').value)||100000,
+      salariesCap: parseInt(document.getElementById('budgetSalariesCap').value)||50000,
+      marketingCap: parseInt(document.getElementById('budgetMarketingCap').value)||20000,
+      maintenanceCap: parseInt(document.getElementById('budgetMaintenanceCap').value)||15000
+    });
+    showToast('预算设置已保存','success');
+    renderFinanceModal();
+  }
+}
+function doMonthEndClosing() {
+  if (typeof runMonthEndClosing === 'function') {
+    var result = runMonthEndClosing();
+    if (!result.success) showToast(result.message, 'warn');
+    else showToast('结账完成！净利润 '+formatCurrency(result.report.incomeStatement.netIncome),'success');
+    updateUI(); saveGame(); renderFinanceModal();
+  }
+}
+function renderCashForecastUI() {
+  if (typeof generateCashForecast !== 'function') return '<div style="padding:20px;text-align:center;color:#94a3b8;">预测模块未加载</div>';
+  var forecast = generateCashForecast(7);
+  var runway = typeof getCashRunway === 'function' ? getCashRunway() : 999;
+  var runwayColor = runway < 7 ? '#ef4444' : runway < 30 ? '#f59e0b' : '#22c55e';
+  var html = '';
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;">';
+  html += '<div style="background:#ffffff;border-radius:10px;padding:12px;border:1px solid rgba(226,232,240,0.6);text-align:center;"><div style="font-size:9px;color:#94a3b8;margin-bottom:4px;">当前现金</div><div style="font-size:18px;font-weight:700;color:#22c55e;">'+_fmt(gameState.cash||0)+'</div></div>';
+  html += '<div style="background:#ffffff;border-radius:10px;padding:12px;border:1px solid rgba(226,232,240,0.6);text-align:center;"><div style="font-size:9px;color:#94a3b8;margin-bottom:4px;">现金跑道</div><div style="font-size:18px;font-weight:700;color:'+runwayColor+';">'+(runway===999?'∞':runway)+'天</div></div>';
+  html += '<div style="background:#ffffff;border-radius:10px;padding:12px;border:1px solid rgba(226,232,240,0.6);text-align:center;"><div style="font-size:9px;color:#94a3b8;margin-bottom:4px;">预测周期</div><div style="font-size:18px;font-weight:700;color:#3b82f6;">7天</div></div>';
+  html += '</div>';
+  html += '<div style="background:#ffffff;border-radius:10px;padding:14px;border:1px solid rgba(226,232,240,0.6);margin-bottom:14px;">';
+  html += '<div style="font-size:12px;font-weight:700;color:#1e293b;margin-bottom:10px;border-bottom:2px solid rgba(59,130,246,0.3);padding-bottom:6px;">🔮 未来7日现金预测</div>';
+  html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:rgba(241,245,249,1);"><th style="padding:8px 10px;text-align:left;color:#1e293b;">日期</th><th style="padding:8px 10px;text-align:right;color:#1e293b;">预计余额</th><th style="padding:8px 10px;text-align:right;color:#1e293b;">流入</th><th style="padding:8px 10px;text-align:right;color:#1e293b;">流出</th><th style="padding:8px 10px;text-align:right;color:#1e293b;">净变动</th></tr></thead><tbody>';
+  forecast.forEach(function(f,i){
+    var bg = i%2===0?'#ffffff':'rgba(248,250,252,0.5)';
+    var balColor = f.projectedBalance >= 0 ? '#22c55e' : '#ef4444';
+    var netColor = f.netChange >= 0 ? '#22c55e' : '#ef4444';
+    var netPrefix = f.netChange >= 0 ? '+' : '';
+    html += '<tr style="'+bg+';border-bottom:1px solid rgba(226,232,240,0.4);">';
+    html += '<td style="padding:7px 10px;color:#1e293b;font-weight:500;">D'+f.day+'</td>';
+    html += '<td style="padding:7px 10px;text-align:right;font-weight:600;color:'+balColor+';">'+_fmt(f.projectedBalance)+'</td>';
+    html += '<td style="padding:7px 10px;text-align:right;color:#22c55e;">'+_fmt(f.opInflow)+'</td>';
+    html += '<td style="padding:7px 10px;text-align:right;color:#ef4444;">'+_fmt(f.opOutflow)+'</td>';
+    html += '<td style="padding:7px 10px;text-align:right;font-weight:600;color:'+netColor+';">'+netPrefix+_fmt(f.netChange)+'</td></tr>';
+  });
+  html += '</tbody></table></div>';
+  var minBalance = Math.min.apply(null, forecast.map(function(f){return f.projectedBalance;}));
+  var maxBalance = Math.max.apply(null, forecast.map(function(f){return f.projectedBalance;}));
+  var trendDirection = forecast.length >= 2 ? (forecast[forecast.length-1].projectedBalance >= forecast[0].projectedBalance ? '上升 ↗️' : '下降 ↘️') : '—';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;">';
+  html += '<div style="background:rgba(248,250,252,1);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">预测最低点</div><div style="font-size:14px;font-weight:700;color:'+(minBalance>=0?'#22c55e':'#ef4444')+';">'+_fmt(minBalance)+'</div></div>';
+  html += '<div style="background:rgba(248,250,252,1);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">预测最高点</div><div style="font-size:14px;font-weight:700;color:#22c55e;">'+_fmt(maxBalance)+'</div></div>';
+  html += '<div style="background:rgba(248,250,252,1);border-radius:8px;padding:10px;text-align:center;"><div style="font-size:9px;color:#94a3b8;">趋势方向</div><div style="font-size:14px;font-weight:700;color:#3b82f6;">'+trendDirection+'</div></div>';
+  html += '</div>';
+  if (minBalance < 0) {
+    html += '<div style="margin-top:10px;padding:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.3);border-radius:8px;text-align:center;"><span style="color:#ef4444;font-weight:700;">⚠️ 预测未来可能出现现金赤字！建议及时融资或削减开支。</span></div>';
+  } else if (minBalance < gameState.cash * 0.3) {
+    html += '<div style="margin-top:10px;padding:10px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.3);border-radius:8px;text-align:center;"><span style="color:#f59e0b;font-weight:700;">⚡ 现金储备将大幅下降，请注意监控。</span></div>';
+  }
+  return html;
+}
+
 function sortMembers(field) {
   if (memberSortField === field) memberSortAsc = !memberSortAsc;
   else { memberSortField = field; memberSortAsc = false; }
@@ -1852,55 +2988,6 @@ function renderOrderHistory() {
   }
   content.innerHTML = html;
 }
-function openEmployeeModal() {
-  document.getElementById('employeeModal').classList.add('active');
-  renderEmployeeModal();
-}
-function closeEmployeeModal() {
-  document.getElementById('employeeModal').classList.remove('active');
-}
-function renderEmployeeModal() {
-  var emps = gameState.employees || [];
-  var content = document.getElementById('employeeContent');
-  var totalSalary = emps.reduce(function(s,e){ return s + e.salary * 8; }, 0);
-  var striking = emps.filter(function(e){ return e.onStrike; }).length;
-  var html = '<div style="display:flex;gap:12px;margin-bottom:14px;flex-wrap:wrap;">';
-  html += '<div style="padding:8px 14px;background:rgba(248,250,252,1);border-radius:8px;"><span style="color:#64748b;">员工总数</span> <span style="color:#60a5fa;font-weight:700;">'+emps.length+'</span></div>';
-  html += '<div style="padding:8px 14px;background:rgba(248,250,252,1);border-radius:8px;"><span style="color:#64748b;">日工资总额</span> <span style="color:#fbbf24;font-weight:700;">'+formatCurrency(totalSalary)+'</span></div>';
-  html += '<div style="padding:8px 14px;background:rgba(248,250,252,1);border-radius:8px;"><span style="color:#64748b;">罢工</span> <span style="color:#f87171;font-weight:700;">'+striking+'</span></div>';
-  html += '<div style="padding:8px 14px;background:rgba(248,250,252,1);border-radius:8px;"><button class="action-btn btn-buy" style="padding:4px 10px;font-size:10px;" onclick="openTalentMarket()">👔 人才市场</button></div>';
-  html += '<div style="padding:8px 14px;background:rgba(248,250,252,1);border-radius:8px;"><button class="action-btn" style="padding:4px 10px;font-size:10px;background:linear-gradient(135deg,#e67e22,#f39c12);color:#fff;" onclick="doTeamBuilding()"'+(gameState.currentDay - (gameState.lastTeamBuildingDay||0) < 7?' disabled':'')+'>🎉 团建($5000)</button></div>';
-  html += '</div>';
-  if (emps.length === 0) {
-    html += '<div class="empty-state"><div class="icon">👔</div><div class="text">暂无员工，前往人才市场招聘</div></div>';
-  } else {
-    html += '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="border-bottom:1px solid rgba(203,213,225,1);">';
-    html += '<th style="text-align:left;padding:6px 8px;color:#64748b;">姓名</th>';
-    html += '<th style="text-align:left;padding:6px 8px;color:#64748b;">角色</th>';
-    html += '<th style="text-align:left;padding:6px 8px;color:#64748b;">网点</th>';
-    html += '<th style="text-align:right;padding:6px 8px;color:#64748b;">时薪</th>';
-    html += '<th style="text-align:center;padding:6px 8px;color:#64748b;">士气</th>';
-    html += '<th style="text-align:center;padding:6px 8px;color:#64748b;">技能</th>';
-    html += '<th style="text-align:center;padding:6px 8px;color:#64748b;">操作</th>';
-    html += '</tr></thead><tbody>';
-    emps.forEach(function(e){
-      var moraleColor = e.morale > 80 ? '#4ade80' : e.morale > 30 ? '#fbbf24' : '#f87171';
-      var strikeTag = e.onStrike ? ' <span style="color:#f87171;font-weight:700;">⚠罢工</span>' : '';
-      var outletName = OUTLET_CONFIGS.find(function(c){ return c.id === e.outletId; });
-      html += '<tr style="border-bottom:1px solid rgba(226,232,240,0.6);">';
-      html += '<td style="padding:6px 8px;color:#94a3b8;">'+e.name+strikeTag+'</td>';
-      html += '<td style="padding:6px 8px;"><span style="padding:2px 6px;border-radius:4px;font-size:10px;background:rgba(52,152,219,0.15);color:#3498db;">'+e.type+'</span></td>';
-      html += '<td style="padding:6px 8px;color:#64748b;">'+(outletName?outletName.name:'—')+'</td>';
-      html += '<td style="padding:6px 8px;text-align:right;color:#64748b;">$'+e.salary+'/h</td>';
-      html += '<td style="padding:6px 8px;text-align:center;color:'+moraleColor+';">'+e.morale+'</td>';
-      html += '<td style="padding:6px 8px;text-align:center;color:#64748b;">'+e.skillLevel+'</td>';
-      html += '<td style="padding:6px 8px;text-align:center;"><button class="action-btn" style="padding:2px 6px;font-size:9px;background:linear-gradient(135deg,#3498db,#2980b9);color:#fff;margin:1px;" onclick="trainEmployee(\''+e.id+'\')">培训$3K</button><button class="action-btn" style="padding:2px 6px;font-size:9px;background:linear-gradient(135deg,#27ae60,#2ecc71);color:#fff;margin:1px;" onclick="raiseSalary(\''+e.id+'\')">加薪</button><button class="action-btn" style="padding:2px 6px;font-size:9px;background:rgba(231,76,60,0.2);color:#e74c3c;border:1px solid #e74c3c;margin:1px;" onclick="fireEmployee(\''+e.id+'\');renderEmployeeModal();">解雇</button></td>';
-      html += '</tr>';
-    });
-    html += '</tbody></table>';
-  }
-  content.innerHTML = html;
-}
 function openTalentMarket() {
   document.getElementById('talentModal').classList.add('active');
   renderTalentMarket();
@@ -1979,7 +3066,7 @@ function switchFinanceTab(tab) {
 function renderFinanceModal() {
   var content = document.getElementById('financeContent');
   var tabs = '<div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;">';
-  var tabDefs = [{key:'overview',label:'📑 概览'},{key:'pnl',label:'📊 损益表'},{key:'balance',label:'📋 资产负债'},{key:'cashflow',label:'💸 现金流'},{key:'loans',label:'🏦 贷款'},{key:'stocks',label:'📈 股票'}];
+  var tabDefs = [{key:'overview',label:'📑 概览'},{key:'pnl',label:'📊 损益表'},{key:'balance',label:'📋 资产负债'},{key:'cashflow',label:'💸 现金流'},{key:'kpi',label:'📈 KPI仪表盘'},{key:'tax',label:'🧾 税务中心'},{key:'depreciation',label:'📉 折旧表'},{key:'budget',label:'🎯 预算管理'},{key:'cashforecast',label:'🔮 现金预测'},{key:'loans',label:'🏦 贷款'},{key:'stocks',label:'📈 股票'}];
   tabDefs.forEach(function(t){
     tabs += '<button style="padding:8px 14px;border:none;border-radius:8px;font-size:11px;font-weight:600;cursor:pointer;min-height:36px;'+(financeTab===t.key?'background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;':'background:rgba(241,245,249,1);color:#475569;border:1px solid rgba(203,213,225,1);')+'" onclick="switchFinanceTab(\''+t.key+'\')">'+t.label+'</button>';
   });
@@ -1989,6 +3076,11 @@ function renderFinanceModal() {
   else if (financeTab === 'pnl') body = renderPnL();
   else if (financeTab === 'balance') body = renderBalanceSheet();
   else if (financeTab === 'cashflow') body = renderCashFlow();
+  else if (financeTab === 'kpi') body = renderKPIDashboard();
+  else if (financeTab === 'tax') body = renderTaxCenter();
+  else if (financeTab === 'depreciation') body = renderDepreciationSchedule();
+  else if (financeTab === 'budget') body = renderBudgetManagement();
+  else if (financeTab === 'cashforecast') body = renderCashForecastUI();
   else if (financeTab === 'loans') body = renderLoans();
   else if (financeTab === 'stocks') body = renderStocks();
   content.innerHTML = tabs + body;
@@ -2175,7 +3267,10 @@ function renderProgressionModal() {
     { id:'techtree', name:'🔬 科技', color:'#3b82f6' },
     { id:'rivals', name:'⚔️ 竞争', color:'#ef4444' },
     { id:'daily', name:'📋 挑战', color:'#4ade80' },
-    { id:'prestige', name:'✨ 重生', color:'#a855f7' }
+    { id:'prestige', name:'✨ 重生', color:'#a855f7' },
+    { id:'market', name:'📊 市场', color:'#06b6d4' },
+    { id:'kpi', name:'📈 KPI', color:'#f97316' },
+    { id:'strategy', name:'🎯 战略', color:'#ec4899' }
   ];
   var html = '<div style="display:flex;gap:4px;margin-bottom:14px;flex-wrap:wrap;">';
   tabs.forEach(function(t) {
@@ -2188,6 +3283,9 @@ function renderProgressionModal() {
   else if (progressionTab === 'rivals') html += renderRivalsTab();
   else if (progressionTab === 'daily') html += renderDailyTab();
   else if (progressionTab === 'prestige') html += renderPrestigeTab();
+  else if (progressionTab === 'market') html += renderMarketAnalysisTab();
+  else if (progressionTab === 'kpi') html += renderStrategicKPITab();
+  else if (progressionTab === 'strategy') html += renderStrategyToolsTab();
   content.innerHTML = html;
 }
 

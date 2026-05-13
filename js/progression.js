@@ -480,4 +480,257 @@ function processProgressionDaily() {
   updateDailyChallengeProgress('orders', 0);
   updateDailyChallengeProgress('services', 0);
   updateDailyChallengeProgress('morale', 0);
+  processMarketAnalysis();
+  processCompetitorMonitoring();
+}
+
+var MARKET_SEGMENTS = ['Economy','Standard','Premium','Luxury'];
+var SEGMENT_NAMES = { Economy:'经济型', Standard:'标准型', Premium:'高端', Luxury:'豪华' };
+var COMPETITOR_NAMES = ['神州租车','一嗨租车','首汽租车','联动云','其他'];
+
+function initMarketAnalysis() {
+  if (!gameState.marketAnalysis) {
+    gameState.marketAnalysis = {
+      totalMarketSize: 1000000,
+      yourShare: 0.12,
+      competitorShares: { '神州租车':0.25, '一嗨租车':0.20, '首汽租车':0.10, '联动云':0.07, '其他':0.26 },
+      segmentBreakdown: {
+        Economy: { your:0.08, total:400000 },
+        Standard: { your:0.15, total:350000 },
+        Premium: { your:0.10, total:180000 },
+        Luxury: { your:0.05, total:70000 }
+      },
+      trend: 'stable',
+      trendHistory: [],
+      competitorMoves: [],
+      marketGrowthRate: 0.02
+    };
+  }
+}
+
+function processMarketAnalysis() {
+  initMarketAnalysis();
+  var ma = gameState.marketAnalysis;
+  var dailyRevenue = gameState.todayIncome || 0;
+  var avgDailyRevenue = dailyRevenue;
+  if (gameState.financials && gameState.financials.dailyRevenue && gameState.financials.dailyRevenue.length > 0) {
+    var recent = gameState.financials.dailyRevenue.slice(-7);
+    avgDailyRevenue = recent.reduce(function(s,r){return s+r;},0) / recent.length;
+  }
+  var estimatedMarketShare = Math.min(0.5, Math.max(0.01, (avgDailyRevenue / ma.totalMarketSize) * 30));
+  ma.yourShare = ma.yourShare * 0.9 + estimatedMarketShare * 0.1;
+  Object.keys(ma.segmentBreakdown).forEach(function(seg){
+    var segTotal = ma.segmentBreakdown[seg].total;
+    var segVehicles = (gameState.ownedVehicles || []).filter(function(v){
+      if (seg === 'Economy') return ['紧凑型','两厢','面包车','轿车'].indexOf(v.type) !== -1;
+      if (seg === 'Standard') return ['SUV','MPV','小型SUV','旅行车','皮卡'].indexOf(v.type) !== -1;
+      if (seg === 'Premium') return ['轿跑','大型SUV','大型MPV'].indexOf(v.type) !== -1;
+      if (seg === 'Luxury') return ['豪华车','跑车','超跑','敞篷'].indexOf(v.type) !== -1;
+      return false;
+    }).length;
+    var yourSegShare = segVehicles / Math.max(1,(gameState.ownedVehicles||[]).length) * ma.yourShare * 1.5;
+    ma.segmentBreakdown[seg].your = Math.min(0.6, Math.max(0, yourSegShare));
+  });
+  if (Math.random() < 0.15) {
+    var growthFactor = (Math.random() - 0.48) * 0.03;
+    ma.totalMarketSize = Math.max(500000, ma.totalMarketSize * (1 + growthFactor + ma.marketGrowthRate / 365));
+  }
+  var prevTrend = ma.trend;
+  var shareChange = estimatedMarketShare - (ma.trendHistory.length > 0 ? ma.yourShare : 0.12);
+  if (shareChange > 0.02) ma.trend = 'growing';
+  else if (shareChange < -0.02) ma.trend = 'declining';
+  else ma.trend = 'stable';
+  ma.trendHistory.push({ day: gameState.currentDay, share: ma.yourShare, trend: ma.trend });
+  if (ma.trendHistory.length > 90) ma.trendHistory = ma.trendHistory.slice(-90);
+}
+
+function getMarketPosition() {
+  initMarketAnalysis();
+  var ma = gameState.marketAnalysis;
+  var allShares = Object.assign({ '你的公司': ma.yourShare }, ma.competitorShares);
+  var sorted = Object.keys(allShares).map(function(name){ return { name:name, share:allShares[name] }; }).sort(function(a,b){ return b.share - a.share; });
+  var myRank = sorted.findIndex(function(s){ return s.name === '你的公司'; }) + 1;
+  return {
+    rank: myRank,
+    totalPlayers: sorted.length,
+    share: ma.yourShare,
+    trend: ma.trend,
+    marketSize: ma.totalMarketSize,
+    ranking: sorted
+  };
+}
+
+function getSegmentPerformance() {
+  initMarketAnalysis();
+  var ma = gameState.marketAnalysis;
+  var result = {};
+  MARKET_SEGMENTS.forEach(function(seg){
+    var data = ma.segmentBreakdown[seg];
+    result[seg] = {
+      name: SEGMENT_NAMES[seg],
+      yourShare: Math.round(data.your * 10000) / 100,
+      totalSize: data.total,
+      yourRevenueEstimate: Math.round(data.total * data.your),
+      competitionLevel: data.your < 0.05 ? '激烈' : data.your < 0.15 ? '中等' : '优势'
+    };
+  });
+  return result;
+}
+
+function initCompetitorMonitoring() {
+  if (!gameState.competitorIntel) {
+    gameState.competitorIntel = {
+      pricingData: {},
+      promotionAlerts: [],
+      swotAnalysis: null,
+      weaknessSuggestions: [],
+      lastUpdateDay: 1
+    };
+  }
+}
+
+function processCompetitorMonitoring() {
+  initCompetitorMonitoring();
+  var ci = gameState.competitorIntel;
+  if (gameState.currentDay - ci.lastUpdateDay < 3) return;
+  ci.lastUpdateDay = gameState.currentDay;
+  COMPETITOR_NAMES.forEach(function(compName){
+    if (!ci.pricingData[compName]) ci.pricingData[compName] = {};
+    MARKET_SEGMENTS.forEach(function(seg){
+      var basePrice = seg === 'Economy' ? 150 : seg === 'Standard' ? 300 : seg === 'Premium' ? 600 : 1200;
+      var variance = (Math.random() - 0.5) * 0.2;
+      ci.pricingData[compName][seg] = {
+        price: Math.round(basePrice * (1 + variance)),
+        trend: Math.random() > 0.5 ? 'up' : 'down',
+        changePct: Math.round((Math.random() - 0.5) * 20 * 10) / 10
+      };
+    });
+  });
+  if (Math.random() < 0.2) {
+    var compName = COMPETITOR_NAMES[Math.floor(Math.random() * COMPETITOR_NAMES.length)];
+    var moveTypes = [
+      { type:'price_cut', desc: compName + ' 降价' + (Math.floor(Math.random()*15)+5) + '%！', impact:'negative' },
+      { type:'promotion', desc: compName + ' 推出促销活动：满减/赠券', impact:'warning' },
+      { type:'expansion', desc: compName + ' 宣布扩张新网点', impact:'warning' },
+      { type:'tech_upgrade', desc: compName + ' 升级预订系统', impact:'neutral' },
+      { type:'service_improve', desc: compName + ' 提升服务质量承诺', impact:'neutral' }
+    ];
+    var move = moveTypes[Math.floor(Math.random() * moveTypes.length)];
+    ci.promotionAlerts.unshift({ day: gameState.currentDay, competitor: compName, move: move });
+    if (move.impact === 'negative') {
+      addMessage('⚔️ 竞争动态：' + move.desc, 'warn');
+    }
+    if (ci.promotionAlerts.length > 30) ci.promotionAlerts = ci.promotionAlerts.slice(-30);
+  }
+  generateSWOTAnalysis();
+  generateWeaknessSuggestions();
+}
+
+function generateSWOTAnalysis() {
+  initCompetitorMonitoring();
+  var ci = gameState.competitorIntel;
+  var nps = (gameState.npsSystem && gameState.npsSystem.trend30d) || gameState.npsScore || 50;
+  var rep = gameState.reputation || 50;
+  var cash = gameState.cash || 0;
+  var fleetSize = (gameState.ownedVehicles || []).length;
+  var outletCount = (gameState.outlets || []).filter(function(o){ return o.owned; }).length;
+  var memberCount = (gameState.members || []).length;
+  ci.swotAnalysis = {
+    strengths: [],
+    weaknesses: [],
+    opportunities: [],
+    threats: []
+  };
+  if (nps >= 60) ci.swotAnalysis.strengths.push({ text:'NPS评分优秀，客户满意度高', score:nps });
+  if (rep >= 70) ci.swotAnalysis.strengths.push({ text:'品牌声誉良好', score:rep });
+  if (cash >= 1000000) ci.swotAnalysis.strengths.push({ text:'资金充裕，可支持扩张', score:Math.min(100,cash/20000) });
+  if (fleetSize >= 20) ci.swotAnalysis.strengths.push({ text:'车队规模可观', score:fleetSize*2 });
+  if (outletCount >= 3) ci.swotAnalysis.strengths.push({ text:'多网点覆盖', score:outletCount*15 });
+  if (memberCount >= 50) ci.swotAnalysis.strengths.push({ text:'会员基础扎实', score:memberCount });
+  if (nps < 40) ci.swotAnalysis.weaknesses.push({ text:'客户满意度偏低，需改善服务', severity:'high', score:nps });
+  if (cash < 100000) ci.swotAnalysis.weaknesses.push({ text:'现金流紧张', severity:'high', score:Math.max(0,cash/1000) });
+  if (fleetSize < 5) ci.swotAnalysis.weaknesses.push({ text:'车队规模过小', severity:'medium', score:fleetSize*10 });
+  if (outletCount <= 1) ci.swotAnalysis.weaknesses.push({ text:'网点单一，覆盖不足', severity:'medium', score:outletCount*20 });
+  if ((gameState.complaintSystem && gamestate.complaintSystem.stats.total > 10)) ci.swotAnalysis.weaknesses.push({ text:'投诉量偏高', severity:'medium', score:100-gameState.complaintSystem.stats.resolved*5 });
+  ci.swotAnalysis.opportunities.push({ text:'高端市场仍有增长空间', potential:'+15%收入' });
+  ci.swotAnalysis.opportunities.push({ text:'企业客户开发潜力大', potential:'+10%收入' });
+  if (rep >= 80) ci.swotAnalysis.opportunities.push({ text:'品牌可延伸至新城市', potential:'+20%市场' });
+  ci.swotAnalysis.threats.push({ text:'竞争对手价格战风险', mitigation:'差异化服务' });
+  ci.swotAnalysis.threats.push({ text:'市场需求季节性波动', mitigation:'灵活调配车辆' });
+  if (cash < 300000) ci.swotAnalysis.threats.push({ text:'资金链压力', mitigation:'控制成本/融资' });
+}
+
+function generateWeaknessSuggestions() {
+  initCompetitorMonitoring();
+  var ci = gameState.competitorIntel;
+  ci.weaknessSuggestions = [];
+  if (!ci.swotAnalysis) return;
+  ci.swotAnalysis.weaknesses.forEach(function(w){
+    if (w.text.indexOf('满意度') !== -1) {
+      ci.weaknessSuggestions.push({
+        weakness: w.text,
+        suggestion: '加强员工培训+增加客服投入',
+        cost: '约$5000-20000/月',
+        expectedImpact: '+5~10 NPS分'
+      });
+    }
+    if (w.text.indexOf('现金') !== -1) {
+      ci.weaknessSuggestions.push({
+        weakness: w.text,
+        suggestion: '加速回款或申请短期贷款',
+        cost: '利息支出增加',
+        expectedImpact: '缓解流动性压力'
+      });
+    }
+    if (w.text.indexOf('车队') !== -1) {
+      ci.weaknessSuggestions.push({
+        weakness: w.text,
+        suggestion: '优先补充经济型/标准型车辆',
+        cost: '每辆车$50000-150000',
+        expectedImpact: '+订单量15~25%'
+      });
+    }
+    if (w.text.indexOf('网点') !== -1) {
+      ci.weaknessSuggestions.push({
+        weakness: w.text,
+        suggestion: '评估城东/城西分店ROI后决定',
+        cost: '$300000-800000',
+        expectedImpact: '+客户覆盖面40%'
+      });
+    }
+    if (w.text.indexOf('投诉') !== -1) {
+      ci.weaknessSuggestions.push({
+        weakness: w.text,
+        suggestion: '建立快速响应机制+主动回访',
+        cost: '$3000-8000/月',
+        expectedImpact: '-30%投诉率'
+      });
+    }
+  });
+}
+
+function getCompetitorPricing(segment) {
+  initCompetitorMonitoring();
+  segment = segment || 'Standard';
+  var ci = gameState.competitorIntel;
+  var result = [];
+  COMPETITOR_NAMES.forEach(function(name){
+    var data = (ci.pricingData[name] && ci.pricingData[name][segment]) || null;
+    if (data) result.push({ competitor:name, price:data.price, trend:data.trend, change:data.changePct });
+  });
+  var myPrice = getMyAveragePrice(segment);
+  result.push({ competitor:'你的公司', price:myPrice, trend:'-', change:0, isMe:true });
+  return result.sort(function(a,b){ return a.price - b.price; });
+}
+
+function getMyAveragePrice(segment) {
+  var vehicles = (gameState.ownedVehicles || []);
+  var targetTypes = [];
+  if (segment === 'Economy') targetTypes = ['紧凑型','两厢','面包车','轿车'];
+  else if (segment === 'Standard') targetTypes = ['SUV','MPV','小型SUV','旅行车','皮卡'];
+  else if (segment === 'Premium') targetTypes = ['轿跑','大型SUV','大型MPV'];
+  else if (segment === 'Luxury') targetTypes = ['豪华车','跑车','超跑','敞篷'];
+  var matched = vehicles.filter(function(v){ return targetTypes.indexOf(v.type) !== -1; });
+  if (matched.length === 0) return segment === 'Economy' ? 160 : segment === 'Standard' ? 320 : segment === 'Premium' ? 650 : 1300;
+  return Math.round(matched.reduce(function(s,v){ return s + (v.dailyRate || 200); }, 0) / matched.length);
 }

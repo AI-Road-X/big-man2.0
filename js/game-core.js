@@ -155,7 +155,30 @@ var defaultGameState = {
   brandSlogan: '',
   consecutiveProfitDays: 0,
   lastQuarterDay: 0,
-  hostileTakeoverRisk: 0
+  hostileTakeoverRisk: 0,
+  marketing: {
+    channels: {
+      advertising: { spend:0, customers:0, cac:0, conversion:0.05 },
+      referral: { spend:0, customers:0, cac:0, conversion:0.15 },
+      member: { spend:0, customers:0, cac:0, conversion:0.12 },
+      organic: { spend:0, customers:0, cac:0, conversion:0.02 }
+    },
+    totalSpend:0, totalNewCustomers:0, overallCAC:0,
+    brand: { awareness:20, reputation:50, equity:0, premiumPriceBonus:0, crisisLevel:0, lastCrisisDay:0 },
+    campaigns: [],
+    funnel: { visitors:0, browsed:0, inquired:0, ordered:0, paid:0, pickedUp:0, returned:0, reviewed:0 },
+    abTests: [],
+    abandonedCartRecovery: []
+  },
+  insurance: {
+    policies: [],
+    totalAnnualPremium: 0,
+    pendingClaims: [],
+    claimsHistory: [],
+    providers: ['平安保险','人保财险','太平洋保险','大地保险','阳光保险']
+  },
+  vendors: {},
+  fleetAnalytics: { lastCalculatedDay:0 }
 };
 
 var gameState = JSON.parse(JSON.stringify(defaultGameState));
@@ -298,7 +321,33 @@ function loadGame() {
       if (!gameState.consecutiveProfitDays) gameState.consecutiveProfitDays = 0;
       if (!gameState.lastQuarterDay) gameState.lastQuarterDay = 0;
       if (!gameState.hostileTakeoverRisk) gameState.hostileTakeoverRisk = 0;
-  if (!gameState.dailyChallenge) gameState.dailyChallenge = null;
+  if (!gameState.schedules) gameState.schedules = { currentWeek: [], overtimeHours: 0, laborCostThisWeek: 0 };
+  if (!gameState.schedules.currentWeek) gameState.schedules.currentWeek = [];
+  if (!gameState.performanceReviews) gameState.performanceReviews = [];
+  if (!gameState.unionStatus) gameState.unionStatus = { formed: false, demands: [], lastDemandDay: 0 };
+  if (!gameState.cashFlow) gameState.cashFlow = { operatingInflow:0, operatingOutflow:0, investingOutflow:0, financingInflow:0, financingOutflow:0, dailyLog:[], forecast:[] };
+  if (!gameState.taxes) gameState.taxes = { ytdProfit:0, ytdTaxPaid:0, vatCollected:0, vatOwed:0, propertyTaxOwed:0, lastFilingDay:0, corporateTaxRate:0.25, vatRate:0.06, propertyTaxRate:0.01, quarterlyEstimates:[], taxPenalties:0, depreciationMethod:'straight' };
+  if (!gameState.budget) gameState.budget = { monthlyRevenueTarget:100000, salariesCap:50000, marketingCap:20000, maintenanceCap:15000, monthActuals:{}, varianceHistory:[], lastClosingDay:0 };
+  if (!gameState.kpiCache) gameState.kpiCache = {};
+  if (!gameState.marketing) gameState.marketing = { channels:{advertising:{spend:0,customers:0,cac:0,conversion:0.05},referral:{spend:0,customers:0,cac:0,conversion:0.15},member:{spend:0,customers:0,cac:0,conversion:0.12},organic:{spend:0,customers:0,cac:0,conversion:0.02}},totalSpend:0,totalNewCustomers:0,overallCAC:0,brand:{awareness:20,reputation:50,equity:0,premiumPriceBonus:0,crisisLevel:0,lastCrisisDay:0},campaigns:[],funnel:{visitors:0,browsed:0,inquired:0,ordered:0,paid:0,pickedUp:0,returned:0,reviewed:0},abTests:[],abandonedCartRecovery:[] };
+  if (!gameState.marketing.channels) gameState.marketing.channels = {advertising:{spend:0,customers:0,cac:0,conversion:0.05},referral:{spend:0,customers:0,cac:0,conversion:0.15},member:{spend:0,customers:0,cac:0,conversion:0.12},organic:{spend:0,customers:0,cac:0,conversion:0.02}};
+  if (!gameState.marketing.brand) gameState.marketing.brand = {awareness:20,reputation:50,equity:0,premiumPriceBonus:0,crisisLevel:0,lastCrisisDay:0};
+  if (!gameState.marketing.campaigns) gameState.marketing.campaigns = [];
+  if (!gameState.marketing.funnel) gameState.marketing.funnel = {visitors:0,browsed:0,inquired:0,ordered:0,paid:0,pickedUp:0,returned:0,reviewed:0};
+  if (!gameState.marketing.abTests) gameState.marketing.abTests = [];
+  if (!gameState.marketing.abandonedCartRecovery) gameState.marketing.abandonedCartRecovery = [];
+  if (gameState.marketing.totalSpend === undefined) gameState.marketing.totalSpend = 0;
+  if (gameState.marketing.totalNewCustomers === undefined) gameState.marketing.totalNewCustomers = 0;
+  if (gameState.marketing.overallCAC === undefined) gameState.marketing.overallCAC = 0;
+  if (!gameState.insurance) gameState.insurance = {policies:[],totalAnnualPremium:0,pendingClaims:[],claimsHistory:[],providers:['平安保险','人保财险','太平洋保险','大地保险','阳光保险']};
+  if (!gameState.insurance.policies) gameState.insurance.policies = [];
+  if (!gameState.insurance.pendingClaims) gameState.insurance.pendingClaims = [];
+  if (!gameState.insurance.claimsHistory) gameState.insurance.claimsHistory = [];
+  if (!gameState.insurance.providers) gameState.insurance.providers = ['平安保险','人保财险','太平洋保险','大地保险','阳光保险'];
+  if (gameState.insurance.totalAnnualPremium === undefined) gameState.insurance.totalAnnualPremium = 0;
+  if (!gameState.vendors) gameState.vendors = {};
+  if (!gameState.fleetAnalytics) gameState.fleetAnalytics = { lastCalculatedDay:0 };
+if (!gameState.dailyChallenge) gameState.dailyChallenge = null;
   if (!gameState.challengeStreak) gameState.challengeStreak = 0;
   if (!gameState.autoManage) gameState.autoManage = {};
   if (!gameState.customerLoyalty) gameState.customerLoyalty = { returnRate: 0, totalReturns: 0, totalNewCustomers: 0, complaints: 0, referralCount: 0 };
@@ -320,8 +369,16 @@ function loadGame() {
   gameState.ownedVehicles.forEach(function(v){
     if (v.condition === undefined) v.condition = 100;
   });
-      if (gameState.autoRecommendReservation === undefined) gameState.autoRecommendReservation = false;
-      if (gameState.interiorDecorUnlocked === undefined) gameState.interiorDecorUnlocked = false;
+  if (!gameState.npsSystem) gameState.npsSystem = { scores:[], trend30d:0, trend7d:0, byOutlet:{}, byType:{}, byEmployee:{}, detractorsRecovery:[], promoterReferrals:[], industryBenchmark:32, revenueCorrelationData:[] };
+  if (!gameState.complaintSystem) gameState.complaintSystem = { complaints:[], stats:{ total:0, resolved:0, breached:0, avgResolutionTime:0, totalCompensation:0 }, categories:{} };
+  if (!gameState.marketAnalysis) gameState.marketAnalysis = { totalMarketSize:1000000, yourShare:0.12, competitorShares:{'神州租车':0.25,'一嗨租车':0.20,'首汽租车':0.10,'联动云':0.07,'其他':0.26}, segmentBreakdown:{ Economy:{your:0.08,total:400000}, Standard:{your:0.15,total:350000}, Premium:{your:0.10,total:180000}, Luxury:{your:0.05,total:70000} }, trend:'stable', trendHistory:[], competitorMoves:[], marketGrowthRate:0.02 };
+  if (!gameState.competitorIntel) gameState.competitorIntel = { pricingData:{}, promotionAlerts:[], swotAnalysis:null, weaknessSuggestions:[], lastUpdateDay:1 };
+  if (!gameState.memberPoints) gameState.memberPoints = {};
+  if (!gameState.familyAccounts) gameState.familyAccounts = [];
+  if (!gameState.corporateAccounts) gameState.corporateAccounts = [];
+  if (!gameState.memberBenefitsLog) gameState.memberBenefitsLog = [];
+  if (gameState.autoRecommendReservation === undefined) gameState.autoRecommendReservation = false;
+  if (gameState.interiorDecorUnlocked === undefined) gameState.interiorDecorUnlocked = false;
       if (!gameState.decorations) gameState.decorations = [];
       if (!gameState.customerReviews) gameState.customerReviews = [];
       if (gameState.npsScore === undefined) gameState.npsScore = 50;
@@ -449,6 +506,707 @@ function upgradeParkingSpot(outletId, spotType) {
   addMessage('🅿️ ' + OUTLET_CONFIGS.find(function(c){ return c.id === outletId; }).name + ' 扩建' + spotLabel + '至 ' + os.parkingSpots[spotType] + ' 个，花费 ' + formatCurrency(cfg.upgradeCost), 'good');
   updateUI(); saveGame();
   return { ok: true };
+}
+
+var SEASONAL_CAMPAIGNS = [
+  { id:'spring_festival', name:'🧧 春节特惠', months:[1,2], discount:0.85, demandMultiplier:2.0, targetTypes:['轿车','SUV','MPV'], minBudget:3000, description:'春节期间85折优惠，需求暴增200%' },
+  { id:'summer_drive', name:'🏖️ 暑期自驾游', months:[7,8], discount:0.90, demandMultiplier:1.5, targetTypes:['SUV','大型SUV','MPV'], minBudget:5000, description:'暑期SUV/MPV聚焦，需求+150%' },
+  { id:'national_day', name:'🇨🇳 国庆长假', months:[10], discount:0.95, demandMultiplier:1.8, targetTypes:['豪华车','SUV','大型MPV'], minBudget:8000, description:'国庆长租/高端车，需求+180%' },
+  { id:'year_end_clearance', name:'🎊 年终清仓', months:[12], discount:0.75, demandMultiplier:1.3, targetTypes:['紧凑型','两厢','轿车'], minBudget:2000, description:'清库存75折，全类型适用' },
+  { id:'double11', name:'🛒 双11狂欢', months:[11], discount:0.80, demandMultiplier:2.2, targetTypes:['轿车','SUV','新能源'], minBudget:6000, description:'会员专属8折，需求暴增220%', memberExclusive:true },
+  { id:'mid_year', name:'🌸 中春促销', months:[4,5], discount:0.88, demandMultiplier:1.2, targetTypes:['轿车','紧凑型','小型SUV'], minBudget:2500, description:'春季出行88折' }
+];
+
+function getMarketingCAC(channelKey) {
+  var mkt = gameState.marketing;
+  var ch = mkt.channels[channelKey];
+  if (!ch) return 0;
+  if (ch.customers > 0) {
+    ch.cac = Math.round(ch.spend / ch.customers);
+  } else {
+    ch.cac = ch.spend > 0 ? ch.spend : 0;
+  }
+  return ch.cac;
+}
+
+function recalculateOverallCAC() {
+  var mkt = gameState.marketing;
+  var totalCustomers = 0;
+  Object.keys(mkt.channels).forEach(function(k){ totalCustomers += (mkt.channels[k].customers || 0); });
+  mkt.totalNewCustomers = totalCustomers;
+  mkt.overallCAC = totalCustomers > 0 ? Math.round(mkt.totalSpend / totalCustomers) : 0;
+  return mkt.overallCAC;
+}
+
+function spendMarketing(channelKey, amount) {
+  amount = parseInt(amount) || 0;
+  if (amount <= 0) return { ok:false, reason:'金额无效' };
+  if (gameState.cash < amount) return { ok:false, reason:'资金不足' };
+  var mkt = gameState.marketing;
+  if (!mkt.channels[channelKey]) return { ok:false, reason:'渠道不存在' };
+  gameState.cash -= amount;
+  gameState.todayExpense += amount;
+  mkt.channels[channelKey].spend += amount;
+  mkt.totalSpend += amount;
+  var channelNames = { advertising:'广告投放', referral:'口碑推荐', member:'会员转介', organic:'自然流量' };
+  addMessage('📢 营销投入：' + (channelNames[channelKey] || channelKey) + ' ' + formatCurrency(amount), 'warn');
+  saveGame();
+  return { ok:true, spent:amount };
+}
+
+function recordMarketingConversion(channelKey, count) {
+  count = parseInt(count) || 1;
+  var mkt = gameState.marketing;
+  if (!mkt.channels[channelKey]) return;
+  mkt.channels[channelKey].customers += count;
+  mkt.totalNewCustomers += count;
+  recalculateOverallCAC();
+}
+
+function getBrandEquity() {
+  var brand = gameState.marketing.brand;
+  var awareness = brand.awareness || 20;
+  var reputation = brand.reputation || 50;
+  var marketShare = typeof getMarketShare === 'function' ? getMarketShare() : 1;
+  brand.equity = Math.round(awareness * reputation * marketShare / 100);
+  return brand.equity;
+}
+
+function updateBrandAwareness(delta) {
+  var brand = gameState.marketing.brand;
+  brand.awareness = Math.max(0, Math.min(100, (brand.awareness || 20) + delta));
+  if (delta > 0) addMessage('📈 品牌知名度 +' + delta + '，当前：' + brand.awareness, 'good');
+  else if (delta < 0) addMessage('📉 品牌知名度 ' + delta + '，当前：' + brand.awareness, 'bad');
+  getBrandEquity();
+  saveGame();
+}
+
+function getPremiumPriceBonus() {
+  var brand = gameState.marketing.brand;
+  if ((brand.awareness || 20) >= 70 && (brand.reputation || 50) >= 70) {
+    brand.premiumPriceBonus = 15;
+  } else if ((brand.awareness || 20) >= 50 && (brand.reputation || 50) >= 60) {
+    brand.premiumPriceBonus = 10;
+  } else {
+    brand.premiumPriceBonus = 0;
+  }
+  return brand.premiumPriceBonus;
+}
+
+function triggerCrisisEvent(severity) {
+  var brand = gameState.marketing.brand;
+  brand.crisisLevel = severity || 3;
+  brand.lastCrisisDay = gameState.currentDay;
+  var repLoss = severity * 5;
+  var awareLoss = severity * 8;
+  brand.reputation = Math.max(0, (brand.reputation || 50) - repLoss);
+  brand.awareness = Math.max(0, (brand.awareness || 20) - awareLoss);
+  var crisisDescs = ['⚠️ 车辆故障频发被曝光','⚠️ 客户投诉服务质量','⚠️ 竞对手恶意抹黑','⚠️ 交通事故负面新闻','⚠️ 价格欺诈指控'];
+  addMessage('🚨 品牌危机！' + (crisisDescs[severity-1]||'负面事件') + '，声誉-' + repLoss + ' 知名度-' + awareLoss, 'bad');
+  saveGame();
+  return { reputationLoss: repLoss, awarenessLoss: awareLoss };
+}
+
+function handleCrisisPRResponse(cost) {
+  cost = parseInt(cost) || 0;
+  var brand = gameState.marketing.brand;
+  if (brand.crisisLevel <= 0) return { ok:false, reason:'无危机需要处理' };
+  if (gameState.cash < cost) return { ok:false, reason:'资金不足' };
+  gameState.cash -= cost;
+  gameState.todayExpense += cost;
+  var recovery = Math.min(brand.crisisLevel * 3, 15);
+  brand.reputation = Math.min(100, (brand.reputation || 50) + recovery);
+  brand.awareness = Math.min(100, (brand.awareness || 20) + Math.round(recovery * 0.5));
+  brand.crisisLevel = Math.max(0, brand.crisisLevel - 2);
+  addMessage('🛡️ 危机公关处理：声誉恢复 +' + recovery + '，花费 ' + formatCurrency(cost), 'good');
+  saveGame();
+  return { ok:true, recovered: recovery };
+}
+
+function launchCampaign(campaignData) {
+  var mkt = gameState.marketing;
+  var budget = parseInt(campaignData.budget) || 0;
+  if (budget <= 0) return { ok:false, reason:'预算无效' };
+  if (gameState.cash < budget) return { ok:false, reason:'资金不足' };
+  var activeCount = mkt.campaigns.filter(function(c){ return c.status === 'active'; }).length;
+  if (activeCount >= 3) return { ok:false, reason:'最多同时进行3个活动' };
+  gameState.cash -= budget;
+  gameState.todayExpense += budget;
+  var campaign = {
+    id: 'CMP_' + Date.now(),
+    type: campaignData.type || 'custom',
+    name: campaignData.name || '自定义活动',
+    discount: parseFloat(campaignData.discount) || 1.0,
+    demandMultiplier: parseFloat(campaignData.demandMultiplier) || 1.0,
+    targetTypes: campaignData.targetTypes || [],
+    budget: budget,
+    spent: 0,
+    dailySpend: Math.ceil(budget / (campaignData.durationDays || 14)),
+    customersAcquired: 0,
+    roi: 0,
+    startDay: gameState.currentDay,
+    endDay: gameState.currentDay + (campaignData.durationDays || 14),
+    status: 'active',
+    channel: campaignData.channel || 'advertising',
+    description: campaignData.description || ''
+  };
+  mkt.campaigns.push(campaign);
+  addMessage('🎯 启动营销活动：' + campaign.name + '（预算 ' + formatCurrency(budget) + '，持续 ' + (campaignData.durationDays || 14) + ' 天）', 'good');
+  saveGame();
+  return { ok:true, campaign: campaign };
+}
+
+function processDailyMarketing() {
+  var mkt = gameState.marketing;
+  mkt.campaigns.forEach(function(cmp){
+    if (cmp.status !== 'active') return;
+    if (gameState.currentDay > cmp.endDay) {
+      cmp.status = 'completed';
+      cmp.roi = cmp.budget > 0 ? Math.round((cmp.customersAcquired * 500 - cmp.spent) / cmp.spent * 100) : 0;
+      addMessage('🏁 营销活动结束：' + cmp.name + ' — 获客 ' + cmp.customersAcquired + ' 人，ROI ' + cmp.roi + '%', cmp.roi >= 0 ? 'good' : 'bad');
+      return;
+    }
+    var todaySpend = cmp.dailySpend;
+    if (gameState.cash >= todaySpend) {
+      gameState.cash -= todaySpend;
+      gameState.todayExpense += todaySpend;
+      cmp.spent += todaySpend;
+      mkt.channels[cmp.channel] = mkt.channels[cmp.channel] || { spend:0,customers:0,cac:0,conversion:0.05 };
+      mkt.channels[cmp.channel].spend += todaySpend;
+      mkt.totalSpend += todaySpend;
+    }
+  });
+  if (mkt.brand.crisisLevel > 0 && gameState.currentDay - (mkt.brand.lastCrisisDay || 0) > 7) {
+    var naturalRecovery = Math.min(mkt.brand.crisisLevel, 1);
+    mkt.brand.crisisLevel -= naturalRecovery;
+  }
+  var organicGrowth = Math.round((mkt.brand.awareness || 20) * 0.02 * (Math.random() * 0.5 + 0.5));
+  if (organicGrowth > 0 && Math.random() < 0.3) {
+    mkt.channels.organic.customers += 1;
+    mkt.totalNewCustomers = (mkt.totalNewCustomers || 0) + 1;
+  }
+  recalculateOverallCAC();
+  getBrandEquity();
+  getPremiumPriceBonus();
+}
+
+function getCampaignDemandMultiplier() {
+  var mkt = gameState.marketing;
+  var maxMult = 1.0;
+  mkt.campaigns.forEach(function(cmp){
+    if (cmp.status === 'active') maxMult = Math.max(maxMult, cmp.demandMultiplier || 1.0);
+  });
+  return maxMult;
+}
+
+function getCampaignDiscount(vehicleType) {
+  var mkt = gameState.marketing;
+  var bestDiscount = 1.0;
+  mkt.campaigns.forEach(function(cmp){
+    if (cmp.status !== 'active') return;
+    if (cmp.targetTypes && cmp.targetTypes.length > 0 && cmp.targetTypes.indexOf(vehicleType) === -1) return;
+    bestDiscount = Math.min(bestDiscount, cmp.discount || 1.0);
+  });
+  return bestDiscount;
+}
+
+function trackFunnelStage(stage) {
+  var funnel = gameState.marketing.funnel;
+  if (!funnel[stage] && stage !== 'visitors') return;
+  if (stage === 'visitors') funnel.visitors = (funnel.visitors || 0) + 1;
+  else if (funnel[stage] !== undefined) funnel[stage]++;
+}
+
+function getFunnelConversionRates() {
+  var f = gameState.marketing.funnel;
+  var stages = ['visitors','browsed','inquired','ordered','paid','pickedUp','returned','reviewed'];
+  var rates = [];
+  for (var i = 1; i < stages.length; i++) {
+    var prev = f[stages[i-1]] || 1;
+    var curr = f[stages[i]] || 0;
+    rates.push({ from: stages[i-1], to: stages[i], rate: prev > 0 ? Math.round(curr / prev * 100) : 0 });
+  }
+  return rates;
+}
+
+function createABTest(name, optionA, optionB) {
+  var test = {
+    id: 'AB_' + Date.now(),
+    name: name,
+    optionA: optionA,
+    optionB: optionB,
+    trafficA: 0, conversionsA: 0,
+    trafficB: 0, conversionsB: 0,
+    startDay: gameState.currentDay,
+    durationDays: 14,
+    status: 'running'
+  };
+  gameState.marketing.abTests.push(test);
+  return test;
+}
+
+function recoverAbandonedCart(orderId) {
+  var mkt = gameState.marketing;
+  var existing = mkt.abandonedCartRecovery.find(function(r){ return r.orderId === orderId && !r.recovered; });
+  if (existing) {
+    existing.recovered = true;
+    existing.recoveryDay = gameState.currentDay;
+    return true;
+  }
+  return false;
+}
+
+function initVehicleLifecycle(vehicle) {
+  if (!vehicle.lifecycle) {
+    vehicle.lifecycle = {
+      phase: 'active',
+      purchaseDate: gameState.currentDay,
+      totalRevenueGenerated: 0,
+      totalOperatingCost: 0,
+      totalRentalDays: 0,
+      averageDailyRevenue: 0,
+      roi: 0,
+      disposalReason: '',
+      disposalDate: null,
+      disposalPrice: 0
+    };
+  }
+  return vehicle.lifecycle;
+}
+
+function updateVehicleLifecycleStats(vehicleId, revenue, cost, rentalDays) {
+  var vehicle = gameState.ownedVehicles.find(function(v){ return v.id === vehicleId; });
+  if (!vehicle) return;
+  var lc = initVehicleLifecycle(vehicle);
+  lc.totalRevenueGenerated += (revenue || 0);
+  lc.totalOperatingCost += (cost || 0);
+  lc.totalRentalDays += (rentalDays || 0);
+  if (lc.totalRentalDays > 0) {
+    lc.averageDailyRevenue = Math.round(lc.totalRevenueGenerated / lc.totalRentalDays);
+  }
+  var purchaseCost = vehicle.purchasePrice || vehicle.estimatedValue || 200000;
+  lc.roi = purchaseCost > 0 ? Math.round((lc.totalRevenueGenerated - lc.totalOperatingCost - purchaseCost) / purchaseCost * 100) : 0;
+}
+
+function setVehiclePhase(vehicleId, phase, reason) {
+  var vehicle = gameState.ownedVehicles.find(function(v){ return v.id === vehicleId; });
+  if (!vehicle) return;
+  var lc = initVehicleLifecycle(vehicle);
+  lc.phase = phase;
+  if (phase === 'disposal' || phase === 'disposed') {
+    lc.disposalReason = reason || '';
+  }
+  if (phase === 'disposed') {
+    lc.disposalDate = gameState.currentDay;
+  }
+  var phaseNames = { active:'服役中', maintenance:'维护中', disposal:'待处置', disposed:'已处置' };
+  addMessage('🔄 ' + vehicle.brand + ' ' + vehicle.model + ' → ' + (phaseNames[phase] || phase), phase === 'disposed' ? 'bad' : 'warn');
+}
+
+function getFleetPhaseSummary() {
+  var summary = { active:0, maintenance:0, disposal:0, disposed:0, total:0 };
+  gameState.ownedVehicles.forEach(function(v){
+    var phase = (v.lifecycle && v.lifecycle.phase) || 'active';
+    summary[phase] = (summary[phase] || 0) + 1;
+    summary.total++;
+  });
+  return summary;
+}
+
+function disposeVehicle(vehicleId, method, price) {
+  var vehicle = gameState.ownedVehicles.find(function(v){ return v.id === vehicleId; });
+  if (!vehicle) return { ok:false, reason:'车辆不存在' };
+  var lc = initVehicleLifecycle(vehicle);
+  setVehiclePhase(vehicleId, 'disposed', method || 'sold');
+  lc.disposalPrice = price || 0;
+  if (price > 0) {
+    gameState.cash += price;
+    gameState.todayIncome += price;
+  }
+  var idx = gameState.ownedVehicles.indexOf(vehicle);
+  if (idx > -1) {
+    gameState.ownedVehicles.splice(idx, 1);
+  }
+  addMessage('🗑️ 已处置 ' + vehicle.brand + ' ' + vehicle.model + '（' + (method||'出售') + '，' + formatCurrency(price || 0) + '）', 'warn');
+  saveGame();
+  return { ok:true, price: price };
+}
+
+function issueInsurancePolicy(vehicleId, policyType, deductible) {
+  var vehicle = gameState.ownedVehicles.find(function(v){ return v.id === vehicleId; });
+  if (!vehicle) return { ok:false, reason:'车辆不存在' };
+  var existing = gameState.insurance.policies.find(function(p){ return p.vehicleId === vehicleId && p.status !== 'expired' });
+  if (existing) return { ok:false, reason:'该车辆已有有效保单' };
+  var vehicleValue = calculateVehicleValue(vehicle);
+  var basePremium = policyType === 'comprehensive' ? 2000 : 800;
+  var valueFactor = vehicleValue / 200000;
+  var dedFactor = deductible === 0 ? 1.5 : (deductible === 500 ? 1.0 : 0.8);
+  var annualPremium = Math.round(basePremium * valueFactor * dedFactor);
+  var coverage = policyType === 'comprehensive' ? Math.round(vehicleValue * 0.8) : 200000;
+  var providerIdx = Math.floor(Math.random() * (gameState.insurance.providers.length || 5));
+  var provider = (gameState.insurance.providers || ['平安保险','人保财险','太平洋保险','大地保险','阳光保险'])[providerIdx] || '平安保险';
+  if (gameState.cash < annualPremium) return { ok:false, reason:'资金不足，需 ' + formatCurrency(annualPremium) };
+  gameState.cash -= annualPremium;
+  gameState.todayExpense += annualPremium;
+  var policy = {
+    id: 'INS_' + Date.now(),
+    vehicleId: vehicleId,
+    vehicleName: vehicle.brand + ' ' + vehicle.model,
+    type: policyType,
+    provider: provider,
+    annualPremium: annualPremium,
+    deductible: deductible || 500,
+    coverage: coverage,
+    claims: [],
+    noClaimsYears: 0,
+    issueDay: gameState.currentDay,
+    expiryDay: gameState.currentDay + 365,
+    nextRenewalDay: gameState.currentDay + 365,
+    status: 'active'
+  };
+  gameState.insurance.policies.push(policy);
+  gameState.insurance.totalAnnualPremium = (gameState.insurance.totalAnnualPremium || 0) + annualPremium;
+  addMessage('🛡️ 为 ' + vehicle.brand + ' ' + vehicle.model + ' 投保' + (policyType === 'comprehensive' ? '商业险' : '交强险') + '（' + provider + '，年费 ' + formatCurrency(annualPremium) + '）', 'good');
+  saveGame();
+  return { ok:true, policy: policy };
+}
+
+function renewInsurancePolicy(policyId) {
+  var policy = gameState.insurance.policies.find(function(p){ return p.id === policyId });
+  if (!policy) return { ok:false, reason:'保单不存在' };
+  if (policy.noClaimsYears > 0) {
+    var bonus = Math.min(policy.noClaimsYears * 10, 50);
+    policy.annualPremium = Math.round(policy.annualPremium * (1 - bonus / 100));
+  }
+  if (gameState.cash < policy.annualPremium) return { ok:false, reason:'资金不足' };
+  gameState.cash -= policy.annualPremium;
+  gameState.todayExpense += policy.annualPremium;
+  policy.issueDay = gameState.currentDay;
+  policy.expiryDay = gameState.currentDay + 365;
+  policy.nextRenewalDay = gameState.currentDay + 365;
+  policy.noClaimsYears++;
+  policy.claims = [];
+  addMessage('🔄 续保 ' + policy.vehicleName + '（' + policy.provider + '，' + formatCurrency(policy.annualPremium) + '/年）', 'warn');
+  saveGame();
+  return { ok:true };
+}
+
+function fileInsuranceClaim(policyId, claimType, amount) {
+  var policy = gameState.insurance.policies.find(function(p){ return p.id === policyId });
+  if (!policy) return { ok:false, reason:'保单不存在' };
+  if (policy.status !== 'active') return { ok:false, reason:'保单已失效' };
+  if (amount <= policy.deductible) return { ok:false, reason:'金额低于免赔额' };
+  var claim = {
+    id: 'CLM_' + Date.now(),
+    policyId: policyId,
+    type: claimType,
+    claimedAmount: amount,
+    approvedAmount: 0,
+    status: 'pending',
+    filedDay: gameState.currentDay,
+    assessedDay: null,
+    paidDay: null
+  };
+  policy.claims.push(claim);
+  gameState.insurance.pendingClaims.push(claim);
+  setVehiclePhase(policy.vehicleId, 'maintenance', '事故理赔');
+  addMessage('📋 提交理赔申请：' + policy.vehicleName + ' — ' + claimType + '，金额 ' + formatCurrency(amount), 'warn');
+  saveGame();
+  return { ok:true, claim: claim };
+}
+
+function processPendingClaims() {
+  var pending = gameState.insurance.pendingClaims.filter(function(c){ return c.status === 'pending'; });
+  pending.forEach(function(claim){
+    if (Math.random() < 0.6) {
+      claim.status = 'approved';
+      claim.assessedDay = gameState.currentDay;
+      var policy = gameState.insurance.policies.find(function(p){ return p.id === claim.policyId });
+      var payout = Math.max(0, claim.claimedAmount - (policy ? policy.deductible : 500));
+      claim.approvedAmount = payout;
+      gameState.cash += payout;
+      gameState.todayIncome += payout;
+      claim.paidDay = gameState.currentDay;
+      claim.status = 'paid';
+      if (policy) {
+        policy.noClaimsYears = 0;
+        var vehicle = gameState.ownedVehicles.find(function(v){ return v.id === policy.vehicleId });
+        if (vehicle) {
+          var cond = getVehicleCondition(vehicle);
+          if (cond < 40) vehicle.condition = Math.min(100, vehicle.condition + 20);
+          setVehiclePhase(policy.vehicleId, 'active', '');
+        }
+      }
+      addMessage('✅ 理赔到账：' + formatCurrency(payout), 'good');
+    } else {
+      claim.status = 'rejected';
+      claim.assessedDay = gameState.currentDay;
+      addMessage('❌ 理赔被拒：' + claim.type + '（材料不全）', 'bad');
+    }
+  });
+  gameState.insurance.pendingClaims = gameState.insurance.pendingClaims.filter(function(c){ return c.status === 'pending'; });
+  gameState.insurance.pendingClaims.forEach(function(c){
+    if (c.status === 'paid' || c.status === 'rejected') {
+      gameState.insurance.claimsHistory.push(c);
+    }
+  });
+  gameState.insurance.pendingClaims = gameState.insurance.pendingClaims.filter(function(c){ return c.status === 'pending'; });
+}
+
+function processInsuranceRenewals() {
+  gameState.insurance.policies.forEach(function(policy){
+    if (policy.status === 'active' && gameState.currentDay >= policy.nextRenewalDay) {
+      if (gameState.cash >= policy.annualPremium) {
+        renewInsurancePolicy(policy.id);
+      } else {
+        policy.status = 'lapsed';
+        addMessage('⚠️ ' + policy.vehicleName + ' 保险到期未续保！', 'bad');
+      }
+    }
+  });
+}
+
+function triggerAccident(vehicleId) {
+  var vehicle = gameState.ownedVehicles.find(function(v){ return v.id === vehicleId });
+  if (!vehicle) return null;
+  if (vehicle.rentedUntil && vehicle.rentedUntil < gameState.currentDay) return null;
+  var accidentTypes = [
+    { type:'minor_fender', name:'轻微刮擦', repairMin:200, repairMax:1000, downtimeMin:1, downtimeMax:3 },
+    { type:'major_accident', name:'严重事故', repairMin:3000, repairMax:15000, downtimeMin:7, downtimeMax:21 },
+    { type:'theft', name:'车辆被盗', repairMin:0, repairMax:0, downtimeMin:999, downtimeMax:999, isTheft:true },
+    { type:'dispute', name:'客户纠纷', repairMin:500, repairMax:2000, downtimeMin:0, downtimeMax:2, isDispute:true }
+  ];
+  var roll = Math.random();
+  var accIdx = roll < 0.5 ? 0 : (roll < 0.8 ? 1 : (roll < 0.92 ? 2 : 3));
+  var acc = accidentTypes[accIdx];
+  var repairCost = Math.floor(Math.random() * (acc.repairMax - acc.repairMin + 1)) + acc.repairMin;
+  var downtime = Math.floor(Math.random() * (acc.downtimeMax - acc.downtimeMin + 1)) + acc.downtimeMin;
+  var incident = {
+    id: 'INC_' + Date.now(),
+    vehicleId: vehicleId,
+    vehicleName: vehicle.brand + ' ' + vehicle.model,
+    type: acc.type,
+    name: acc.name,
+    repairCost: repairCost,
+    downtime: downtime,
+    day: gameState.currentDay,
+    resolved: false,
+    insuranceClaimed: false,
+    customerCompensated: false
+  };
+  setVehiclePhase(vehicleId, 'maintenance', acc.name);
+  if (acc.isTheft) {
+    setVehiclePhase(vehicleId, 'disposed', 'theft');
+    var policy = gameState.insurance.policies.find(function(p){ return p.vehicleId === vehicleId && p.status === 'active' && p.type === 'comprehensive' });
+    if (policy) {
+      var theftPayout = calculateVehicleValue(vehicle) - (policy.deductible || 500);
+      fileInsuranceClaim(policy.id, '车辆盗抢', calculateVehicleValue(vehicle));
+    } else {
+      addMessage('🚨 ' + vehicle.brand + ' ' + vehicle.model + ' 遭遇盗抢！无商业险保障，全额损失！', 'bad');
+    }
+  } else {
+    var hasComprehensive = gameState.insurance.policies.some(function(p){ return p.vehicleId === vehicleId && p.status === 'active' && p.type === 'comprehensive' });
+    if (hasComprehensive && repairCost > 500) {
+      var compPolicy = gameState.insurance.policies.find(function(p){ return p.vehicleId === vehicleId && p.status === 'active' && p.type === 'comprehensive' });
+      if (compPolicy) {
+        fileInsuranceClaim(compPolicy.id, acc.name, repairCost);
+        incident.insuranceClaimed = true;
+      }
+    }
+    if (acc.isDispute) {
+      addReputation(-3);
+      var loyalty = gameState.customerLoyalty;
+      if (loyalty) { loyalty.complaints = (loyalty.complaints || 0) + 1; }
+    }
+    var condDamage = acc.isDispute ? 0 : Math.floor(downtime * 3 + Math.random() * 10);
+    vehicle.condition = Math.max(0, (vehicle.condition || 100) - condDamage);
+    var compensation = Math.min(repairCost * 0.3, 500);
+    if (compensation > 0 && gameState.cash >= compensation) {
+      gameState.cash -= compensation;
+      gameState.todayExpense += compensation;
+      incident.customerCompensated = true;
+    }
+  }
+  addMessage('⚠️ 事故报告：' + vehicle.brand + ' ' + vehicle.model + ' — ' + acc.name + '，维修 ' + formatCurrency(repairCost) + '，停运 ' + downtime + ' 天', 'bad');
+  if (!gameState.incidents) gameState.incidents = [];
+  gameState.incidents.push(incident);
+  saveGame();
+  return incident;
+}
+
+function checkRandomAccident() {
+  var rentedVehicles = gameState.ownedVehicles.filter(function(v){
+    return v.rentedUntil && v.rentedUntil >= gameState.currentDay;
+  });
+  if (rentedVehicles.length === 0) return null;
+  var accidentChance = 0.02;
+  rentedVehicles.forEach(function(v){
+    var cond = getVehicleCondition(v);
+    if (cond < 30) accidentChance += 0.05;
+    else if (cond < 50) accidentChance += 0.02;
+  });
+  if (Math.random() < accidentChance) {
+    var targetVehicle = rentedVehicles[Math.floor(Math.random() * rentedVehicles.length)];
+    return triggerAccident(targetVehicle.id);
+  }
+  return null;
+}
+
+function resolveIncident(incidentId) {
+  var incident = (gameState.incidents || []).find(function(i){ return i.id === incidentId; });
+  if (!incident || incident.resolved) return { ok:false };
+  var vehicle = gameState.ownedVehicles.find(function(v){ return v.id === incident.vehicleId; });
+  if (vehicle && incident.type !== 'theft') {
+    setVehiclePhase(incident.vehicleId, 'active', '');
+  }
+  incident.resolved = true;
+  incident.resolvedDay = gameState.currentDay;
+  return { ok:true };
+}
+
+function getIncidentCount() {
+  return (gameState.incidents || []).filter(function(i){ return !i.resolved; }).length;
+}
+
+function getFleetAnalytics() {
+  var analytics = { byType:{}, ageDistribution:{ under3:0, threeTo5:0, over5:0 }, utilizationByType:{}, revenuePerDayByType:{}, tcoByType:{}, replacementSuggestions:[] };
+  var types = {};
+  gameState.ownedVehicles.forEach(function(v){
+    var t = v.type || '未知';
+    types[t] = (types[t] || 0) + 1;
+    var ageInDays = gameState.currentDay - (v.purchaseDay || v.lifecycle ? v.lifecycle.purchaseDate : gameState.currentDay);
+    var ageInYears = Math.floor(ageInDays / 365);
+    if (ageInYears < 3) analytics.ageDistribution.under3++;
+    else if (ageInYears <= 5) analytics.ageDistribution.threeTo5++;
+    else analytics.ageDistribution.over5++;
+    var lc = v.lifecycle;
+    if (lc) {
+      if (!analytics.utilizationByType[t]) analytics.utilizationByType[t] = { totalDays:0, rentedDays:0, vehicles:0 };
+      analytics.utilizationByType[t].totalDays += (gameState.currentDay - lc.purchaseDate);
+      analytics.utilizationByType[t].rentedDays += (lc.totalRentalDays || 0);
+      analytics.utilizationByType[t].vehicles++;
+      if (!analytics.revenuePerDayByType[t]) analytics.revenuePerDayByType[t] = { totalRevenue:0, totalDays:0 };
+      analytics.revenuePerDayByType[t].totalRevenue += (lc.totalRevenueGenerated || 0);
+      analytics.revenuePerDayByType[t].totalDays += (lc.totalRentalDays || 0);
+    }
+  });
+  analytics.byType = types;
+  Object.keys(analytics.revenuePerDayByType).forEach(function(t){
+    var d = analytics.revenuePerDayByType[t];
+    d.avgRevenuePerDay = d.totalDays > 0 ? Math.round(d.totalRevenue / d.totalDays) : 0;
+  });
+  Object.keys(analytics.utilizationByType).forEach(function(t){
+    var u = analytics.utilizationByType[t];
+    u.utilRate = u.totalDays > 0 ? Math.round(u.rentedDays / u.totalDays * 100) : 0;
+  });
+  gameState.ownedVehicles.forEach(function(v){
+    var t = v.type || '未知';
+    var lc = v.lifecycle;
+    if (!lc) return;
+    var purchaseCost = v.purchasePrice || v.estimatedValue || 200000;
+    var maintCost = lc.totalOperatingCost || 0;
+    var insCost = 0;
+    var pol = gameState.insurance.policies.find(function(p){ return p.vehicleId === v.id && p.status === 'active'; });
+    if (pol) insCost = pol.annualPremium;
+    var fuelEstimate = (v.fuelCostPerDay || 50) * (lc.totalRentalDays || 0);
+    var depreciation = Math.max(0, purchaseCost - calculateVehicleValue(v));
+    var residual = calculateVehicleValue(v);
+    var tco = purchaseCost + maintCost + insCost + fuelEstimate + depreciation - residual;
+    if (!analytics.tcoByType[t]) analytics.tcoByType[t] = { totalTCO:0, count:0, avgTCO:0 };
+    analytics.tcoByType[t].totalTCO += tco;
+    analytics.tcoByType[t].count++;
+  });
+  Object.keys(analytics.tcoByType).forEach(function(t){
+    var tc = analytics.tcoByType[t];
+    tc.avgTCO = tc.count > 0 ? Math.round(tc.totalTCO / tc.count) : 0;
+  });
+  gameState.ownedVehicles.forEach(function(v){
+    var lc = v.lifecycle;
+    if (!lc || lc.phase !== 'active') return;
+    var ageInDays = gameState.currentDay - (lc.purchaseDate || gameState.currentDay);
+    var ageInYears = ageInDays / 365;
+    var cond = getVehicleCondition(v);
+    if (ageInYears > 4 || cond < 25) {
+      analytics.replacementSuggestions.push({
+        vehicleId: v.id,
+        name: v.brand + ' ' + v.model,
+        type: v.type,
+        ageYears: Math.round(ageInYears * 10) / 10,
+        condition: cond,
+        reason: ageInYears > 4 ? '车龄过长' : '车况过低',
+        priority: ageInYears > 5 || cond < 20 ? 'high' : 'medium'
+      });
+    }
+  });
+  analytics.replacementSuggestions.sort(function(a,b){ return b.ageYears - a.ageYears; });
+  gameState.fleetAnalytics.lastCalculatedDay = gameState.currentDay;
+  return analytics;
+}
+
+function getBulkPurchaseDiscount(count, basePrice) {
+  if (count >= 10) return { discount: 0.85, finalPrice: Math.round(basePrice * 0.85 * count), savings: Math.round(basePrice * 0.15 * count) };
+  if (count >= 5) return { discount: 0.93, finalPrice: Math.round(basePrice * 0.93 * count), savings: Math.round(basePrice * 0.07 * count) };
+  if (count >= 3) return { discount: 0.95, finalPrice: Math.round(basePrice * 0.95 * count), savings: Math.round(basePrice * 0.05 * count) };
+  return { discount: 1.0, finalPrice: Math.round(basePrice * count), savings: 0 };
+}
+
+function getVendorLoyaltyDiscount(vendorKey) {
+  if (!vendorKey) return 0;
+  var vendor = gameState.vendors[vendorKey];
+  if (!vendor) return 0;
+  var orderCount = vendor.orderCount || 0;
+  var totalSpent = vendor.totalSpent || 0;
+  if (orderCount >= 20 && totalSpent >= 5000000) return 8;
+  if (orderCount >= 10 && totalSpent >= 2000000) return 5;
+  if (orderCount >= 5 && totalSpent >= 800000) return 3;
+  return 0;
+}
+
+function recordVendorPurchase(vendorKey, amount) {
+  if (!vendorKey) return;
+  if (!gameState.vendors[vendorKey]) {
+    gameState.vendors[vendorKey] = { orderCount:0, totalSpent:0, firstPurchaseDay:gameState.currentDay, level:1 };
+  }
+  var v = gameState.vendors[vendorKey];
+  v.orderCount = (v.orderCount || 0) + 1;
+  v.totalSpent = (v.totalSpent || 0) + amount;
+  if (v.orderCount >= 20) v.level = 5;
+  else if (v.orderCount >= 10) v.level = 4;
+  else if (v.orderCount >= 5) v.level = 3;
+  else if (v.orderCount >= 2) v.level = 2;
+}
+
+function calculateTradeInValue(oldVehicleId) {
+  var oldVehicle = gameState.ownedVehicles.find(function(v){ return v.id === oldVehicleId; });
+  if (!oldVehicle) return 0;
+  var baseValue = calculateVehicleValue(oldVehicle);
+  var tradeInRate = 0.9;
+  var lc = oldVehicle.lifecycle;
+  if (lc && lc.totalRentalDays > 100) tradeInRate += 0.05;
+  return Math.round(baseValue * tradeInRate);
+}
+
+function getFleetReplacementAdvice() {
+  var advice = [];
+  var summary = getFleetPhaseSummary();
+  var total = summary.total || 1;
+  var disposalRatio = (summary.disposal || 0) / total;
+  if (disposalRatio > 0.15) {
+    advice.push({ level:'warning', message:'待处置车辆占比 ' + Math.round(disposalRatio*100) + '%，建议尽快清理库存' });
+  }
+  var analytics = getFleetAnalytics();
+  var under3Pct = Math.round(analytics.ageDistribution.under3 / total * 100) || 0;
+  if (under3Pct < 50) {
+    advice.push({ level:'warning', message:'3年内新车仅占 ' + under3Pct + '%，建议更新车队' });
+  }
+  if (analytics.replacementSuggestions.length > 3) {
+    advice.push({ level:'info', message:analytics.replacementSuggestions.length + ' 辆车建议更换，优先处理高优先级车辆' });
+  }
+  var lowCondCount = gameState.ownedVehicles.filter(function(v){ return (getVehicleCondition(v)) < 30; }).length;
+  if (lowCondCount > total * 0.1) {
+    advice.push({ level:'danger', message:lowCondCount + ' 辆车况危险(<30%)，存在安全隐患' });
+  }
+  return advice;
 }
 
 function getVehicleCondition(vehicle) {

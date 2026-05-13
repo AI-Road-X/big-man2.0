@@ -378,6 +378,9 @@
       <button class="panel-btn" style="background:linear-gradient(135deg,#e74c3c,#c0392b);" onclick="openProgressionModal()">🎯 成长</button>
       <button class="panel-btn" style="background:linear-gradient(135deg,#f472b6,#ec4899);" onclick="openReviewModal()">📊 评价</button>
       <button class="panel-btn" style="background:linear-gradient(135deg,#f59e0b,#d97706);" onclick="openAdModal()">📢 广告</button>
+      <button class="panel-btn" style="background:linear-gradient(135deg,#06b6d4,#0891b2);" onclick="openMarketingModal()">📈 营销</button>
+      <button class="panel-btn" style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);" onclick="openFleetMgmtModal()">🚛 车队资产</button>
+      <button class="panel-btn" style="background:linear-gradient(135deg,#ef4444,#dc2626);" onclick="openInsuranceModal()">🛡️ 保险</button>
       <span style="width:1px;height:20px;background:rgba(203,213,225,0.8);margin:0 4px;"></span>
       <input id="cheatInput" type="text" placeholder="输入作弊码..." style="padding:4px 8px;background:#ffffff;border:1px solid rgba(203,213,225,1);border-radius:5px;color:#1e293b;font-family:'JetBrains Mono',monospace;font-size:11px;width:120px;outline:none;min-height:28px;" onkeydown="if(event.key==='Enter'){enterCheatCode(this.value);this.value='';}" />
     </div>
@@ -599,6 +602,36 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="marketingModal">
+    <div class="modal-container" style="max-width:1100px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">📈</span> 市场营销中心</div>
+        <button class="close-btn" onclick="closeMarketingModal()">✕</button>
+      </div>
+      <div class="vehicle-table-wrapper" id="marketingContent" style="padding:16px 22px;"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="fleetMgmtModal">
+    <div class="modal-container" style="max-width:1100px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">🚛</span> 车队资产管理</div>
+        <button class="close-btn" onclick="closeFleetMgmtModal()">✕</button>
+      </div>
+      <div class="vehicle-table-wrapper" id="fleetMgmtContent" style="padding:16px 22px;"></div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="insuranceModal">
+    <div class="modal-container" style="max-width:900px;">
+      <div class="modal-header">
+        <div class="modal-title"><span class="icon">🛡️</span> 保险管理中心</div>
+        <button class="close-btn" onclick="closeInsuranceModal()">✕</button>
+      </div>
+      <div class="vehicle-table-wrapper" id="insuranceContent" style="padding:16px 22px;"></div>
+    </div>
+  </div>
+
   <div class="modal-overlay" id="pricingModal">
     <div class="modal-container" style="max-width:600px;">
       <div class="modal-header">
@@ -802,8 +835,8 @@
       document.body.appendChild(overlay);
     }
 
-    window.addEventListener('keydown', function(e){
-      if (e.key === 'Escape') { closeFleetModal(); closeOrdersModal(); closeDispatchModal(); closePricingModal(); closeEnergyModal(); closeServiceStatsModal(); closeMemberModal(); closeServicePricingModal(); closeOrderHistoryModal(); closeEmployeeModal(); closeTalentMarket(); closeFinanceModal(); closeMilestoneModal(); closeFacilityModal(); closeReviewModal(); closeAdModal(); hideOutletPopup(); }
+      window.addEventListener('keydown', function(e){
+      if (e.key === 'Escape') { closeFleetModal(); closeOrdersModal(); closeDispatchModal(); closePricingModal(); closeEnergyModal(); closeServiceStatsModal(); closeMemberModal(); closeServicePricingModal(); closeOrderHistoryModal(); closeEmployeeModal(); closeTalentMarket(); closeFinanceModal(); closeMilestoneModal(); closeFacilityModal(); closeReviewModal(); closeAdModal(); hideOutletPopup(); closeMarketingModal(); closeFleetMgmtModal(); closeInsuranceModal(); }
     });
 
     window.addEventListener('DOMContentLoaded', function(){

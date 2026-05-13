@@ -25,6 +25,10 @@ function generateCustomers() {
     if (typeof getAdDemandMultiplier === 'function') {
       baseCount = Math.ceil(baseCount * getAdDemandMultiplier());
     }
+    var campaignMult = typeof getCampaignDemandMultiplier === 'function' ? getCampaignDemandMultiplier() : 1.0;
+    if (campaignMult > 1.0) {
+      baseCount = Math.ceil(baseCount * campaignMult);
+    }
 
     if (typeof getReviewImpactOnOrders === 'function') {
       var reviewImpact = getReviewImpactOnOrders();
@@ -213,6 +217,9 @@ function nextDay() {
 
   if (typeof processDailyFinance === 'function') processDailyFinance();
   if (typeof processLoanInterest === 'function') processLoanInterest();
+  if (typeof initEnterpriseFinance === 'function') initEnterpriseFinance();
+  if (typeof calculateCashFlow === 'function') calculateCashFlow();
+  if (typeof processTaxes === 'function') processTaxes();
 
   if (typeof processFacilityMaintenance === 'function') {
     var maintCost = processFacilityMaintenance();
@@ -376,6 +383,24 @@ function nextDay() {
   if (typeof checkChallengeProgress === 'function') checkChallengeProgress();
   if (typeof processAutoManagement === 'function') processAutoManagement();
   if (typeof processCustomerLoyalty === 'function') processCustomerLoyalty();
+  if (typeof processMemberTierDowngradeCheck === 'function') processMemberTierDowngradeCheck();
+  if (typeof resetMonthlyBenefits === 'function') resetMonthlyBenefits();
+  if (typeof processDailyMarketing === 'function') processDailyMarketing();
+  if (typeof processInsuranceRenewals === 'function') processInsuranceRenewals();
+  if (typeof processPendingClaims === 'function') processPendingClaims();
+
+  var accident = typeof checkRandomAccident === 'function' ? checkRandomAccident() : null;
+
+  gameState.ownedVehicles.forEach(function(v){
+    initVehicleLifecycle(v);
+    if (v.rentedUntil && v.rentedUntil >= gameState.currentDay) {
+      var dailyRate = getEffectiveDailyRate(v);
+      updateVehicleLifecycleStats(v.id, dailyRate, v.fuelCostPerDay + v.maintenanceCostPerDay, 1);
+    }
+  });
+  trackFunnelStage('visitors');
+  customers.forEach(function(){ trackFunnelStage('browsed'); });
+  newOrders.forEach(function(){ trackFunnelStage('inquired'); trackFunnelStage('ordered'); });
 
   updateUI(); saveGame();
 }
@@ -471,6 +496,13 @@ function acceptOrder(orderId) {
 
   gameState.totalDaysRented += order.rentalDays;
   gameState.totalRevenue += totalIncome;
+  trackFunnelStage('paid');
+  if (typeof recordMarketingConversion === 'function') {
+    var convChannel = Math.random() < 0.05 ? 'referral' : (Math.random() < 0.1 ? 'member' : (Math.random() < 0.3 ? 'advertising' : 'organic'));
+    recordMarketingConversion(convChannel, 1);
+    var activeCampaigns = (gameState.marketing.campaigns || []).filter(function(c){ return c.status === 'active'; });
+    activeCampaigns.forEach(function(c){ c.customersAcquired = (c.customersAcquired || 0) + 1; });
+  }
 
   if (order.memberId) {
     updateMemberAfterRental(order.memberId, totalIncome);
@@ -594,6 +626,9 @@ function rejectOrder(orderId) {
     var prevRejects = gameState._todayRejectCounts[order.customerName] || 0;
     gameState._todayRejectCounts[order.customerName] = prevRejects + 1;
     applyCustomerComplaints(order.customerName, gameState._todayRejectCounts[order.customerName]);
+  }
+  if (typeof gameState.marketing !== 'undefined' && gameState.marketing.abandonedCartRecovery) {
+    gameState.marketing.abandonedCartRecovery.push({ orderId: order.id, customerName: order.customerName, vehicleName: order.vehicleName, day: gameState.currentDay, recovered: false });
   }
   addMessage('已拒绝 ' + order.customerName + ' 的租车订单', 'bad');
   renderOrders(); updateUI(); saveGame();

@@ -407,3 +407,621 @@ function processDailyFinance() {
     updateStockPrices();
   }
 }
+
+function initEnterpriseFinance() {
+  if (!gameState.cashFlow) {
+    gameState.cashFlow = { operatingInflow: 0, operatingOutflow: 0, investingOutflow: 0, financingInflow: 0, financingOutflow: 0 };
+  }
+  if (!gameState.cashFlow.dailyLog) gameState.cashFlow.dailyLog = [];
+  if (!gameState.cashFlow.forecast) gameState.cashFlow.forecast = [];
+  if (gameState.cashFlow.operatingInflow === undefined) gameState.cashFlow.operatingInflow = 0;
+  if (gameState.cashFlow.operatingOutflow === undefined) gameState.cashFlow.operatingOutflow = 0;
+  if (gameState.cashFlow.investingOutflow === undefined) gameState.cashFlow.investingOutflow = 0;
+  if (gameState.cashFlow.financingInflow === undefined) gameState.cashFlow.financingInflow = 0;
+  if (gameState.cashFlow.financingOutflow === undefined) gameState.cashFlow.financingOutflow = 0;
+  if (!gameState.taxes) {
+    gameState.taxes = { ytdProfit: 0, ytdTaxPaid: 0, vatCollected: 0, vatOwed: 0, propertyTaxOwed: 0, lastFilingDay: 0, corporateTaxRate: 0.25, vatRate: 0.06, propertyTaxRate: 0.01, quarterlyEstimates: [], taxPenalties: 0, depreciationMethod: 'straight' };
+  }
+  if (gameState.taxes.ytdProfit === undefined) gameState.taxes.ytdProfit = 0;
+  if (gameState.taxes.ytdTaxPaid === undefined) gameState.taxes.ytdTaxPaid = 0;
+  if (gameState.taxes.vatCollected === undefined) gameState.taxes.vatCollected = 0;
+  if (gameState.taxes.vatOwed === undefined) gameState.taxes.vatOwed = 0;
+  if (gameState.taxes.propertyTaxOwed === undefined) gameState.taxes.propertyTaxOwed = 0;
+  if (gameState.taxes.lastFilingDay === undefined) gameState.taxes.lastFilingDay = 0;
+  if (gameState.taxes.corporateTaxRate === undefined) gameState.taxes.corporateTaxRate = 0.25;
+  if (gameState.taxes.vatRate === undefined) gameState.taxes.vatRate = 0.06;
+  if (gameState.taxes.propertyTaxRate === undefined) gameState.taxes.propertyTaxRate = 0.01;
+  if (!gameState.taxes.quarterlyEstimates) gameState.taxes.quarterlyEstimates = [];
+  if (gameState.taxes.taxPenalties === undefined) gameState.taxes.taxPenalties = 0;
+  if (!gameState.taxes.depreciationMethod) gameState.taxes.depreciationMethod = 'straight';
+  if (!gameState.budget) {
+    gameState.budget = { monthlyRevenueTarget: 100000, salariesCap: 50000, marketingCap: 20000, maintenanceCap: 15000, monthActuals: {}, varianceHistory: [], lastClosingDay: 0 };
+  }
+  if (gameState.budget.monthlyRevenueTarget === undefined) gameState.budget.monthlyRevenueTarget = 100000;
+  if (gameState.budget.salariesCap === undefined) gameState.budget.salariesCap = 50000;
+  if (gameState.budget.marketingCap === undefined) gameState.budget.marketingCap = 20000;
+  if (gameState.budget.maintenanceCap === undefined) gameState.budget.maintenanceCap = 15000;
+  if (!gameState.budget.monthActuals) gameState.budget.monthActuals = {};
+  if (!gameState.budget.varianceHistory) gameState.budget.varianceHistory = [];
+  if (gameState.budget.lastClosingDay === undefined) gameState.budget.lastClosingDay = 0;
+  if (!gameState.kpiCache) gameState.kpiCache = {};
+  gameState.ownedVehicles.forEach(function(v) {
+    if (!v.depreciation) {
+      var cost = v.purchasePrice || v.estimatedValue || 200000;
+      v.depreciation = { method: gameState.taxes.depreciationMethod || 'straight', usefulLife: 5, salvageRate: 0.15, accumulated: 0, monthlyExpense: 0, bookValue: cost, originalCost: cost, purchaseDay: v.purchaseDay || gameState.currentDay };
+    }
+    if (v.depreciation.originalCost === undefined) v.depreciation.originalCost = v.purchasePrice || v.estimatedValue || 200000;
+    if (v.depreciation.usefulLife === undefined) v.depreciation.usefulLife = 5;
+    if (v.depreciation.salvageRate === undefined) v.depreciation.salvageRate = 0.15;
+    if (v.depreciation.accumulated === undefined) v.depreciation.accumulated = 0;
+    if (v.depreciation.bookValue === undefined) v.depreciation.bookValue = v.depreciation.originalCost;
+    if (v.depreciation.monthlyExpense === undefined) v.depreciation.monthlyExpense = 0;
+    if (v.depreciation.method === undefined) v.depreciation.method = gameState.taxes.depreciationMethod || 'straight';
+    if (v.depreciation.purchaseDay === undefined) v.depreciation.purchaseDay = v.purchaseDay || gameState.currentDay;
+  });
+}
+
+function calculateCashFlow() {
+  initEnterpriseFinance();
+  var cf = gameState.cashFlow;
+  var f = gameState.financials;
+  var td = f.todayDetail || {};
+  cf.operatingInflow = (td.rentalIncome || 0) + (td.serviceIncome || 0) + (td.adBonusIncome || 0);
+  cf.operatingOutflow = (td.wages || 0) + (td.fuelCost || 0) + (td.maintenance || 0) + (td.energyCost || 0) + (td.facilityMaint || 0) + (td.advertisingCost || 0) + (td.loanInterest || 0) + (td.taxes || 0);
+  cf.investingOutflow = (td.vehiclePurchases || 0) + (td.stockPurchases || 0);
+  cf.financingInflow = td.loanProceeds || 0;
+  cf.financingOutflow = td.loanRepayments || 0;
+  var dailyEntry = {
+    day: gameState.currentDay,
+    operatingInflow: cf.operatingInflow,
+    operatingOutflow: cf.operatingOutflow,
+    investingInflow: (td.vehicleSales || 0) + (td.stockSales || 0),
+    investingOutflow: cf.investingOutflow,
+    financingInflow: cf.financingInflow,
+    financingOutflow: cf.financingOutflow,
+    netOperating: cf.operatingInflow - cf.operatingOutflow,
+    netInvesting: ((td.vehicleSales || 0) + (td.stockSales || 0)) - cf.investingOutflow,
+    netFinancing: cf.financingInflow - cf.financingOutflow,
+    netChange: (cf.operatingInflow - cf.operatingOutflow) + ((td.vehicleSales || 0) + (td.stockSales || 0) - cf.investingOutflow) + (cf.financingInflow - cf.financingOutflow)
+  };
+  cf.dailyLog.push(dailyEntry);
+  if (cf.dailyLog.length > 90) cf.dailyLog.shift();
+  return dailyEntry;
+}
+
+function getCashRunway() {
+  initEnterpriseFinance();
+  var cash = gameState.cash || 0;
+  if (cash <= 0) return 0;
+  var cf = gameState.cashFlow;
+  var dailyLog = cf.dailyLog || [];
+  if (dailyLog.length < 3) return cash > 0 ? 999 : 0;
+  var recentBurn = 0;
+  var lookback = Math.min(7, dailyLog.length);
+  for (var i = dailyLog.length - lookback; i < dailyLog.length; i++) {
+    recentBurn += dailyLog[i].netChange || 0;
+  }
+  var avgDailyNet = recentBurn / lookback;
+  if (avgDailyNet >= 0) return 999;
+  return Math.max(0, Math.floor(cash / Math.abs(avgDailyNet)));
+}
+
+function getWorkingCapital() {
+  initEnterpriseFinance();
+  var cash = gameState.cash || 0;
+  var accountsReceivable = 0;
+  var prepaidExpenses = 0;
+  var currentAssets = cash + accountsReceivable + prepaidExpenses;
+  var accountsPayable = 0;
+  var taxesPayable = (gameState.taxes ? (gameState.taxes.vatOwed || 0) + (gameState.taxes.propertyTaxOwed || 0) : 0);
+  var shortTermLoans = 0;
+  if (gameState.loans) {
+    gameState.loans.forEach(function(l) { shortTermLoans += l.remainingAmount || 0; });
+  }
+  var currentLiabilities = accountsPayable + taxesPayable + shortTermLoans;
+  return { currentAssets: Math.round(currentAssets), currentLiabilities: Math.round(currentLiabilities), workingCapital: Math.round(currentAssets - currentLiabilities) };
+}
+
+function generateCashForecast(days) {
+  days = days || 7;
+  initEnterpriseFinance();
+  var forecast = [];
+  var projectedCash = gameState.cash || 0;
+  var dailyLog = gameState.cashFlow.dailyLog || [];
+  var avgOpInflow = 0, avgOpOutflow = 0, avgInvOutflow = 0, avgFinInflow = 0, avgFinOutflow = 0;
+  if (dailyLog.length > 0) {
+    var sampleSize = Math.min(14, dailyLog.length);
+    for (var i = dailyLog.length - sampleSize; i < dailyLog.length; i++) {
+      avgOpInflow += dailyLog[i].operatingInflow || 0;
+      avgOpOutflow += dailyLog[i].operatingOutflow || 0;
+      avgInvOutflow += dailyLog[i].investingOutflow || 0;
+      avgFinInflow += dailyLog[i].financingInflow || 0;
+      avgFinOutflow += dailyLog[i].financingOutflow || 0;
+    }
+    avgOpInflow /= sampleSize; avgOpOutflow /= sampleSize; avgInvOutflow /= sampleSize;
+    avgFinInflow /= sampleSize; avgFinOutflow /= sampleSize;
+  }
+  var rentalEndingSoon = [];
+  if (gameState.ownedVehicles) {
+    gameState.ownedVehicles.forEach(function(v) {
+      if (v.rentedUntil && v.rentedUntil > gameState.currentDay) {
+        rentalEndingSoon.push({ endDay: v.rentedUntil, dailyRate: v.dailyRate || 300 });
+      }
+    });
+  }
+  for (var d = 1; d <= days; d++) {
+    var futureDay = gameState.currentDay + d;
+    var dayOpInflow = avgOpInflow;
+    var dayInvInflow = 0;
+    rentalEndingSoon.forEach(function(r) {
+      if (r.endDay <= futureDay && r.endDay > gameState.currentDay) {
+        dayInvInflow += r.dailyRate * 1;
+      }
+    });
+    var randomFactor = 0.85 + Math.random() * 0.3;
+    dayOpInflow *= randomFactor;
+    var netChange = dayOpInflow - avgOpOutflow - avgInvOutflow * randomFactor + dayInvInflow + avgFinInflow * (Math.random() > 0.8 ? 1 : 0) - avgFinOutflow * (Math.random() > 0.9 ? 1 : 0);
+    projectedCash += netChange;
+    forecast.push({
+      day: futureDay,
+      projectedBalance: Math.round(projectedCash),
+      opInflow: Math.round(dayOpInflow),
+      opOutflow: Math.round(avgOpOutflow),
+      netChange: Math.round(netChange)
+    });
+  }
+  gameState.cashFlow.forecast = forecast;
+  return forecast;
+}
+
+function checkCashRunwayAlert() {
+  var runway = getCashRunway();
+  if (runway < 7 && runway > 0) {
+    addMessage('🚨 现金流预警！当前现金仅够维持 ' + runway + ' 天（<7天临界线）', 'bad');
+  } else if (runway < 30 && runway >= 7) {
+    addMessage('⚠️ 现金流提醒：当前现金可维持 ' + runway + ' 天（<30天警戒线）', 'warn');
+  } else if (runway === 0) {
+    addMessage('💀 现金耗尽！公司已资不抵债', 'bad');
+  }
+  return runway;
+}
+
+function processTaxes() {
+  initEnterpriseFinance();
+  var tax = gameState.taxes;
+  var f = gameState.financials;
+  var td = f.todayDetail || {};
+  var preTaxProfit = (gameState.todayIncome || 0) - (gameState.todayExpense || 0) - (td.taxes || 0);
+  if (preTaxProfit > 0) {
+    var vatAmount = Math.round((td.rentalIncome || 0) * tax.vatRate);
+    tax.vatCollected += vatAmount;
+    tax.vatOwed += vatAmount;
+  }
+  var totalVehicleValue = 0;
+  gameState.ownedVehicles.forEach(function(v) {
+    totalVehicleValue += v.depreciation ? v.depreciation.bookValue : (v.purchasePrice || v.estimatedValue || 200000);
+  });
+  var monthlyPropertyTax = Math.round(totalVehicleValue * tax.propertyTaxRate / 12);
+  tax.propertyTaxOwed += monthlyPropertyTax;
+  tax.ytdProfit += preTaxProfit;
+  var quarterNum = Math.ceil(gameState.currentDay / 90);
+  if (tax.quarterlyEstimates.length < quarterNum) {
+    var estimatedQuarterlyTax = Math.round(Math.max(0, tax.ytdProfit * tax.corporateTaxRate * 0.25));
+    tax.quarterlyEstimates.push({ quarter: quarterNum, estimated: estimatedQuarterlyTax, paid: 0, dueDay: quarterNum * 90 + 15, status: 'pending' });
+  }
+  var currentQuarter = tax.quarterlyEstimates[tax.quarterlyEstimates.length - 1];
+  if (currentQuarter && currentQuarter.status === 'pending' && gameState.currentDay >= currentQuarter.dueDay) {
+    var lateDays = gameState.currentDay - currentQuarter.dueDay;
+    if (lateDays > 0) {
+      var penaltyRate = 0.0005 * lateDays;
+      tax.taxPenalties += Math.round(currentQuarter.estimated * penaltyRate);
+      addMessage('⚠️ 税务逾期！第' + currentQuarter.quarter + '季度税款已逾期 ' + lateDays + ' 天，产生滞纳金', 'bad');
+    }
+  }
+  if (gameState.currentDay % 30 === 0) {
+    var totalOwed = (tax.vatOwed || 0) + (tax.propertyTaxOwed || 0) + (tax.taxPenalties || 0);
+    if (totalOwed > 0) {
+      addMessage('📋 月度税务汇总：增值税 ' + formatCurrency(tax.vatOwed) + '，财产税 ' + formatCurrency(tax.propertyTaxOwed) + '，滞纳金 ' + formatCurrency(tax.taxPenalties), 'warn');
+    }
+  }
+}
+
+function payTaxes() {
+  initEnterpriseFinance();
+  var tax = gameState.taxes;
+  var totalPayable = (tax.vatOwed || 0) + (tax.propertyTaxOwed || 0) + (tax.taxPenalties || 0);
+  var currentQuarter = tax.quarterlyEstimates[tax.quarterlyEstimates.length - 1];
+  if (currentQuarter && currentQuarter.status === 'pending') {
+    totalPayable += (currentQuarter.estimated - currentQuarter.paid);
+  }
+  if (totalPayable <= 0) return { success: false, message: '暂无应缴税款' };
+  if (gameState.cash < totalPayable) return { success: false, message: '现金不足，需要 ' + formatCurrency(totalPayable) };
+  gameState.cash -= totalPayable;
+  gameState.todayExpense += totalPayable;
+  tax.vatOwed = 0;
+  tax.propertyTaxOwed = 0;
+  var penaltyPaid = tax.taxPenalties || 0;
+  tax.taxPenalties = 0;
+  tax.ytdTaxPaid += totalPayable;
+  if (currentQuarter && currentQuarter.status === 'pending') {
+    currentQuarter.paid += (currentQuarter.estimated - currentQuarter.paid);
+    currentQuarter.status = 'paid';
+    tax.lastFilingDay = gameState.currentDay;
+  }
+  if (gameState.financials.todayDetail) gameState.financials.todayDetail.taxes = (gameState.financials.todayDetail.taxes || 0) + totalPayable;
+  addMessage('✅ 缴税完成：共支付 ' + formatCurrency(totalPayable) + '（含滞纳金 ' + formatCurrency(penaltyPaid) + '）', 'good');
+  saveGame();
+  return { success: true, paid: totalPayable, breakdown: { vat: tax.vatOwed, propertyTax: tax.propertyTaxOwed, penalties: penaltyPaid, corporate: currentQuarter ? currentQuarter.estimated - currentQuarter.paid : 0 } };
+}
+
+function getTaxSummary() {
+  initEnterpriseFinance();
+  var tax = gameState.taxes;
+  var totalOwed = (tax.vatOwed || 0) + (tax.propertyTaxOwed || 0) + (tax.taxPenalties || 0);
+  var nextFiling = null;
+  var q = tax.quarterlyEstimates[tax.quarterlyEstimates.length - 1];
+  if (q && q.status === 'pending') {
+    nextFiling = { quarter: q.quarter, dueDay: q.dueDay, amount: q.estimated - q.paid, daysLeft: q.dueDay - gameState.currentDay };
+  }
+  return {
+    ytdProfit: tax.ytdProfit,
+    ytdTaxPaid: tax.ytdTaxPaid,
+    vatCollected: tax.vatCollected,
+    vatOwed: tax.vatOwed,
+    propertyTaxOwed: tax.propertyTaxOwed,
+    totalOwed: totalOwed,
+    taxPenalties: tax.taxPenalties,
+    corporateTaxRate: tax.corporateTaxRate,
+    vatRate: tax.vatRate,
+    propertyTaxRate: tax.propertyTaxRate,
+    depreciationMethod: tax.depreciationMethod,
+    nextFiling: nextFiling,
+    quartersFiled: tax.quarterlyEstimates.filter(function(q){ return q.status === 'paid'; }).length
+  };
+}
+
+function optimizeDepreciationMethod(method) {
+  if (method !== 'straight' && method !== 'accelerated') return { success: false, message: '无效的折旧方法' };
+  initEnterpriseFinance();
+  gameState.taxes.depreciationMethod = method;
+  gameState.ownedVehicles.forEach(function(v) {
+    if (v.depreciation) v.depreciation.method = method;
+  });
+  addMessage('📊 折旧方法已切换为：' + (method === 'straight' ? '直线法（均匀折旧）' : '加速折旧法（前两年双倍余额递减）'), 'good');
+  saveGame();
+  return { success: true, method: method };
+}
+
+function processVehicleDepreciation(v) {
+  if (!v || !v.depreciation) return 0;
+  var dep = v.depreciation;
+  var cost = dep.originalCost || v.purchasePrice || v.estimatedValue || 200000;
+  var salvageValue = cost * dep.salvageRate;
+  var monthlyDepreciation = 0;
+  var monthsOwned = Math.floor((gameState.currentDay - (dep.purchaseDay || v.purchaseDay || gameState.currentDay)) / 30);
+  if (dep.method === 'accelerated' && monthsOwned < 24) {
+    var doubleRate = 2 / (dep.usefulLife * 12);
+    var beginningBookValue = Math.max(salvageValue, dep.bookValue || cost);
+    monthlyDepreciation = Math.min(beginningBookValue * doubleRate, (cost - salvageValue) / (dep.usefulLife * 12) * 2);
+    if (dep.bookValue - monthlyDepreciation < salvageValue) {
+      monthlyDepreciation = Math.max(0, dep.bookValue - salvageValue);
+    }
+  } else {
+    monthlyDepreciation = (cost - salvageValue) / (dep.usefulLife * 12);
+    if (dep.bookValue - monthlyDepreciation < salvageValue) {
+      monthlyDepreciation = Math.max(0, dep.bookValue - salvageValue);
+    }
+  }
+  dep.monthlyExpense = Math.round(monthlyDepreciation);
+  dep.accumulated = Math.round(dep.accumulated + dep.monthlyExpense);
+  dep.bookValue = Math.max(salvageValue, Math.round(dep.bookValue - dep.monthlyExpense));
+  return dep.monthlyExpense;
+}
+
+function getFleetDepreciationReport() {
+  initEnterpriseFinance();
+  var report = { totalOriginalCost: 0, totalAccumulated: 0, totalBookValue: 0, totalMonthlyExpense: 0, vehicleDetails: [] };
+  gameState.ownedVehicles.forEach(function(v) {
+    if (!v.depreciation) processVehicleDepreciation(v);
+    var dep = v.depreciation;
+    report.totalOriginalCost += dep.originalCost || 0;
+    report.totalAccumulated += dep.accumulated || 0;
+    report.totalBookValue += dep.bookValue || 0;
+    report.totalMonthlyExpense += dep.monthlyExpense || 0;
+    report.vehicleDetails.push({
+      id: v.id,
+      name: (v.brand || '') + ' ' + (v.model || ''),
+      licensePlate: v.licensePlate,
+      originalCost: dep.originalCost,
+      accumulated: dep.accumulated,
+      bookValue: dep.bookValue,
+      monthlyExpense: dep.monthlyExpense,
+      method: dep.method,
+      usefulLife: dep.usefulLife,
+      ageMonths: Math.floor((gameState.currentDay - (dep.purchaseDay || gameState.currentDay)) / 30)
+    });
+  });
+  report.totalOriginalCost = Math.round(report.totalOriginalCost);
+  report.totalAccumulated = Math.round(report.totalAccumulated);
+  report.totalBookValue = Math.round(report.totalBookValue);
+  report.totalMonthlyExpense = Math.round(report.totalMonthlyExpense);
+  return report;
+}
+
+function processAllDepreciation() {
+  initEnterpriseFinance();
+  var totalDepreciation = 0;
+  gameState.ownedVehicles.forEach(function(v) {
+    totalDepreciation += processVehicleDepreciation(v);
+  });
+  if (totalDepreciation > 0) {
+    if (gameState.financials.todayDetail) gameState.financials.todayDetail.depreciationExpense = (gameState.financials.todayDetail.depreciationExpense || 0) + totalDepreciation;
+  }
+  return totalDepreciation;
+}
+
+function getEnhancedBalanceSheet() {
+  initEnterpriseFinance();
+  var cash = gameState.cash || 0;
+  var accountsReceivable = 0;
+  if (gameState.pendingOrders) {
+    gameState.pendingOrders.forEach(function(o) { accountsReceivable += o.netIncome || o.totalIncome || 0; });
+  }
+  var prepaidExpenses = 0;
+  var currentAssets = cash + accountsReceivable + prepaidExpenses;
+  var oilVal = 0, elecVal = 0;
+  if (gameState.energy) {
+    oilVal = Math.round((gameState.energy.oilStorage || 0) * (gameState.energy.oilPrice || 0));
+    elecVal = Math.round((gameState.energy.batteryStorage || 0) * (gameState.energy.electricityPrice || 0));
+  }
+  currentAssets += oilVal + elecVal;
+  var fleetReport = getFleetDepreciationReport();
+  var fleetBookValue = fleetReport.totalBookValue;
+  var outletValue = 0;
+  (gameState.outlets || []).filter(function(o) { return o.owned; }).forEach(function(o) {
+    outletValue += [0, 500000, 1200000, 3000000, 8000000, 20000000][o.level || 1] || 0;
+  });
+  var facilityValue = 0;
+  (gameState.outlets || []).filter(function(o) { return o.owned; }).forEach(function(outlet) {
+    var os = typeof getOutletState === 'function' ? getOutletState(outlet.id) : outlet;
+    if (os && os.facilities) {
+      os.facilities.forEach(function(fid) {
+        var cfg = typeof getFacilityConfig === 'function' ? getFacilityConfig(fid) : null;
+        if (cfg) facilityValue += cfg.cost;
+      });
+    }
+  });
+  var portfolioValue = 0;
+  if (gameState.stocks && gameState.stocks.portfolio) {
+    gameState.stocks.portfolio.forEach(function(h) {
+      var price = typeof getCurrentStockPrice === 'function' ? getCurrentStockPrice(h.ticker) : 0;
+      portfolioValue += price * h.shares;
+    });
+  }
+  var nonCurrentAssets = fleetBookValue + outletValue + facilityValue + portfolioValue;
+  var totalAssets = currentAssets + nonCurrentAssets;
+  var shortTermLoans = 0;
+  if (gameState.loans) gameState.loans.forEach(function(l) { shortTermLoans += l.remainingAmount || 0; });
+  var taxesPayable = (gameState.taxes ? (gameState.taxes.vatOwed || 0) + (gameState.taxes.propertyTaxOwed || 0) + (gameState.taxes.taxPenalties || 0) : 0);
+  var accountsPayable = 0;
+  var currentLiabilities = shortTermLoans + taxesPayable + accountsPayable;
+  var totalLiabilities = currentLiabilities;
+  var initialCapital = 1000000;
+  var totalRevenue = gameState.totalRevenue || 0;
+  var totalExpenses = (gameState.financials && gameState.financials.totalExpenses) || 0;
+  if (totalExpenses === 0 && gameState.financials && gameState.financials.dailyExpenses && gameState.financials.dailyExpenses.length > 0) {
+    totalExpenses = gameState.financials.dailyExpenses.reduce(function(s, e) { return s + e; }, 0);
+  }
+  var retainedEarnings = totalRevenue - totalExpenses - (gameState.taxes ? gameState.taxes.ytdTaxPaid : 0);
+  var totalEquity = totalAssets - totalLiabilities;
+  var goodwill = totalEquity - initialCapital - retainedEarnings;
+  var currentRatio = currentLiabilities > 0 ? currentAssets / currentLiabilities : 999;
+  var debtToEquity = totalEquity > 0 ? totalLiabilities / totalEquity : 0;
+  var roa = totalAssets > 0 ? (retainedEarnings / totalAssets) * 100 : 0;
+  var roe = totalEquity > 0 ? (retainedEarnings / totalEquity) * 100 : 0;
+  return {
+    assets: {
+      current: { cash: cash, accountsReceivable: accountsReceivable, prepaidExpenses: prepaidExpenses, inventory: oilVal + elecVal, total: Math.round(currentAssets) },
+      nonCurrent: { fleetAtBookValue: fleetBookValue, facilities: facilityValue, outlets: outletValue, investments: portfolioValue, goodwill: Math.round(goodwill), total: Math.round(nonCurrentAssets) },
+      total: Math.round(totalAssets)
+    },
+    liabilities: {
+      current: { shortTermLoans: shortTermLoans, taxesPayable: taxesPayable, accountsPayable: accountsPayable, total: Math.round(currentLiabilities) },
+      total: Math.round(totalLiabilities)
+    },
+    equity: {
+      paidInCapital: initialCapital,
+      retainedEarnings: Math.round(retainedEarnings),
+      total: Math.round(totalEquity)
+    },
+    ratios: {
+      currentRatio: Math.round(currentRatio * 100) / 100,
+      debtToEquity: Math.round(debtToEquity * 100) / 100,
+      roa: Math.round(roa * 100) / 100,
+      roe: Math.round(roe * 100) / 100
+    }
+  };
+}
+
+function getEnhancedIncomeStatement(period) {
+  initEnterpriseFinance();
+  period = period || 'month';
+  var detail = _aggDetail(period);
+  var fleetReport = getFleetDepreciationReport();
+  var depreciationExpense = period === 'today' ? fleetReport.totalMonthlyExpense / 30 : fleetReport.totalMonthlyExpense;
+  var revenue = detail.rentalIncome + detail.serviceIncome + detail.adBonusIncome + detail.vehicleSales + detail.investmentIncome;
+  var cogs = depreciationExpense + detail.fuelCost + detail.maintenanceCost;
+  var grossProfit = revenue - cogs;
+  var operatingExpenses = detail.wages + detail.energyCost + detail.facilityMaint + detail.advertisingCost;
+  var operatingIncome = grossProfit - operatingExpenses;
+  var otherExpenses = detail.loanInterest + detail.taxes;
+  var netIncome = operatingIncome - otherExpenses;
+  var ebitda = operatingIncome + depreciationExpense;
+  var grossMargin = revenue > 0 ? Math.round(grossProfit / revenue * 10000) / 100 : 0;
+  var operatingMargin = revenue > 0 ? Math.round(operatingIncome / revenue * 10000) / 100 : 0;
+  var netMargin = revenue > 0 ? Math.round(netIncome / revenue * 10000) / 100 : 0;
+  return {
+    revenue: { rentalIncome: detail.rentalIncome, serviceIncome: detail.serviceIncome, adBonusIncome: detail.adBonusIncome, vehicleSales: detail.vehicleSales, investmentIncome: detail.investmentIncome, total: Math.round(revenue) },
+    cogs: { depreciation: Math.round(depreciationExpense), fuelCost: detail.fuelCost, maintenanceCost: detail.maintenanceCost, total: Math.round(cogs) },
+    grossProfit: Math.round(grossProfit),
+    operatingExpenses: { wages: detail.wages, energyCost: detail.energyCost, facilityMaint: detail.facilityMaint, advertisingCost: detail.advertisingCost, total: Math.round(operatingExpenses) },
+    operatingIncome: Math.round(operatingIncome),
+    otherExpenses: { interest: detail.loanInterest, taxes: detail.taxes, total: Math.round(otherExpenses) },
+    netIncome: Math.round(netIncome),
+    ebitda: Math.round(ebitda),
+    margins: { gross: grossMargin, operating: operatingMargin, net: netMargin }
+  };
+}
+
+function getCashFlowStatement(period) {
+  initEnterpriseFinance();
+  var detail = _aggDetail(period);
+  var is = getEnhancedIncomeStatement(period);
+  var fleetReport = getFleetDepreciationReport();
+  var depreciation = is.cogs.depreciation;
+  var operatingNetCash = detail.rentalIncome + detail.serviceIncome - detail.wages - detail.fuelCost - detail.maintenanceCost - detail.energyCost - detail.advertisingCost - detail.facilityMaint - detail.loanInterest - detail.taxes;
+  var investingNetCash = detail.vehicleSales - detail.vehiclePurchases + detail.stockSales - detail.stockPurchases;
+  var financingNetCash = detail.loanProceeds - detail.loanRepayments;
+  var netCashChange = operatingNetCash + investingNetCash + financingNetCash;
+  return {
+    operating: {
+      netIncome: is.netIncome,
+      addBackDepreciation: depreciation,
+      rentalIncomeReceived: detail.rentalIncome,
+      serviceIncomeReceived: detail.serviceIncome,
+      wagesPaid: -detail.wages,
+      fuelCost: -detail.fuelCost,
+      maintenanceCost: -detail.maintenanceCost,
+      energyCost: -detail.energyCost,
+      advertisingCost: -detail.advertisingCost,
+      interestPaid: -detail.loanInterest,
+      taxesPaid: -detail.taxes,
+      netCash: Math.round(operatingNetCash)
+    },
+    investing: {
+      vehiclePurchases: -detail.vehiclePurchases,
+      vehicleSales: detail.vehicleSales,
+      stockPurchases: -detail.stockPurchases,
+      stockSales: detail.stockSales,
+      netCash: Math.round(investingNetCash)
+    },
+    financing: {
+      loanProceeds: detail.loanProceeds,
+      loanRepayments: -detail.loanRepayments,
+      netCash: Math.round(financingNetCash)
+    },
+    netChange: Math.round(netCashChange)
+  };
+}
+
+function getKPIDashboard() {
+  initEnterpriseFinance();
+  var f = gameState.financials;
+  var dr = f.dailyRevenue || [];
+  var dp = f.dailyProfit || [];
+  var thisMonthRevenue = 0, lastMonthRevenue = 0, thisQuarterRevenue = 0, lastQuarterRevenue = 0;
+  var monthLen = Math.min(dr.length, 30);
+  for (var i = dr.length - monthLen; i < dr.length; i++) thisMonthRevenue += dr[i] || 0;
+  var lastMonthStart = dr.length - 60;
+  var lastMonthEnd = dr.length - 30;
+  if (lastMonthEnd > 0) {
+    for (var j = Math.max(0, lastMonthStart); j < lastMonthEnd; j++) lastMonthRevenue += dr[j] || 0;
+  }
+  var qLen = Math.min(dr.length, 90);
+  for (var k = dr.length - qLen; k < dr.length; k++) thisQuarterRevenue += dr[k] || 0;
+  var lastQStart = dr.length - 180;
+  var lastQEnd = dr.length - 90;
+  if (lastQEnd > 0) {
+    for (var m = Math.max(0, lastQStart); m < lastQEnd; m++) lastQuarterRevenue += dr[m] || 0;
+  }
+  var momGrowth = lastMonthRevenue > 0 ? Math.round((thisMonthRevenue - lastMonthRevenue) / lastMonthRevenue * 10000) / 100 : 0;
+  var qoqGrowth = lastQuarterRevenue > 0 ? Math.round((thisQuarterRevenue - lastQuarterRevenue) / lastQuarterRevenue * 10000) / 100 : 0;
+  var incomeStmt = getEnhancedIncomeStatement('month');
+  var bs = getEnhancedBalanceSheet();
+  var totalAssets = bs.assets.total || 1;
+  var assetTurnover = totalAssets > 0 ? Math.round(thisQuarterRevenue / totalAssets * 100 * 4) / 100 : 0;
+  var totalFleet = gameState.ownedVehicles.length || 1;
+  var rentedCount = (gameState.ownedVehicles.filter(function(v) { return v.rentedUntil && v.rentedUntil >= gameState.currentDay; })).length;
+  var fleetUtilization = totalFleet > 0 ? Math.round(rentedCount / totalFleet * 10000) / 100 : 0;
+  var marketingSpend = (_aggDetail('month').advertisingCost || 0);
+  var newCustomers = gameState.customerLoyalty ? (gameState.customerLoyalty.totalNewCustomers || 0) : 0;
+  var cac = newCustomers > 0 ? Math.round(marketingSpend / newCustomers) : 0;
+  var avgRetention = gameState.customerLoyalty ? (gameState.customerLoyalty.returnRate || 0) : 0;
+  var avgRevenuePerCustomer = thisMonthRevenue > 0 && newCustomers > 0 ? Math.round(thisMonthRevenue / newCustomers) : 0;
+  var retentionMonths = Math.max(1, Math.round(avgRetention / 100 * 12));
+  var clv = avgRevenuePerCustomer * retentionMonths;
+  var fixedCosts = (_aggDetail('month').wages || 0) + (_aggDetail('month').facilityMaint || 0) + (_aggDetail('month').energyCost || 0);
+  var contributionPerVehicleDay = incomeStmt.revenue.total > 0 ? Math.round((incomeStmt.revenue.total - incomeStmt.cogs.fuelCost - incomeStmt.cogs.maintenanceCost) / (totalFleet * 30)) : 0;
+  var breakEvenDays = contributionPerVehicleDay > 0 ? Math.ceil(fixedCosts / contributionPerVehicleDay) : 999;
+  return {
+    revenueGrowth: { mom: momGrowth, qoq: qoqGrowth, thisMonth: thisMonthRevenue, lastMonth: lastMonthRevenue, thisQuarter: thisQuarterRevenue, lastQuarter: lastQuarterRevenue },
+    profitMargins: { gross: incomeStmt.margins.gross, operating: incomeStmt.margins.operating, net: incomeStmt.margins.net },
+    assetTurnover: assetTurnover,
+    fleetUtilization: fleetUtilization,
+    customerAcquisitionCost: cac,
+    customerLifetimeValue: clv,
+    breakEvenAnalysis: { fixedCosts: fixedCosts, contributionMargin: contributionPerVehicleDay, breakEvenDays: breakEvenDays },
+    ebitda: incomeStmt.ebitda,
+    balanceRatios: bs.ratios,
+    cashRunway: getCashRunway(),
+    workingCapital: getWorkingCapital()
+  };
+}
+
+function setBudget(params) {
+  initEnterpriseFinance();
+  var b = gameState.budget;
+  if (params.monthlyRevenueTarget !== undefined) b.monthlyRevenueTarget = params.monthlyRevenueTarget;
+  if (params.salariesCap !== undefined) b.salariesCap = params.salariesCap;
+  if (params.marketingCap !== undefined) b.marketingCap = params.marketingCap;
+  if (params.maintenanceCap !== undefined) b.maintenanceCap = params.maintenanceCap;
+  saveGame();
+  return { success: true, budget: b };
+}
+
+function getBudgetVariance() {
+  initEnterpriseFinance();
+  var b = gameState.budget;
+  var actual = _aggDetail('month');
+  var actualRevenue = actual.rentalIncome + actual.serviceIncome + actual.adBonusIncome + actual.vehicleSales + actual.investmentIncome;
+  var revVariance = actualRevenue - b.monthlyRevenueTarget;
+  var revVariancePct = b.monthlyRevenueTarget > 0 ? Math.round(revVariance / b.monthlyRevenueTarget * 10000) / 100 : 0;
+  var salaryVariance = actual.wages - b.salariesCap;
+  var marketingVariance = actual.advertisingCost - b.marketingCap;
+  var maintenanceVariance = actual.maintenanceCost - b.maintenanceCap;
+  var result = {
+    revenue: { target: b.monthlyRevenueTarget, actual: Math.round(actualRevenue), variance: Math.round(revVariance), variancePct: revVariancePct },
+    salaries: { target: b.salariesCap, actual: actual.wages, variance: Math.round(salaryVariance) },
+    marketing: { target: b.marketingCap, actual: actual.advertisingCost, variance: Math.round(marketingVariance) },
+    maintenance: { target: b.maintenanceCap, actual: actual.maintenanceCost, variance: Math.round(maintenanceVariance) },
+    overallStatus: revVariance >= 0 ? 'favorable' : 'unfavorable'
+  };
+  return result;
+}
+
+function runMonthEndClosing() {
+  initEnterpriseFinance();
+  var b = gameState.budget;
+  if (b.lastClosingDay >= gameState.currentDay - 30 && b.lastClosingDay > 0) {
+    return { success: false, message: '本月已结账' };
+  }
+  var variance = getBudgetVariance();
+  var closingReport = {
+    closingDay: gameState.currentDay,
+    period: '第' + Math.ceil(gameState.currentDay / 30) + '月',
+    budgetVariance: variance,
+    incomeStatement: getEnhancedIncomeStatement('month'),
+    balanceSheet: getEnhancedBalanceSheet(),
+    cashFlow: getCashFlowStatement('month'),
+    kpis: getKPIDashboard()
+  };
+  b.varianceHistory.push(closingReport);
+  if (b.varianceHistory.length > 24) b.varianceHistory.shift();
+  b.lastClosingDay = gameState.currentDay;
+  var totalDepreciation = processAllDepreciation();
+  processTaxes();
+  checkCashRunwayAlert();
+  saveGame();
+  addMessage('📊 月度结账完成！净利润 ' + formatCurrency(closingReport.incomeStatement.netIncome), 'good');
+  return { success: true, report: closingReport };
+}
