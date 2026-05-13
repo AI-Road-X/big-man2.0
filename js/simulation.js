@@ -79,12 +79,15 @@ function generateCustomers() {
   return customers;
 }
 
-function generateEasterEggOrder() {
+function generateEasterEggOrder(excludeVehicleIds) {
   if (Math.random() > 0.45) return null;
   var available = [];
   gameState.outlets.filter(function(o){ return o.owned; }).forEach(function(outlet){
     available = available.concat(getAvailableVehiclesAtOutlet(outlet.id));
   });
+  if (excludeVehicleIds && excludeVehicleIds.length > 0) {
+    available = available.filter(function(v){ return excludeVehicleIds.indexOf(v.id) === -1; });
+  }
   if (available.length === 0) return null;
   var vehicle = available[Math.floor(Math.random() * available.length)];
   var outlet = OUTLET_CONFIGS.find(function(c){ return c.id === (vehicle.outletId || 0); }) || OUTLET_CONFIGS[0];
@@ -294,9 +297,11 @@ function nextDay() {
     addMessage('收到 <span class="msg-highlight">' + newOrders.length + '</span> 个新订单，请及时处理！', 'warn');
     var eggCount = 0;
     var maxEggs = Math.min(3, Math.ceil(newOrders.length / 5) + 1);
+    var usedVehicleIds = newOrders.map(function(o){ return o.vehicleId; });
     for (var ei = 0; ei < maxEggs; ei++) {
-      var eggOrder = generateEasterEggOrder();
+      var eggOrder = generateEasterEggOrder(usedVehicleIds);
       if (eggOrder) {
+        usedVehicleIds.push(eggOrder.vehicleId);
         gameState.pendingOrders.push(eggOrder);
         eggCount++;
         addMessage('🎁 彩蛋订单！' + eggOrder.customerName + ' — ' + eggOrder.eggScenario + ' 收入×' + eggOrder.eggBonus, 'good');
@@ -425,6 +430,15 @@ function acceptOrder(orderId) {
   gameState.cash += totalIncome;
   gameState.todayIncome += totalIncome;
   vehicle.rentedUntil = gameState.currentDay + order.rentalDays - 1;
+
+  var conflicts = gameState.pendingOrders.filter(function(o){ return o.id !== orderId && o.vehicleId === order.vehicleId; });
+  conflicts.forEach(function(c){
+    var cidx = gameState.pendingOrders.indexOf(c);
+    if (cidx > -1) {
+      gameState.pendingOrders.splice(cidx, 1);
+      addMessage('⚠️ 自动取消：' + c.customerName + ' 的订单（' + c.vehicleName + ' 已被租出）', 'warn');
+    }
+  });
 
   if (!gameState.outletOrderCounts[order.outletId]) gameState.outletOrderCounts[order.outletId] = 0;
   gameState.outletOrderCounts[order.outletId]++;
