@@ -80,7 +80,7 @@ function generateCustomers() {
 }
 
 function generateEasterEggOrder() {
-  if (Math.random() > 0.35) return null;
+  if (Math.random() > 0.45) return null;
   var available = [];
   gameState.outlets.filter(function(o){ return o.owned; }).forEach(function(outlet){
     available = available.concat(getAvailableVehiclesAtOutlet(outlet.id));
@@ -292,10 +292,18 @@ function nextDay() {
   if (newOrders.length > 0) {
     gameState.pendingOrders = gameState.pendingOrders.concat(newOrders);
     addMessage('收到 <span class="msg-highlight">' + newOrders.length + '</span> 个新订单，请及时处理！', 'warn');
-    var eggOrder = generateEasterEggOrder();
-    if (eggOrder) {
-      gameState.pendingOrders.push(eggOrder);
-      addMessage('🎁 彩蛋订单！' + eggOrder.customerName + ' — 收入×' + eggOrder.eggBonus, 'good');
+    var eggCount = 0;
+    var maxEggs = Math.min(3, Math.ceil(newOrders.length / 5) + 1);
+    for (var ei = 0; ei < maxEggs; ei++) {
+      var eggOrder = generateEasterEggOrder();
+      if (eggOrder) {
+        gameState.pendingOrders.push(eggOrder);
+        eggCount++;
+        addMessage('🎁 彩蛋订单！' + eggOrder.customerName + ' — ' + eggOrder.eggScenario + ' 收入×' + eggOrder.eggBonus, 'good');
+      }
+    }
+    if (eggCount > 1) {
+      addMessage('🎊 今日运气爆棚！共获得 <span class="msg-highlight">' + eggCount + '</span> 个彩蛋订单！', 'good');
     }
   } else {
     addMessage('今日无客户下单', 'bad');

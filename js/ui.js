@@ -1033,7 +1033,12 @@ function renderOrders() {
   headerBar.innerHTML = '<span style="font-size:13px;font-weight:700;color:#1e293b;">待处理订单 <span style="color:#2563eb;">' + gameState.pendingOrders.length + '</span> 条</span>' +
     '<button style="padding:7px 18px;border:none;border-radius:6px;font-size:12px;font-weight:700;cursor:pointer;background:linear-gradient(135deg,#059669,#10b981);color:#fff;box-shadow:0 2px 8px rgba(5,150,105,0.25);" onclick="acceptAllOrders()">✅ 一键全部接单</button>';
   fragment.appendChild(headerBar);
-  gameState.pendingOrders.forEach(function(order){
+  var sortedOrders = gameState.pendingOrders.slice().sort(function(a,b){
+    if (a.isEasterEgg && !b.isEasterEgg) return -1;
+    if (!a.isEasterEgg && b.isEasterEgg) return 1;
+    return (b.totalIncome || 0) - (a.totalIncome || 0);
+  });
+  sortedOrders.forEach(function(order){
     var typeIcon = order.customerType === 'business' ? '💼' : '🏖️';
     var typeClass = order.customerType === 'business' ? 'business' : 'tourist';
     var typeLabel = order.customerType === 'business' ? '商务客户' : '旅游客户';
@@ -1041,12 +1046,16 @@ function renderOrders() {
     var isEgg = order.isEasterEgg;
     var card = document.createElement('div');
     card.className = 'order-card';
-    if (isEgg) card.style.borderLeft = '4px solid #f59e0b';
-    var eggBadge = isEgg ? '<span style="font-size:9px;padding:1px 6px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#fff;border-radius:4px;font-weight:700;margin-left:6px;">🎁 彩蛋订单</span>' : '';
+    if (isEgg) {
+      card.style.cssText = 'border-left:4px solid #f59e0b;background:linear-gradient(135deg,rgba(245,158,11,0.08),rgba(251,191,36,0.04));box-shadow:0 2px 12px rgba(245,158,11,0.15);';
+    }
+    var eggBadge = isEgg ? '<span style="font-size:9px;padding:2px 8px;background:linear-gradient(135deg,#f59e0b,#fbbf24);color:#fff;border-radius:4px;font-weight:700;margin-left:6px;animation:pulse-egg 1.5s infinite;">🎁 彩蛋</span>' : '';
+    var eggDescHtml = isEgg ? '<div style="margin-top:4px;padding:4px 8px;background:rgba(245,158,11,0.1);border-radius:6px;font-size:10px;color:#b45309;font-weight:600;">📌 ' + (order.eggDesc || '') + '</div>' : '';
     card.innerHTML =
-      '<div class="order-top"><div class="order-customer"><div class="order-avatar ' + typeClass + '">' + typeIcon + '</div><div class="order-customer-info"><span class="order-customer-name">' + order.customerName + eggBadge + '</span><span class="order-customer-type">' + typeLabel + ' · ' + order.outletName + '</span></div></div><span class="order-price">' + formatCurrency(order.totalIncome) + (isEgg ? '<br><span style="font-size:9px;color:#f59e0b;">×' + (order.eggBonus || 1) + ' 奖励</span>' : '') + '</span></div>' +
+      '<div class="order-top"><div class="order-customer"><div class="order-avatar ' + typeClass + '">' + (isEgg ? '🌟' : typeIcon) + '</div><div class="order-customer-info"><span class="order-customer-name" style="' + (isEgg ? 'color:#b45309;font-weight:800;' : '') + '">' + order.customerName + eggBadge + '</span><span class="order-customer-type">' + typeLabel + ' · ' + order.outletName + (isEgg ? ' · <strong style="color:#f59e0b;">' + (order.eggScenario || '') + '</strong>' : '') + '</span></div></div><span class="order-price" style="' + (isEgg ? 'color:#d97706;font-size:16px;' : '') + '">' + formatCurrency(order.totalIncome) + (isEgg ? '<br><span style="font-size:10px;color:#f59e0b;font-weight:700;">×' + (order.eggBonus || 1) + ' 超额奖励</span>' : '') + '</span></div>' +
       '<div class="order-details"><div class="order-detail-item"><div class="order-detail-label">租用车型</div><div class="order-detail-value">' + order.vehicleName + '</div></div><div class="order-detail-item"><div class="order-detail-label">租期</div><div class="order-detail-value">' + order.rentalDays + ' 天</div></div><div class="order-detail-item"><div class="order-detail-label">净利润</div><div class="order-detail-value ' + netClass + '">' + formatCurrency(order.netIncome) + '</div></div></div>' +
-      '<div class="order-actions"><button class="action-btn btn-accept" onclick="acceptOrder(\'' + order.id + '\')">✓ 接单</button><button class="action-btn btn-reject" onclick="rejectOrder(\'' + order.id + '\')">✕ 拒绝</button></div>';
+      eggDescHtml +
+      '<div class="order-actions"><button class="action-btn btn-accept" onclick="acceptOrder(\'' + order.id + '\')" style="' + (isEgg ? 'background:linear-gradient(135deg,#f59e0b,#fbbf24);' : '') + '">✓ 接单</button><button class="action-btn btn-reject" onclick="rejectOrder(\'' + order.id + '\')">✕ 拒绝</button></div>';
     fragment.appendChild(card);
   });
   wrapper.appendChild(fragment);
